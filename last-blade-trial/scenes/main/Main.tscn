@@ -10,11 +10,17 @@ size = Vector2(32, 32)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_u4lie"]
 size = Vector2(80, 50)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_32k8f"]
+size = Vector2(70, 70)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ifqgg"]
 size = Vector2(64, 64)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g58pq"]
 size = Vector2(70, 70)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5q3e4"]
+size = Vector2(75, 50)
 
 [node name="Main" type="Node2D" unique_id=2023704259]
 
@@ -36,6 +42,11 @@ position = Vector2(55, 0)
 shape = SubResource("RectangleShape2D_u4lie")
 disabled = true
 
+[node name="Hurtbox" type="Area2D" parent="Player" unique_id=479939176]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=749896351]
+shape = SubResource("RectangleShape2D_32k8f")
+
 [node name="EnemyDummy" type="CharacterBody2D" parent="." unique_id=842392976]
 position = Vector2(750, 324)
 script = ExtResource("3_q24mn")
@@ -52,3 +63,10 @@ shape = SubResource("RectangleShape2D_ifqgg")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/Hurtbox" unique_id=1759081521]
 shape = SubResource("RectangleShape2D_g58pq")
+
+[node name="AttackHitbox" type="Area2D" parent="EnemyDummy" unique_id=1157834237]
+position = Vector2(-55, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/AttackHitbox" unique_id=1718272491]
+shape = SubResource("RectangleShape2D_5q3e4")
+disabled = true
