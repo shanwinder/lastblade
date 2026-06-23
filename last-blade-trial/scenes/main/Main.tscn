@@ -2,12 +2,19 @@
 
 [ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="1_nha0i"]
 [ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="1_u1xfj"]
+[ext_resource type="Script" uid="uid://d4f0ahgftgx16" path="res://EnemyDummy.gd" id="3_q24mn"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_u4lie"]
 size = Vector2(80, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ifqgg"]
+size = Vector2(64, 64)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g58pq"]
+size = Vector2(70, 70)
 
 [node name="Main" type="Node2D" unique_id=2023704259]
 
@@ -28,3 +35,20 @@ position = Vector2(55, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/AttackHitbox" unique_id=1980833262]
 shape = SubResource("RectangleShape2D_u4lie")
 disabled = true
+
+[node name="EnemyDummy" type="CharacterBody2D" parent="." unique_id=842392976]
+position = Vector2(750, 324)
+script = ExtResource("3_q24mn")
+
+[node name="Sprite2D" type="Sprite2D" parent="EnemyDummy" unique_id=1279923162]
+modulate = Color(0.808973, 0, 0.118325256, 1)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("1_u1xfj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy" unique_id=1334114629]
+shape = SubResource("RectangleShape2D_ifqgg")
+
+[node name="Hurtbox" type="Area2D" parent="EnemyDummy" unique_id=305134459]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/Hurtbox" unique_id=1759081521]
+shape = SubResource("RectangleShape2D_g58pq")

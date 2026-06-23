@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 @export var speed: float = 300.0
+@export var attack_damage: int = 10
 @export var attack_active_time: float = 0.18
 @export var attack_recovery_time: float = 0.12
 
@@ -16,6 +17,8 @@ var attack_hitbox_offset_x: float = 55.0
 func _ready() -> void:
 	attack_shape.disabled = true
 	attack_hitbox.position.x = attack_hitbox_offset_x * facing_direction
+
+	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
 
 func _physics_process(delta: float) -> void:
@@ -53,3 +56,14 @@ func attack() -> void:
 	await get_tree().create_timer(attack_recovery_time).timeout
 
 	is_attacking = false
+
+
+func _on_attack_hitbox_area_entered(area: Area2D) -> void:
+	if not is_attacking:
+		return
+
+	if area.name == "Hurtbox":
+		var enemy = area.get_parent()
+
+		if enemy.has_method("take_damage"):
+			enemy.take_damage(attack_damage)
