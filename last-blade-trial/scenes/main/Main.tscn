@@ -6,6 +6,9 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_u4lie"]
+size = Vector2(80, 50)
+
 [node name="Main" type="Node2D" unique_id=2023704259]
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
@@ -18,3 +21,10 @@ texture = ExtResource("1_u1xfj")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1510513533]
 shape = SubResource("RectangleShape2D_nha0i")
+
+[node name="AttackHitbox" type="Area2D" parent="Player" unique_id=935621437]
+position = Vector2(55, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/AttackHitbox" unique_id=1980833262]
+shape = SubResource("RectangleShape2D_u4lie")
+disabled = true
