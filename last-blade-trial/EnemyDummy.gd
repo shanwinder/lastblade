@@ -140,14 +140,29 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	if has_hit_player:
 		return
 
-	# ถ้า AttackHitbox ชน Hurtbox ของ player
-	if area.name == "Hurtbox":
-		var target = area.get_parent()
+	# ตรวจเฉพาะ Area ที่ชื่อ Hurtbox เท่านั้น
+	if area.name != "Hurtbox":
+		return
 
-		# ถ้าเป้าหมายมีฟังก์ชัน take_damage ให้สั่งลดเลือด
-		if target.has_method("take_damage"):
-			has_hit_player = true
-			target.take_damage(attack_damage)
+	# หา parent ของ Hurtbox ที่ถูกชน
+	# เช่น ถ้าชน player/Hurtbox target ก็คือ player
+	# ถ้าชน EnemyDummy/Hurtbox target ก็คือ EnemyDummy
+	var target = area.get_parent()
+
+	# สำคัญมาก:
+	# ถ้า target คือตัวศัตรูเอง ให้ข้ามทันที
+	# เพื่อป้องกัน EnemyDummy โจมตีโดน Hurtbox ของตัวเอง
+	if target == self:
+		print("Enemy attack ignored own Hurtbox")
+		return
+
+	# ถ้าเป้าหมายไม่มีฟังก์ชัน take_damage ก็ไม่ต้องทำอะไร
+	if not target.has_method("take_damage"):
+		return
+
+	# มาถึงตรงนี้แปลว่าโจมตีโดนเป้าหมายที่รับดาเมจได้จริง
+	has_hit_player = true
+	target.take_damage(attack_damage)
 
 
 func take_damage(amount: int) -> void:

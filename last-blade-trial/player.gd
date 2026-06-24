@@ -1,7 +1,20 @@
 extends CharacterBody2D
 
-# ความเร็วในการเดินของผู้เล่น
+# =========================
+# ค่าพื้นฐานของผู้เล่น
+# =========================
+
+# ความเร็วในการเดินปกติ
 @export var speed: float = 300.0
+
+# ความเร็วตอน Dash
+@export var dash_speed: float = 850.0
+
+# ระยะเวลาที่ Dash มีผล
+@export var dash_time: float = 0.18
+
+# เวลารอหลัง Dash ก่อนจะ Dash ได้อีกครั้ง
+@export var dash_cooldown: float = 0.45
 
 # ดาเมจที่ผู้เล่นทำได้เมื่อโจมตีโดนศัตรู
 @export var attack_damage: int = 10
@@ -15,20 +28,43 @@ extends CharacterBody2D
 # เวลาหน่วงหลังโจมตี ก่อนจะขยับหรือโจมตีใหม่ได้
 @export var attack_recovery_time: float = 0.12
 
-# อ้างอิง node Sprite2D เพื่อใช้กลับด้านตัวละคร
+
+# =========================
+# อ้างอิง Node ต่าง ๆ
+# =========================
+
+# Sprite2D ใช้แสดงภาพตัวละคร และใช้ flip ซ้าย/ขวา
 @onready var sprite_2d: Sprite2D = $Sprite2D
 
-# อ้างอิง AttackHitbox ของผู้เล่น
+# AttackHitbox คือพื้นที่โจมตีของผู้เล่น
 @onready var attack_hitbox: Area2D = $AttackHitbox
 
-# อ้างอิง CollisionShape2D ของ AttackHitbox เพื่อเปิด/ปิดพื้นที่โจมตี
+# CollisionShape2D ของ AttackHitbox ใช้เปิด/ปิดพื้นที่โจมตี
 @onready var attack_shape: CollisionShape2D = $AttackHitbox/CollisionShape2D
+
+# Hurtbox คือพื้นที่ที่ player รับดาเมจจากศัตรู
+@onready var hurtbox: Area2D = $Hurtbox
+
+# CollisionShape2D ของ Hurtbox ใช้เปิด/ปิดการรับดาเมจ
+# ตอน Dash เราจะปิดชั่วคราวเพื่อจำลอง i-frame
+@onready var hurtbox_shape: CollisionShape2D = $Hurtbox/CollisionShape2D
+
+
+# =========================
+# ตัวแปรสถานะ
+# =========================
 
 # เลือดปัจจุบันของผู้เล่น
 var current_hp: int
 
-# ใช้เช็กว่าตอนนี้ผู้เล่นกำลังโจมตีอยู่หรือไม่
+# ใช้เช็กว่าผู้เล่นกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
+
+# ใช้เช็กว่าผู้เล่นกำลัง Dash อยู่หรือไม่
+var is_dashing: bool = false
+
+# ใช้เช็กว่า Dash ยังติด cooldown อยู่หรือไม่
+var can_dash: bool = true
 
 # ทิศที่ผู้เล่นหันหน้าอยู่ 1 = ขวา, -1 = ซ้าย
 var facing_direction: int = 1
@@ -36,6 +72,9 @@ var facing_direction: int = 1
 # ระยะห่างของ Hitbox ดาบจากตัวผู้เล่น
 var attack_hitbox_offset_x: float = 55.0
 
+# ใช้เก็บรายชื่อศัตรูที่โดนโจมตีไปแล้วในการฟันครั้งนี้
+# ป้องกันไม่ให้ศัตรูตัวเดิมโดนดาเมจซ้ำหลายครั้งจากการฟันครั้งเดียว
+var hit_targets: Array = []
 
 func _ready() -> void:
 	# ตั้งเลือดเริ่มต้นให้เต็ม
@@ -43,6 +82,9 @@ func _ready() -> void:
 
 	# ปิด Hitbox ดาบไว้ก่อน เพราะยังไม่ได้โจมตี
 	attack_shape.disabled = true
+
+	# เปิด Hurtbox ไว้ตามปกติ เพื่อให้ player รับดาเมจได้
+	hurtbox_shape.disabled = false
 
 	# วาง Hitbox ดาบไว้ด้านหน้าตามทิศที่ผู้เล่นหัน
 	attack_hitbox.position.x = attack_hitbox_offset_x * facing_direction
@@ -54,6 +96,14 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# ถ้ากำลัง Dash อยู่ ให้เคลื่อนที่ด้วยความเร็ว Dash
+	# และไม่รับ input เดินปกติชั่วคราว
+	if is_dashing:
+		velocity.x = facing_direction * dash_speed
+		velocity.y = 0
+		move_and_slide()
+		return
+
 	# รับค่าการกดปุ่มซ้าย/ขวา จาก ui_left และ ui_right
 	var direction := Input.get_axis("ui_left", "ui_right")
 
@@ -77,14 +127,32 @@ func _physics_process(_delta: float) -> void:
 		# ย้าย Hitbox ดาบไปด้านหน้าของตัวละคร
 		attack_hitbox.position.x = attack_hitbox_offset_x * facing_direction
 
-	# ถ้ากดปุ่ม attack และไม่ได้กำลังโจมตีอยู่ ให้เรียกฟังก์ชัน attack()
-	if Input.is_action_just_pressed("attack") and not is_attacking:
+	# ถ้ากดปุ่ม attack และไม่ได้กำลังโจมตี/แดชอยู่ ให้โจมตี
+	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing:
 		attack()
+		
+	# ถ้ากดปุ่มโจมตี และตอนนี้ไม่ได้โจมตีหรือ Dash อยู่
+	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing:
+		print("DEBUG: attack input pressed")
+		attack()
+
+	# ถ้ากดปุ่ม Dash และ Dash ได้
+	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing:
+		print("DEBUG: dash input pressed")
+		dash()
+
+	# ถ้ากดปุ่ม dash และ Dash ได้ ให้เริ่ม Dash
+	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing:
+		dash()
 
 
 func attack() -> void:
 	# เริ่มสถานะโจมตี
 	is_attacking = true
+
+	# ล้างรายชื่อศัตรูที่เคยโดนจากการฟันครั้งก่อน
+	hit_targets.clear()
+
 	print("Player Attack! Hitbox ON")
 
 	# เปิด CollisionShape ของดาบ เพื่อให้ตรวจจับการชนได้
@@ -104,21 +172,82 @@ func attack() -> void:
 	is_attacking = false
 
 
+func dash() -> void:
+	# เริ่ม Dash
+	is_dashing = true
+
+	# ปิดการ Dash ซ้ำจนกว่า cooldown จะหมด
+	can_dash = false
+
+	# ปิด Hurtbox ชั่วคราว
+	# นี่คือการทำ i-frame แบบง่าย ๆ ทำให้ศัตรูตีไม่โดนตอน Dash
+	hurtbox_shape.disabled = true
+
+	print("Player Dash! Invincible ON")
+
+	# รอระยะเวลาที่ Dash มีผล
+	await get_tree().create_timer(dash_time).timeout
+
+	# จบ Dash
+	is_dashing = false
+
+	# เปิด Hurtbox กลับมา เพื่อให้รับดาเมจได้ตามปกติ
+	hurtbox_shape.disabled = false
+
+	print("Dash End. Invincible OFF")
+
+	# รอ cooldown ก่อน Dash ครั้งต่อไป
+	await get_tree().create_timer(dash_cooldown).timeout
+
+	can_dash = true
+	print("Dash Ready")
+
+
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# ถ้าไม่ได้อยู่ในจังหวะโจมตี ก็ไม่ทำดาเมจ
 	if not is_attacking:
 		return
 
-	# ถ้า Hitbox ไปชน Area ที่ชื่อ Hurtbox แปลว่าโดนศัตรู
-	if area.name == "Hurtbox":
-		var enemy = area.get_parent()
+	# ถ้ากำลัง Dash อยู่ ห้ามทำดาเมจ
+	# ป้องกันกรณี Hitbox ชนผิดจังหวะระหว่าง Dash
+	if is_dashing:
+		return
 
-		# เช็กว่า node นั้นมีฟังก์ชัน take_damage หรือไม่
-		if enemy.has_method("take_damage"):
-			enemy.take_damage(attack_damage)
+	# ตรวจเฉพาะ Area ที่ชื่อ Hurtbox เท่านั้น
+	if area.name != "Hurtbox":
+		return
+
+	# หา parent ของ Hurtbox ที่ถูกชน
+	var target = area.get_parent()
+
+	# ถ้า target คือตัว player เอง ให้ข้าม
+	# ป้องกันผู้เล่นโจมตีโดน Hurtbox ของตัวเอง
+	if target == self:
+		print("Player attack ignored own Hurtbox")
+		return
+
+	# ถ้า target เคยโดนแล้วในการฟันครั้งนี้ ไม่ให้โดนซ้ำ
+	if target in hit_targets:
+		return
+
+	# ถ้า target ไม่มีฟังก์ชัน take_damage ก็ไม่ต้องทำอะไร
+	if not target.has_method("take_damage"):
+		return
+
+	# บันทึกว่า target ตัวนี้โดนไปแล้ว
+	hit_targets.append(target)
+
+	# สั่งให้ target รับดาเมจ
+	target.take_damage(attack_damage)
 
 
 func take_damage(amount: int) -> void:
+	# ถ้ากำลัง Dash อยู่ ไม่รับดาเมจ
+	# เผื่อกรณี Hitbox ศัตรูชนพอดีในจังหวะที่ Hurtbox ยังไม่ถูกปิดทัน
+	if is_dashing:
+		print("Damage avoided by dash!")
+		return
+
 	# ลดเลือดผู้เล่นตามจำนวนดาเมจที่ได้รับ
 	current_hp -= amount
 	print("Player took damage:", amount, "HP left:", current_hp)
