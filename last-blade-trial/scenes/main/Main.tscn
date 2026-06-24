@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="1_nha0i"]
 [ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="1_u1xfj"]
 [ext_resource type="Script" uid="uid://d4f0ahgftgx16" path="res://EnemyDummy.gd" id="3_q24mn"]
+[ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="4_gyg6b"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -70,3 +71,33 @@ position = Vector2(-55, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/AttackHitbox" unique_id=1718272491]
 shape = SubResource("RectangleShape2D_5q3e4")
 disabled = true
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1436178556]
+script = ExtResource("4_gyg6b")
+
+[node name="Control" type="Control" parent="HUD" unique_id=1109049797]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Control" unique_id=2131567454]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 240.0
+offset_bottom = 132.0
+
+[node name="HPLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=988905118]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=33474983]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
+[node name="StaminaLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=201452736]
+layout_mode = 2
+
+[node name="StaminaBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1768925273]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2

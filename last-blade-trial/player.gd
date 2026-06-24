@@ -1,5 +1,8 @@
 extends CharacterBody2D
 
+# ส่งสัญญาณไปให้ HUD ทุกครั้งที่ HP หรือ Stamina เปลี่ยน
+signal stats_changed(current_hp: int, max_hp: int, current_stamina: float, max_stamina: float)
+
 # =========================
 # ค่าพื้นฐานของผู้เล่น
 # =========================
@@ -26,7 +29,7 @@ extends CharacterBody2D
 @export var max_stamina: float = 100.0
 
 # ความเร็วในการฟื้น Stamina ต่อวินาที
-@export var stamina_regen_rate: float = 0
+@export var stamina_regen_rate: float = 10.0
 
 # Stamina ที่ใช้เมื่อโจมตีหนึ่งครั้ง
 @export var attack_stamina_cost: float = 18.0
@@ -112,7 +115,9 @@ func _ready() -> void:
 	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
 	print("Player ready. HP =", current_hp, "Stamina =", current_stamina)
-
+	
+	# ส่งค่าเริ่มต้นไปให้ HUD แสดงผล
+	emit_stats()
 
 func _physics_process(_delta: float) -> void:
 	# ฟื้น Stamina ทุกเฟรม
@@ -157,8 +162,14 @@ func _physics_process(_delta: float) -> void:
 	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing:
 		dash()
 
+func emit_stats() -> void:
+	# ส่งค่า HP และ Stamina ปัจจุบันออกไปให้ HUD
+	stats_changed.emit(current_hp, max_hp, current_stamina, max_stamina)
 
 func regenerate_stamina(delta: float) -> void:
+	# เก็บค่าเดิมไว้ก่อน เพื่อเช็กว่าค่าเปลี่ยนหรือไม่
+	var old_stamina := current_stamina
+
 	# ถ้า Stamina ยังไม่เต็ม ให้ค่อย ๆ ฟื้นตามเวลา
 	if current_stamina < max_stamina:
 		current_stamina += stamina_regen_rate * delta
@@ -166,6 +177,10 @@ func regenerate_stamina(delta: float) -> void:
 		# clamp คือบังคับไม่ให้ค่าเกิน max_stamina
 		current_stamina = clamp(current_stamina, 0.0, max_stamina)
 
+	# ถ้าค่า Stamina เปลี่ยนในระดับจำนวนเต็ม ให้ส่งค่าไปอัปเดต HUD
+	# ใช้ int() เพื่อไม่ให้ HUD อัปเดตถี่เกินไปทุกเศษทศนิยม
+	if int(old_stamina) != int(current_stamina):
+		emit_stats()
 
 func attack() -> void:
 	# ถ้า Stamina ไม่พอ ห้ามโจมตี
@@ -177,6 +192,9 @@ func attack() -> void:
 	current_stamina -= attack_stamina_cost
 	print("Attack stamina used. Stamina left =", int(current_stamina))
 
+	# แจ้ง HUD ว่า Stamina เปลี่ยนแล้ว
+	emit_stats()
+	
 	# เริ่มสถานะโจมตี
 	is_attacking = true
 
@@ -212,6 +230,9 @@ func dash() -> void:
 	current_stamina -= dash_stamina_cost
 	print("Dash stamina used. Stamina left =", int(current_stamina))
 
+	# แจ้ง HUD ว่า Stamina เปลี่ยนแล้ว
+	emit_stats()
+	
 	# เริ่ม Dash
 	is_dashing = true
 
@@ -291,6 +312,9 @@ func take_damage(amount: int) -> void:
 	current_hp -= amount
 	print("Player took damage:", amount, "HP left:", current_hp)
 
+	# แจ้ง HUD ว่า HP เปลี่ยนแล้ว
+	emit_stats()
+	
 	# ทำเอฟเฟกต์กระพริบแดงแบบง่าย ๆ
 	flash_red()
 
