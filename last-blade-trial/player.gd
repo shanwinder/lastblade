@@ -22,6 +22,18 @@ extends CharacterBody2D
 # เลือดสูงสุดของผู้เล่น
 @export var max_hp: int = 100
 
+# Stamina สูงสุดของผู้เล่น
+@export var max_stamina: float = 100.0
+
+# ความเร็วในการฟื้น Stamina ต่อวินาที
+@export var stamina_regen_rate: float = 0
+
+# Stamina ที่ใช้เมื่อโจมตีหนึ่งครั้ง
+@export var attack_stamina_cost: float = 18.0
+
+# Stamina ที่ใช้เมื่อ Dash หนึ่งครั้ง
+@export var dash_stamina_cost: float = 30.0
+
 # ระยะเวลาที่ Hitbox ของดาบเปิดตอนโจมตี
 @export var attack_active_time: float = 0.18
 
@@ -57,6 +69,9 @@ extends CharacterBody2D
 # เลือดปัจจุบันของผู้เล่น
 var current_hp: int
 
+# Stamina ปัจจุบันของผู้เล่น
+var current_stamina: float
+
 # ใช้เช็กว่าผู้เล่นกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
 
@@ -72,13 +87,17 @@ var facing_direction: int = 1
 # ระยะห่างของ Hitbox ดาบจากตัวผู้เล่น
 var attack_hitbox_offset_x: float = 55.0
 
-# ใช้เก็บรายชื่อศัตรูที่โดนโจมตีไปแล้วในการฟันครั้งนี้
-# ป้องกันไม่ให้ศัตรูตัวเดิมโดนดาเมจซ้ำหลายครั้งจากการฟันครั้งเดียว
+# ใช้เก็บรายชื่อเป้าหมายที่โดนโจมตีไปแล้วในการฟันครั้งนี้
+# ป้องกันไม่ให้เป้าหมายตัวเดิมโดนดาเมจซ้ำจากการโจมตีครั้งเดียว
 var hit_targets: Array = []
+
 
 func _ready() -> void:
 	# ตั้งเลือดเริ่มต้นให้เต็ม
 	current_hp = max_hp
+
+	# ตั้ง Stamina เริ่มต้นให้เต็ม
+	current_stamina = max_stamina
 
 	# ปิด Hitbox ดาบไว้ก่อน เพราะยังไม่ได้โจมตี
 	attack_shape.disabled = true
@@ -92,10 +111,13 @@ func _ready() -> void:
 	# เชื่อมสัญญาณ เมื่อ AttackHitbox ไปชน Area2D อื่น
 	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
-	print("Player ready. HP =", current_hp)
+	print("Player ready. HP =", current_hp, "Stamina =", current_stamina)
 
 
 func _physics_process(_delta: float) -> void:
+	# ฟื้น Stamina ทุกเฟรม
+	regenerate_stamina(_delta)
+
 	# ถ้ากำลัง Dash อยู่ ให้เคลื่อนที่ด้วยความเร็ว Dash
 	# และไม่รับ input เดินปกติชั่วคราว
 	if is_dashing:
@@ -130,27 +152,35 @@ func _physics_process(_delta: float) -> void:
 	# ถ้ากดปุ่ม attack และไม่ได้กำลังโจมตี/แดชอยู่ ให้โจมตี
 	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing:
 		attack()
-		
-	# ถ้ากดปุ่มโจมตี และตอนนี้ไม่ได้โจมตีหรือ Dash อยู่
-	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing:
-		print("DEBUG: attack input pressed")
-		attack()
-
-	# ถ้ากดปุ่ม Dash และ Dash ได้
-	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing:
-		print("DEBUG: dash input pressed")
-		dash()
 
 	# ถ้ากดปุ่ม dash และ Dash ได้ ให้เริ่ม Dash
 	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing:
 		dash()
 
 
+func regenerate_stamina(delta: float) -> void:
+	# ถ้า Stamina ยังไม่เต็ม ให้ค่อย ๆ ฟื้นตามเวลา
+	if current_stamina < max_stamina:
+		current_stamina += stamina_regen_rate * delta
+
+		# clamp คือบังคับไม่ให้ค่าเกิน max_stamina
+		current_stamina = clamp(current_stamina, 0.0, max_stamina)
+
+
 func attack() -> void:
+	# ถ้า Stamina ไม่พอ ห้ามโจมตี
+	if current_stamina < attack_stamina_cost:
+		print("Not enough stamina to attack. Stamina =", int(current_stamina))
+		return
+
+	# ใช้ Stamina สำหรับการโจมตี
+	current_stamina -= attack_stamina_cost
+	print("Attack stamina used. Stamina left =", int(current_stamina))
+
 	# เริ่มสถานะโจมตี
 	is_attacking = true
 
-	# ล้างรายชื่อศัตรูที่เคยโดนจากการฟันครั้งก่อน
+	# ล้างรายชื่อเป้าหมายที่เคยโดนจากการฟันครั้งก่อน
 	hit_targets.clear()
 
 	print("Player Attack! Hitbox ON")
@@ -173,6 +203,15 @@ func attack() -> void:
 
 
 func dash() -> void:
+	# ถ้า Stamina ไม่พอ ห้าม Dash
+	if current_stamina < dash_stamina_cost:
+		print("Not enough stamina to dash. Stamina =", int(current_stamina))
+		return
+
+	# ใช้ Stamina สำหรับ Dash
+	current_stamina -= dash_stamina_cost
+	print("Dash stamina used. Stamina left =", int(current_stamina))
+
 	# เริ่ม Dash
 	is_dashing = true
 
