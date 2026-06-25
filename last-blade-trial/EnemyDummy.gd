@@ -658,38 +658,41 @@ func apply_hit_stop(is_critical_hit: bool) -> void:
 	Engine.time_scale = 1.0
 
 func apply_knockback() -> void:
-	# ถ้าศัตรูตายแล้ว ไม่ต้อง Knockback
+	# ถ้า Player ตายแล้ว ไม่ต้อง Knockback
 	if is_dead:
 		return
 
-	# ถ้าศัตรูกำลัง Posture Break อยู่ ไม่ต้องผลักแรงมาก
-	# เพราะช่วง Break ต้องการให้ศัตรูหยุดนิ่งเพื่อเปิดช่อง Critical
-	if is_posture_broken:
-		return
+	# หา EnemyDummy จาก Main
+	# ระบุ type เป็น Node2D เพื่อให้ Godot รู้ว่า enemy มี global_position
+	var enemy: Node2D = get_parent().get_node_or_null("EnemyDummy") as Node2D
 
-	# ถ้าไม่มี Player แล้ว ไม่ต้องคำนวณทิศ
-	if not is_instance_valid(player):
+	# ถ้าไม่มีศัตรูแล้ว ไม่ต้องทำ Knockback
+	if enemy == null:
 		return
 
 	# คำนวณทิศกระเด็น
-	# ถ้าศัตรูอยู่ขวาของ Player ให้กระเด็นไปทางขวา
-	# ถ้าศัตรูอยู่ซ้ายของ Player ให้กระเด็นไปทางซ้าย
-	var direction := sign(global_position.x - player.global_position.x)
+	# ถ้า Player อยู่ซ้ายของศัตรู ให้กระเด็นไปทางซ้าย
+	# ถ้า Player อยู่ขวาของศัตรู ให้กระเด็นไปทางขวา
+	var direction: float = sign(global_position.x - enemy.global_position.x)
 
-	# ถ้าทับตำแหน่งกันพอดี ให้ใช้ทิศที่ศัตรูหันอยู่แทน
-	if direction == 0:
-		direction = facing_direction
+	# ถ้าทับตำแหน่งกันพอดี ให้ถอยไปทิศตรงข้ามกับที่ Player หัน
+	if direction == 0.0:
+		direction = float(-facing_direction)
 
-	# ตั้งค่าแรง Knockback
-	knockback_velocity = Vector2(direction * knockback_force, 0)
+	# ตั้งแรง Knockback
+	knockback_velocity = Vector2(direction * player_knockback_force, 0.0)
 
 	# เริ่มสถานะ Knockback
 	is_knocked_back = true
 
-	# รอระยะเวลา Knockback
-	await get_tree().create_timer(knockback_time).timeout
+	# ปิด action ระหว่างกระเด็น
+	is_attacking = false
+	is_parrying = false
 
-	# ถ้าศัตรูยังอยู่ ให้จบ Knockback
+	# รอระยะเวลา Knockback
+	await get_tree().create_timer(player_knockback_time).timeout
+
+	# ถ้า Player ยังอยู่ ให้จบ Knockback
 	if is_instance_valid(self):
 		is_knocked_back = false
 		knockback_velocity = Vector2.ZERO

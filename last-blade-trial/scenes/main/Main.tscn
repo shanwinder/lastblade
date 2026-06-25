@@ -29,25 +29,6 @@ size = Vector2(75, 50)
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
 position = Vector2(576, 324)
 script = ExtResource("1_nha0i")
-speed = null
-dash_speed = null
-dash_time = null
-dash_cooldown = null
-attack_damage = null
-max_hp = null
-max_stamina = null
-stamina_regen_rate = null
-attack_stamina_cost = null
-dash_stamina_cost = null
-parry_stamina_cost = null
-parry_active_time = null
-parry_recovery_time = null
-attack_active_time = null
-attack_recovery_time = null
-player_hit_camera_shake_strength = null
-player_hit_camera_shake_duration = null
-player_knockback_force = null
-player_knockback_time = null
 
 [node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=322533980]
 scale = Vector2(0.25, 0.25)

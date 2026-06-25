@@ -452,7 +452,8 @@ func apply_knockback() -> void:
 		return
 
 	# หา EnemyDummy จาก Main
-	var enemy = get_parent().get_node_or_null("EnemyDummy")
+	# ระบุ type เป็น Node2D เพื่อให้ Godot รู้ว่า enemy มี global_position
+	var enemy: Node2D = get_parent().get_node_or_null("EnemyDummy") as Node2D
 
 	# ถ้าไม่มีศัตรูแล้ว ไม่ต้องทำ Knockback
 	if enemy == null:
@@ -461,14 +462,14 @@ func apply_knockback() -> void:
 	# คำนวณทิศกระเด็น
 	# ถ้า Player อยู่ซ้ายของศัตรู ให้กระเด็นไปทางซ้าย
 	# ถ้า Player อยู่ขวาของศัตรู ให้กระเด็นไปทางขวา
-	var direction := sign(global_position.x - enemy.global_position.x)
+	var direction: float = sign(global_position.x - enemy.global_position.x)
 
 	# ถ้าทับตำแหน่งกันพอดี ให้ถอยไปทิศตรงข้ามกับที่ Player หัน
-	if direction == 0:
-		direction = -facing_direction
+	if direction == 0.0:
+		direction = float(-facing_direction)
 
 	# ตั้งแรง Knockback
-	knockback_velocity = Vector2(direction * player_knockback_force, 0)
+	knockback_velocity = Vector2(direction * player_knockback_force, 0.0)
 
 	# เริ่มสถานะ Knockback
 	is_knocked_back = true
