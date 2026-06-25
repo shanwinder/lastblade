@@ -29,6 +29,25 @@ size = Vector2(75, 50)
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
 position = Vector2(576, 324)
 script = ExtResource("1_nha0i")
+speed = null
+dash_speed = null
+dash_time = null
+dash_cooldown = null
+attack_damage = null
+max_hp = null
+max_stamina = null
+stamina_regen_rate = null
+attack_stamina_cost = null
+dash_stamina_cost = null
+parry_stamina_cost = null
+parry_active_time = null
+parry_recovery_time = null
+attack_active_time = null
+attack_recovery_time = null
+player_hit_camera_shake_strength = null
+player_hit_camera_shake_duration = null
+player_knockback_force = null
+player_knockback_time = null
 
 [node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=322533980]
 scale = Vector2(0.25, 0.25)
@@ -52,6 +71,28 @@ shape = SubResource("RectangleShape2D_32k8f")
 [node name="EnemyDummy" type="CharacterBody2D" parent="." unique_id=842392976]
 position = Vector2(750, 324)
 script = ExtResource("3_q24mn")
+max_hp = null
+move_speed = null
+stop_distance = null
+attack_damage = null
+attack_windup_time = null
+attack_active_time = null
+attack_cooldown = null
+stagger_time = null
+stagger_recover_time = null
+max_posture = null
+posture_damage_from_parry = null
+posture_break_time = null
+critical_damage_multiplier = null
+normal_hit_stop_time = null
+critical_hit_stop_time = null
+hit_stop_time_scale = null
+knockback_force = null
+knockback_time = null
+normal_hit_camera_shake_strength = null
+normal_hit_camera_shake_duration = null
+critical_hit_camera_shake_strength = null
+critical_hit_camera_shake_duration = null
 
 [node name="Sprite2D" type="Sprite2D" parent="EnemyDummy" unique_id=1279923162]
 modulate = Color(0.808973, 0, 0.118325256, 1)

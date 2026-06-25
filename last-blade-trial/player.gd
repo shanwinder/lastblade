@@ -64,6 +64,12 @@ signal player_died
 # ระยะเวลากล้องสั่นเมื่อ Player โดนโจมตี
 @export var player_hit_camera_shake_duration: float = 0.15
 
+# ความแรงที่ Player จะกระเด็นเมื่อโดนศัตรูโจมตี
+@export var player_knockback_force: float = 260.0
+
+# ระยะเวลาที่ Player จะถูก Knockback
+@export var player_knockback_time: float = 0.14
+
 # =========================
 # อ้างอิง Node ต่าง ๆ
 # =========================
@@ -111,6 +117,12 @@ var is_parrying: bool = false
 # ป้องกันไม่ให้ die() ทำงานซ้ำหลายรอบ
 var is_dead: bool = false
 
+# ใช้เช็กว่า Player กำลังถูก Knockback อยู่หรือไม่
+var is_knocked_back: bool = false
+
+# ความเร็ว Knockback ปัจจุบันของ Player
+var knockback_velocity: Vector2 = Vector2.ZERO
+
 # ทิศที่ผู้เล่นหันหน้าอยู่ 1 = ขวา, -1 = ซ้าย
 var facing_direction: int = 1
 
@@ -150,6 +162,18 @@ func _physics_process(_delta: float) -> void:
 	# ฟื้น Stamina ทุกเฟรม
 	regenerate_stamina(_delta)
 
+	# ถ้า Player ตายแล้ว ไม่ต้องควบคุมต่อ
+	if is_dead:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
+	# ถ้า Player กำลังถูก Knockback ให้ขยับตามแรงกระเด็น
+	if is_knocked_back:
+		velocity = knockback_velocity
+		move_and_slide()
+		return
+		
 	# ถ้ากำลัง Dash อยู่ ให้เคลื่อนที่ด้วยความเร็ว Dash
 	# และไม่รับ input เดินปกติชั่วคราว
 	if is_dashing:
@@ -403,6 +427,9 @@ func take_damage(amount: int) -> void:
 
 	# แจ้ง HUD ว่า HP เปลี่ยนแล้ว
 	emit_stats()
+	
+	# ทำ Knockback ให้ Player กระเด็นเมื่อโดนโจมตี
+	apply_knockback()
 		
 	# ทำ Camera Shake เมื่อ Player โดนโจมตี
 	get_tree().call_group(
@@ -419,7 +446,45 @@ func take_damage(amount: int) -> void:
 	if current_hp <= 0:
 		die()
 
+func apply_knockback() -> void:
+	# ถ้า Player ตายแล้ว ไม่ต้อง Knockback
+	if is_dead:
+		return
 
+	# หา EnemyDummy จาก Main
+	var enemy = get_parent().get_node_or_null("EnemyDummy")
+
+	# ถ้าไม่มีศัตรูแล้ว ไม่ต้องทำ Knockback
+	if enemy == null:
+		return
+
+	# คำนวณทิศกระเด็น
+	# ถ้า Player อยู่ซ้ายของศัตรู ให้กระเด็นไปทางซ้าย
+	# ถ้า Player อยู่ขวาของศัตรู ให้กระเด็นไปทางขวา
+	var direction := sign(global_position.x - enemy.global_position.x)
+
+	# ถ้าทับตำแหน่งกันพอดี ให้ถอยไปทิศตรงข้ามกับที่ Player หัน
+	if direction == 0:
+		direction = -facing_direction
+
+	# ตั้งแรง Knockback
+	knockback_velocity = Vector2(direction * player_knockback_force, 0)
+
+	# เริ่มสถานะ Knockback
+	is_knocked_back = true
+
+	# ปิด action ระหว่างกระเด็น
+	is_attacking = false
+	is_parrying = false
+
+	# รอระยะเวลา Knockback
+	await get_tree().create_timer(player_knockback_time).timeout
+
+	# ถ้า Player ยังอยู่ ให้จบ Knockback
+	if is_instance_valid(self):
+		is_knocked_back = false
+		knockback_velocity = Vector2.ZERO
+		
 func flash_red() -> void:
 	# เปลี่ยนสีตัวละครเป็นสีแดงชั่วคราว
 	sprite_2d.modulate = Color.RED

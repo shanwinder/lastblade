@@ -64,6 +64,12 @@ signal enemy_died
 # 0.08 แปลว่าเกมช้าลงมาก แต่ไม่หยุดสนิท
 @export var hit_stop_time_scale: float = 0.08
 
+# ความแรงที่ศัตรูจะกระเด็นเมื่อโดนผู้เล่นโจมตี
+@export var knockback_force: float = 220.0
+
+# ระยะเวลาที่ศัตรูจะถูก Knockback
+@export var knockback_time: float = 0.12
+
 # ความแรงกล้องสั่นเมื่อโจมตีปกติโดนศัตรู
 @export var normal_hit_camera_shake_strength: float = 4.0
 
@@ -91,7 +97,6 @@ var player: CharacterBody2D
 
 # อ้างอิง CollisionShape2D ของ AttackHitbox เพื่อเปิด/ปิดพื้นที่โจมตี
 @onready var attack_shape: CollisionShape2D = $AttackHitbox/CollisionShape2D
-
 
 # =========================
 # ตัวแปรสถานะ
@@ -123,6 +128,12 @@ var is_winding_up: bool = false
 
 # ใช้เช็กว่าศัตรูกำลังชะงักจาก Parry อยู่หรือไม่
 var is_staggered: bool = false
+
+# ใช้เช็กว่าศัตรูกำลังถูก Knockback อยู่หรือไม่
+var is_knocked_back: bool = false
+
+# ความเร็ว Knockback ปัจจุบันของศัตรู
+var knockback_velocity: Vector2 = Vector2.ZERO
 
 # ใช้ล็อกไม่ให้ศัตรูเริ่มโจมตีรอบใหม่เร็วเกินไป
 var can_attack: bool = true
@@ -167,7 +178,7 @@ func _ready() -> void:
 	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
 	print("Enemy ready. HP =", current_hp)
-	
+
 	# ส่งค่าเริ่มต้นให้ HUD แสดง Enemy Posture
 	emit_enemy_stats()
 
@@ -177,6 +188,12 @@ func _physics_process(_delta: float) -> void:
 	if is_dead:
 		velocity.x = 0
 		velocity.y = 0
+		move_and_slide()
+		return
+
+	# ถ้าศัตรูกำลังถูก Knockback ให้ขยับตามแรงกระเด็น
+	if is_knocked_back:
+		velocity = knockback_velocity
 		move_and_slide()
 		return
 		
@@ -223,9 +240,11 @@ func _physics_process(_delta: float) -> void:
 	velocity.y = 0
 	move_and_slide()
 
+
 func emit_enemy_stats() -> void:
 	# ส่งค่า HP และ Posture ของศัตรูไปให้ HUD
 	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
+
 
 func attack() -> void:
 	# ถ้ากำลังเตรียมโจมตี / กำลังโจมตี / กำลังชะงัก / ยังไม่พร้อมโจมตี ห้ามเริ่มโจมตีใหม่
@@ -305,6 +324,7 @@ func attack() -> void:
 
 	# อนุญาตให้โจมตีรอบใหม่
 	can_attack = true
+
 
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# เมื่อ hitbox ชน area อื่น ให้ส่งไปตรวจในฟังก์ชันกลาง
@@ -410,6 +430,7 @@ func stagger() -> void:
 	# อนุญาตให้โจมตีใหม่
 	can_attack = true
 
+
 func reduce_posture(amount: float) -> void:
 	# ถ้าศัตรูกำลัง Posture Break อยู่แล้ว ไม่ต้องลดซ้ำ
 	if is_posture_broken:
@@ -428,6 +449,7 @@ func reduce_posture(amount: float) -> void:
 	if current_posture <= 0:
 		posture_break()
 
+
 func posture_break() -> void:
 	# ถ้า Break อยู่แล้ว ไม่ต้องเริ่มซ้ำ
 	if is_posture_broken:
@@ -437,7 +459,7 @@ func posture_break() -> void:
 
 	# ตั้งสถานะ Break
 	is_posture_broken = true
-	
+
 	# เปิดช่องให้ Player โจมตี Critical ได้ 1 ครั้ง
 	can_receive_critical = true
 	print("Critical chance opened!")
@@ -480,6 +502,7 @@ func posture_break() -> void:
 	await get_tree().create_timer(stagger_recover_time).timeout
 
 	can_attack = true
+
 
 func take_damage(amount: int) -> void:
 	# ถ้าศัตรูตายแล้ว ไม่รับดาเมจซ้ำ
@@ -526,6 +549,9 @@ func take_damage(amount: int) -> void:
 
 	# ทำ Camera Shake เพื่อเพิ่มแรงกระแทกทางภาพ
 	apply_camera_shake(is_critical_hit)
+	
+	# ทำ Knockback ให้ศัตรูถอยหลังเมื่อโดนตี
+	apply_knockback()
 
 	# ถ้า HP หมด ให้ตายทันที
 	# วางไว้ก่อน flash เพื่อไม่ให้ศัตรูกระพริบแล้วกลับมาขาวหลังตาย
@@ -539,6 +565,7 @@ func take_damage(amount: int) -> void:
 		flash_critical()
 	else:
 		flash_red()
+
 
 func flash_red() -> void:
 	# เปลี่ยนสีศัตรูเป็นแดงชั่วคราวเมื่อโดนตีปกติ
@@ -554,6 +581,7 @@ func flash_red() -> void:
 			sprite_2d.modulate = Color.PURPLE
 		else:
 			sprite_2d.modulate = Color.WHITE
+
 
 func show_damage_popup(amount: int, is_critical_hit: bool) -> void:
 	# สร้าง Label ใหม่ขึ้นมาเพื่อใช้แสดงตัวเลขดาเมจ
@@ -629,6 +657,43 @@ func apply_hit_stop(is_critical_hit: bool) -> void:
 	# คืนความเร็วเกมกลับเป็นปกติ
 	Engine.time_scale = 1.0
 
+func apply_knockback() -> void:
+	# ถ้าศัตรูตายแล้ว ไม่ต้อง Knockback
+	if is_dead:
+		return
+
+	# ถ้าศัตรูกำลัง Posture Break อยู่ ไม่ต้องผลักแรงมาก
+	# เพราะช่วง Break ต้องการให้ศัตรูหยุดนิ่งเพื่อเปิดช่อง Critical
+	if is_posture_broken:
+		return
+
+	# ถ้าไม่มี Player แล้ว ไม่ต้องคำนวณทิศ
+	if not is_instance_valid(player):
+		return
+
+	# คำนวณทิศกระเด็น
+	# ถ้าศัตรูอยู่ขวาของ Player ให้กระเด็นไปทางขวา
+	# ถ้าศัตรูอยู่ซ้ายของ Player ให้กระเด็นไปทางซ้าย
+	var direction := sign(global_position.x - player.global_position.x)
+
+	# ถ้าทับตำแหน่งกันพอดี ให้ใช้ทิศที่ศัตรูหันอยู่แทน
+	if direction == 0:
+		direction = facing_direction
+
+	# ตั้งค่าแรง Knockback
+	knockback_velocity = Vector2(direction * knockback_force, 0)
+
+	# เริ่มสถานะ Knockback
+	is_knocked_back = true
+
+	# รอระยะเวลา Knockback
+	await get_tree().create_timer(knockback_time).timeout
+
+	# ถ้าศัตรูยังอยู่ ให้จบ Knockback
+	if is_instance_valid(self):
+		is_knocked_back = false
+		knockback_velocity = Vector2.ZERO
+
 func apply_camera_shake(is_critical_hit: bool) -> void:
 	# ตั้งค่ากล้องสั่นเริ่มต้นเป็นแบบโจมตีปกติ
 	var strength := normal_hit_camera_shake_strength
@@ -642,6 +707,7 @@ func apply_camera_shake(is_critical_hit: bool) -> void:
 	# เรียกกล้องที่อยู่ใน group game_camera ให้สั่น
 	# ถ้าในฉากยังไม่มีกล้อง group นี้ คำสั่งนี้จะไม่ error แค่ไม่มีอะไรเกิดขึ้น
 	get_tree().call_group("game_camera", "shake", strength, duration)
+
 
 func flash_critical() -> void:
 	# เปลี่ยนสีศัตรูเป็นสีส้มทอง เพื่อแสดงว่าโดน Critical
@@ -657,6 +723,7 @@ func flash_critical() -> void:
 			sprite_2d.modulate = Color.PURPLE
 		else:
 			sprite_2d.modulate = Color.WHITE
+
 
 func die() -> void:
 	# ถ้าตายไปแล้ว ไม่ต้องทำซ้ำ
