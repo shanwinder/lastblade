@@ -101,3 +101,10 @@ layout_mode = 2
 [node name="StaminaBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1768925273]
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
+
+[node name="EnemyPostureLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=528575630]
+layout_mode = 2
+
+[node name="EnemyPostureBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=2068430457]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2

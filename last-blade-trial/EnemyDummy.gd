@@ -1,5 +1,8 @@
 extends CharacterBody2D
 
+# ส่งสัญญาณไปให้ HUD ทุกครั้งที่ค่า HP หรือ Posture ของศัตรูเปลี่ยน
+signal enemy_stats_changed(current_hp: int, max_hp: int, current_posture: float, max_posture: float)
+
 # =========================
 # ค่าพื้นฐานของศัตรู
 # =========================
@@ -28,6 +31,15 @@ extends CharacterBody2D
 # เวลาพักหลังชะงัก ก่อนกลับมาโจมตีใหม่ได้
 @export var stagger_recover_time: float = 0.25
 
+# Posture สูงสุดของศัตรู
+# มองง่าย ๆ คือค่าความสมดุลของศัตรู
+@export var max_posture: float = 100.0
+
+# จำนวน Posture ที่ลดลงเมื่อผู้เล่น Parry สำเร็จหนึ่งครั้ง
+@export var posture_damage_from_parry: float = 35.0
+
+# เวลาที่ศัตรู Break หรือเสียสมดุลหนัก
+@export var posture_break_time: float = 1.2
 
 # =========================
 # ตัวแปรอ้างอิง Node
@@ -52,6 +64,12 @@ var player: CharacterBody2D
 
 # เลือดปัจจุบันของศัตรู
 var current_hp: int
+
+# Posture ปัจจุบันของศัตรู
+var current_posture: float
+
+# ใช้เช็กว่าศัตรูกำลังอยู่ในสถานะ Posture Break หรือไม่
+var is_posture_broken: bool = false
 
 # ใช้เช็กว่าศัตรูกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
@@ -81,6 +99,9 @@ func _ready() -> void:
 	# ตั้งเลือดเริ่มต้นของศัตรู
 	current_hp = max_hp
 
+	# ตั้งค่า Posture เริ่มต้นให้เต็ม
+	current_posture = max_posture
+
 	# หา node Player
 	# จาก GitHub ตอนนี้ node ผู้เล่นชื่อ Player ตัว P ใหญ่
 	player = get_parent().get_node("Player")
@@ -95,6 +116,9 @@ func _ready() -> void:
 	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
 	print("Enemy ready. HP =", current_hp)
+	
+	# ส่งค่าเริ่มต้นให้ HUD แสดง Enemy Posture
+	emit_enemy_stats()
 
 
 func _physics_process(_delta: float) -> void:
@@ -141,6 +165,9 @@ func _physics_process(_delta: float) -> void:
 	velocity.y = 0
 	move_and_slide()
 
+func emit_enemy_stats() -> void:
+	# ส่งค่า HP และ Posture ของศัตรูไปให้ HUD
+	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
 
 func attack() -> void:
 	# ถ้ากำลังโจมตีอยู่ / กำลังชะงัก / ยังไม่พร้อมโจมตี ห้ามเริ่มโจมตีใหม่
@@ -246,8 +273,13 @@ func _try_hit_area(area: Area2D) -> void:
 		if target.has_method("on_successful_parry"):
 			target.on_successful_parry()
 
-		# ทำให้ศัตรูชะงักสั้น ๆ
-		stagger()
+		# ลด Posture ของศัตรูเมื่อ Parry สำเร็จ
+		reduce_posture(posture_damage_from_parry)
+
+		# ถ้า Posture ยังไม่แตก ให้ stagger แบบสั้น
+		# ถ้า Posture แตกแล้ว posture_break() จะจัดการเอง
+		if not is_posture_broken:
+			stagger()
 
 		# ไม่ทำดาเมจ เพราะถูก Parry
 		return
@@ -299,10 +331,74 @@ func stagger() -> void:
 	# อนุญาตให้โจมตีใหม่
 	can_attack = true
 
+func reduce_posture(amount: float) -> void:
+	# ถ้าศัตรูกำลัง Posture Break อยู่แล้ว ไม่ต้องลดซ้ำ
+	if is_posture_broken:
+		return
+
+	# ลด Posture ตามจำนวนที่กำหนด
+	current_posture -= amount
+	current_posture = clamp(current_posture, 0.0, max_posture)
+
+	print("Enemy posture reduced:", int(current_posture), "/", int(max_posture))
+
+	# แจ้ง HUD ว่า Posture เปลี่ยนแล้ว
+	emit_enemy_stats()
+
+	# ถ้า Posture หมด ให้เข้าสถานะ Break
+	if current_posture <= 0:
+		posture_break()
+
+func posture_break() -> void:
+	# ถ้า Break อยู่แล้ว ไม่ต้องเริ่มซ้ำ
+	if is_posture_broken:
+		return
+
+	print("Enemy POSTURE BROKEN!")
+
+	# ตั้งสถานะ Break
+	is_posture_broken = true
+
+	# เพิ่ม sequence เพื่อยกเลิก attack coroutine เก่าที่อาจยัง await ค้างอยู่
+	attack_sequence_id += 1
+
+	# ระหว่าง Break ศัตรูห้ามโจมตีและห้ามขยับ
+	is_staggered = true
+	is_attacking = false
+	can_attack = false
+	has_hit_player = true
+
+	# ปิด Hitbox ศัตรู
+	attack_shape.set_deferred("disabled", true)
+
+	# เปลี่ยนสีเป็นม่วง เพื่อให้ต่างจาก stagger ปกติ
+	sprite_2d.modulate = Color.PURPLE
+
+	# หยุดนิ่งนานกว่า stagger ปกติ
+	await get_tree().create_timer(posture_break_time).timeout
+
+	# รีเซ็ต Posture กลับมาเต็ม
+	current_posture = max_posture
+	emit_enemy_stats()
+
+	# กลับสีปกติ
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color.WHITE
+
+	# จบสถานะ Break
+	is_posture_broken = false
+	is_staggered = false
+
+	# เว้นจังหวะนิดหนึ่งก่อนกลับมาโจมตี
+	await get_tree().create_timer(stagger_recover_time).timeout
+
+	can_attack = true
 
 func take_damage(amount: int) -> void:
 	# ลด HP ของศัตรู
 	current_hp -= amount
+	# แจ้ง HUD ว่า HP ศัตรูเปลี่ยนแล้ว
+	emit_enemy_stats()
 	print("Enemy took damage:", amount, "HP left:", current_hp)
 
 	# กระพริบแดงเมื่อโดนตี
