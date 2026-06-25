@@ -37,6 +37,16 @@ signal stats_changed(current_hp: int, max_hp: int, current_stamina: float, max_s
 # Stamina ที่ใช้เมื่อ Dash หนึ่งครั้ง
 @export var dash_stamina_cost: float = 30.0
 
+# Stamina ที่ใช้เมื่อกด Parry หนึ่งครั้ง
+@export var parry_stamina_cost: float = 20.0
+
+# ระยะเวลาที่ Parry มีผลจริง
+# ถ้าศัตรูโจมตีเข้ามาในช่วงนี้ จะ Parry สำเร็จ
+@export var parry_active_time: float = 0.22
+
+# เวลาหน่วงหลัง Parry ก่อนจะทำ action อื่นได้
+@export var parry_recovery_time: float = 0.25
+
 # ระยะเวลาที่ Hitbox ของดาบเปิดตอนโจมตี
 @export var attack_active_time: float = 0.18
 
@@ -83,6 +93,9 @@ var is_dashing: bool = false
 
 # ใช้เช็กว่า Dash ยังติด cooldown อยู่หรือไม่
 var can_dash: bool = true
+
+# ใช้เช็กว่าผู้เล่นกำลังอยู่ในช่วง Parry หรือไม่
+var is_parrying: bool = false
 
 # ทิศที่ผู้เล่นหันหน้าอยู่ 1 = ขวา, -1 = ซ้าย
 var facing_direction: int = 1
@@ -134,8 +147,8 @@ func _physics_process(_delta: float) -> void:
 	# รับค่าการกดปุ่มซ้าย/ขวา จาก ui_left และ ui_right
 	var direction := Input.get_axis("ui_left", "ui_right")
 
-	# ถ้ากำลังโจมตี ให้หยุดขยับชั่วคราว
-	if is_attacking:
+	# ถ้ากำลังโจมตีหรือ Parry ให้หยุดขยับชั่วคราว
+	if is_attacking or is_parrying:
 		velocity.x = 0
 	else:
 		velocity.x = direction * speed
@@ -154,13 +167,17 @@ func _physics_process(_delta: float) -> void:
 		# ย้าย Hitbox ดาบไปด้านหน้าของตัวละคร
 		attack_hitbox.position.x = attack_hitbox_offset_x * facing_direction
 
-	# ถ้ากดปุ่ม attack และไม่ได้กำลังโจมตี/แดชอยู่ ให้โจมตี
-	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing:
+	# ถ้ากดปุ่ม attack และตอนนี้ไม่ได้ทำ action อื่น ให้โจมตี
+	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing and not is_parrying:
 		attack()
 
-	# ถ้ากดปุ่ม dash และ Dash ได้ ให้เริ่ม Dash
-	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing:
+	# ถ้ากดปุ่ม dash และตอนนี้ไม่ได้ทำ action อื่น ให้ Dash
+	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing and not is_parrying:
 		dash()
+
+	# ถ้ากดปุ่ม parry และตอนนี้ไม่ได้ทำ action อื่น ให้ Parry
+	if Input.is_action_just_pressed("parry") and not is_attacking and not is_dashing and not is_parrying:
+		parry()
 
 func emit_stats() -> void:
 	# ส่งค่า HP และ Stamina ปัจจุบันออกไปให้ HUD
@@ -262,6 +279,60 @@ func dash() -> void:
 	can_dash = true
 	print("Dash Ready")
 
+func parry() -> void:
+	# ถ้า Stamina ไม่พอ ห้าม Parry
+	if current_stamina < parry_stamina_cost:
+		print("Not enough stamina to parry. Stamina =", int(current_stamina))
+		return
+
+	# ใช้ Stamina สำหรับ Parry
+	current_stamina -= parry_stamina_cost
+	print("Parry stamina used. Stamina left =", int(current_stamina))
+
+	# แจ้ง HUD ว่า Stamina เปลี่ยนแล้ว
+	emit_stats()
+
+	# เริ่มสถานะ Parry
+	is_parrying = true
+	print("Player Parry ON")
+
+	# ในขั้นแรก เราจะเปลี่ยนสีตัวละครเป็นฟ้าอ่อน เพื่อให้รู้ว่ากำลัง Parry
+	sprite_2d.modulate = Color.CYAN
+
+	# รอช่วงเวลาที่ Parry มีผลจริง
+	await get_tree().create_timer(parry_active_time).timeout
+
+	# หมดช่วง Parry
+	is_parrying = false
+	print("Player Parry OFF")
+
+	# เปลี่ยนสีกลับเป็นปกติ
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color.WHITE
+
+	# รอ recovery เล็กน้อย
+	# เพื่อไม่ให้กด Parry รัวแบบไม่มีโทษ
+	await get_tree().create_timer(parry_recovery_time).timeout
+
+func is_parry_active() -> bool:
+	# ฟังก์ชันนี้ให้ศัตรูเรียกถามว่า
+	# ตอนนี้ Player อยู่ในช่วง Parry สำเร็จได้หรือไม่
+	return is_parrying
+	
+func on_successful_parry() -> void:
+	# ฟังก์ชันนี้ถูกเรียกเมื่อศัตรูโจมตีเข้ามาในช่วง Parry
+	print("Successful Parry!")
+
+	# ให้สีเป็นเหลืองชั่วคราวเพื่อ feedback
+	sprite_2d.modulate = Color.YELLOW
+
+	# ยังไม่ทำ Posture ตอนนี้
+	# ขั้นต่อไปค่อยทำให้ศัตรูเสียสมดุลหรือชะงักนานขึ้น
+
+	await get_tree().create_timer(0.08).timeout
+
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color.WHITE
 
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# ถ้าไม่ได้อยู่ในจังหวะโจมตี ก็ไม่ทำดาเมจ

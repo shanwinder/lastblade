@@ -145,13 +145,10 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 		return
 
 	# หา parent ของ Hurtbox ที่ถูกชน
-	# เช่น ถ้าชน player/Hurtbox target ก็คือ player
-	# ถ้าชน EnemyDummy/Hurtbox target ก็คือ EnemyDummy
 	var target = area.get_parent()
 
-	# สำคัญมาก:
-	# ถ้า target คือตัวศัตรูเอง ให้ข้ามทันที
-	# เพื่อป้องกัน EnemyDummy โจมตีโดน Hurtbox ของตัวเอง
+	# ถ้า target คือตัวศัตรูเอง ให้ข้าม
+	# ป้องกัน EnemyDummy โจมตีโดน Hurtbox ของตัวเอง
 	if target == self:
 		print("Enemy attack ignored own Hurtbox")
 		return
@@ -160,7 +157,23 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	if not target.has_method("take_damage"):
 		return
 
-	# มาถึงตรงนี้แปลว่าโจมตีโดนเป้าหมายที่รับดาเมจได้จริง
+	# เช็กก่อนว่าเป้าหมายมีระบบ Parry หรือไม่
+	if target.has_method("is_parry_active") and target.is_parry_active():
+		# ถ้า Player กำลัง Parry อยู่ ถือว่า Parry สำเร็จ
+		has_hit_player = true
+		print("Enemy attack was parried!")
+
+		# เรียก feedback ฝั่ง Player
+		if target.has_method("on_successful_parry"):
+			target.on_successful_parry()
+
+		# ทำให้ศัตรูชะงักสั้น ๆ
+		stagger()
+
+		# ไม่ทำดาเมจ เพราะถูก Parry
+		return
+
+	# ถ้าไม่ได้ Parry ให้ทำดาเมจตามปกติ
 	has_hit_player = true
 	target.take_damage(attack_damage)
 
@@ -177,6 +190,25 @@ func take_damage(amount: int) -> void:
 	if current_hp <= 0:
 		die()
 
+func stagger() -> void:
+	# ศัตรูชะงักเมื่อถูก Parry
+	print("Enemy staggered!")
+
+	# หยุดการโจมตีทันที
+	is_attacking = false
+
+	# ปิด Hitbox ศัตรูทันที เพื่อไม่ให้ชนซ้ำ
+	attack_shape.disabled = true
+
+	# เปลี่ยนสีเป็นฟ้าเพื่อแสดงว่าถูก Parry
+	sprite_2d.modulate = Color.CYAN
+
+	# หยุดนิ่งสั้น ๆ
+	await get_tree().create_timer(0.35).timeout
+
+	# กลับสีปกติ ถ้าศัตรูยังอยู่
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color.WHITE
 
 func flash_red() -> void:
 	# เปลี่ยนสีศัตรูเป็นแดงชั่วคราว
