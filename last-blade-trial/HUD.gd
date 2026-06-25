@@ -3,17 +3,40 @@ extends CanvasLayer
 # =========================
 # HUD.gd
 # ใช้แสดงค่า HP, Stamina ของ Player
-# และ Posture ของ EnemyDummy
+# และ HP, Posture ของ EnemyDummy
 # =========================
 
+# =========================
 # อ้างอิง Label และ ProgressBar ของ Player
+# =========================
+
+# ข้อความ HP ของผู้เล่น
 @onready var hp_label: Label = $Control/VBoxContainer/HPLabel
+
+# หลอด HP ของผู้เล่น
 @onready var hp_bar: ProgressBar = $Control/VBoxContainer/HPBar
+
+# ข้อความ Stamina ของผู้เล่น
 @onready var stamina_label: Label = $Control/VBoxContainer/StaminaLabel
+
+# หลอด Stamina ของผู้เล่น
 @onready var stamina_bar: ProgressBar = $Control/VBoxContainer/StaminaBar
 
-# อ้างอิง Label และ ProgressBar ของ Enemy Posture
+
+# =========================
+# อ้างอิง Label และ ProgressBar ของ Enemy
+# =========================
+
+# ข้อความ HP ของศัตรู
+@onready var enemy_hp_label: Label = $Control/VBoxContainer/EnemyHPLabel
+
+# หลอด HP ของศัตรู
+@onready var enemy_hp_bar: ProgressBar = $Control/VBoxContainer/EnemyHPBar
+
+# ข้อความ Posture ของศัตรู
 @onready var enemy_posture_label: Label = $Control/VBoxContainer/EnemyPostureLabel
+
+# หลอด Posture ของศัตรู
 @onready var enemy_posture_bar: ProgressBar = $Control/VBoxContainer/EnemyPostureBar
 
 
@@ -40,29 +63,32 @@ func _ready() -> void:
 
 
 func update_player_stats(current_hp: int, max_hp: int, current_stamina: float, max_stamina: float) -> void:
-	# อัปเดตข้อความ HP
-	hp_label.text = "HP: %d / %d" % [current_hp, max_hp]
+	# อัปเดตข้อความ HP ผู้เล่น
+	hp_label.text = "Player HP: %d / %d" % [current_hp, max_hp]
 
-	# อัปเดตแถบ HP
+	# อัปเดตหลอด HP ผู้เล่น
 	hp_bar.max_value = max_hp
 	hp_bar.value = current_hp
 
-	# อัปเดตข้อความ Stamina
+	# อัปเดตข้อความ Stamina ผู้เล่น
 	stamina_label.text = "Stamina: %d / %d" % [int(current_stamina), int(max_stamina)]
 
-	# อัปเดตแถบ Stamina
+	# อัปเดตหลอด Stamina ผู้เล่น
 	stamina_bar.max_value = max_stamina
 	stamina_bar.value = current_stamina
 
 
-func update_enemy_stats(_current_hp: int, _max_hp: int, current_posture: float, max_posture: float) -> void:
-	# ตอนนี้เรายังไม่แสดง HP ศัตรูบน HUD
-	# จึงใส่ _ นำหน้า _current_hp และ _max_hp
-	# เพื่อบอก Godot ว่ารับค่าไว้ก่อน แต่ยังไม่ได้นำมาใช้
+func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, max_posture: float) -> void:
+	# อัปเดตข้อความ HP ศัตรู
+	enemy_hp_label.text = "Enemy HP: %d / %d" % [current_hp, max_hp]
 
-	# อัปเดตข้อความ Posture ของศัตรู
+	# อัปเดตหลอด HP ศัตรู
+	enemy_hp_bar.max_value = max_hp
+	enemy_hp_bar.value = current_hp
+
+	# อัปเดตข้อความ Posture ศัตรู
 	enemy_posture_label.text = "Enemy Posture: %d / %d" % [int(current_posture), int(max_posture)]
 
-	# อัปเดตแถบ Posture ของศัตรู
+	# อัปเดตหลอด Posture ศัตรู
 	enemy_posture_bar.max_value = max_posture
 	enemy_posture_bar.value = current_posture
