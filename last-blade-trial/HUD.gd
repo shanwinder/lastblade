@@ -55,9 +55,10 @@ func update_player_stats(current_hp: int, max_hp: int, current_stamina: float, m
 	stamina_bar.value = current_stamina
 
 
-func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, max_posture: float) -> void:
+func update_enemy_stats(_current_hp: int, _max_hp: int, current_posture: float, max_posture: float) -> void:
 	# ตอนนี้เรายังไม่แสดง HP ศัตรูบน HUD
-	# แต่รับ current_hp กับ max_hp ไว้ก่อน เพื่อใช้ต่อยอดภายหลัง
+	# จึงใส่ _ นำหน้า _current_hp และ _max_hp
+	# เพื่อบอก Godot ว่ารับค่าไว้ก่อน แต่ยังไม่ได้นำมาใช้
 
 	# อัปเดตข้อความ Posture ของศัตรู
 	enemy_posture_label.text = "Enemy Posture: %d / %d" % [int(current_posture), int(max_posture)]
