@@ -22,6 +22,10 @@ signal enemy_died
 # ดาเมจที่ศัตรูทำได้เมื่อโจมตีโดนผู้เล่น
 @export var attack_damage: int = 10
 
+# เวลาก่อนศัตรูโจมตีจริง
+# ใช้เป็นช่วงเตือนให้ผู้เล่นเห็นจังหวะ Dash หรือ Parry
+@export var attack_windup_time: float = 0.35
+
 # ระยะเวลาที่ Hitbox ของศัตรูเปิดตอนโจมตี
 @export var attack_active_time: float = 0.18
 
@@ -88,6 +92,10 @@ var can_receive_critical: bool = false
 
 # ใช้เช็กว่าศัตรูกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
+
+# ใช้เช็กว่าศัตรูกำลังเตรียมโจมตีอยู่หรือไม่
+# ช่วงนี้ยังไม่เปิด Hitbox แต่เปลี่ยนสีเพื่อเตือนผู้เล่น
+var is_winding_up: bool = false
 
 # ใช้เช็กว่าศัตรูกำลังชะงักจาก Parry อยู่หรือไม่
 var is_staggered: bool = false
@@ -158,8 +166,8 @@ func _physics_process(_delta: float) -> void:
 		move_and_slide()
 		return
 
-	# ถ้ากำลังโจมตี ให้หยุดอยู่กับที่
-	if is_attacking:
+	# ถ้ากำลังเตรียมโจมตีหรือกำลังโจมตี ให้หยุดอยู่กับที่
+	if is_winding_up or is_attacking:
 		velocity.x = 0
 		velocity.y = 0
 		move_and_slide()
@@ -192,12 +200,12 @@ func emit_enemy_stats() -> void:
 	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
 
 func attack() -> void:
-	# ถ้ากำลังโจมตีอยู่ / กำลังชะงัก / ยังไม่พร้อมโจมตี ห้ามเริ่มโจมตีใหม่
-	if is_attacking or is_staggered or not can_attack:
+	# ถ้ากำลังเตรียมโจมตี / กำลังโจมตี / กำลังชะงัก / ยังไม่พร้อมโจมตี ห้ามเริ่มโจมตีใหม่
+	if is_winding_up or is_attacking or is_staggered or not can_attack:
 		return
 
 	# ล็อกไม่ให้เริ่มโจมตีซ้อน
-	is_attacking = true
+	is_winding_up = true
 	can_attack = false
 
 	# รีเซ็ตว่าโจมตีครั้งนี้ยังไม่โดนผู้เล่น
@@ -206,6 +214,28 @@ func attack() -> void:
 	# เพิ่มเลข sequence เพื่อระบุว่า attack รอบนี้คือรอบล่าสุด
 	attack_sequence_id += 1
 	var my_attack_id := attack_sequence_id
+
+	print("Enemy Wind-up!")
+
+	# เปลี่ยนสีเป็นเหลืองเพื่อบอกว่าอีกนิดจะโจมตี
+	sprite_2d.modulate = Color.YELLOW
+
+	# รอช่วงเตรียมโจมตี
+	await get_tree().create_timer(attack_windup_time).timeout
+
+	# ถ้าระหว่าง wind-up ถูกยกเลิก เช่น ถูก Parry/Break/ตาย ให้หยุดทันที
+	if my_attack_id != attack_sequence_id or is_dead:
+		return
+
+	# จบช่วง wind-up
+	is_winding_up = false
+
+	# เริ่มโจมตีจริง
+	is_attacking = true
+
+	# เปลี่ยนสีกลับก่อนเปิด Hitbox
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color.WHITE
 
 	print("Enemy Attack! Hitbox ON")
 
@@ -216,12 +246,11 @@ func attack() -> void:
 	await get_tree().physics_frame
 
 	# ถ้าระหว่างรอถูกยกเลิก เช่น ถูก Parry ให้หยุด attack รอบนี้ทันที
-	if my_attack_id != attack_sequence_id:
+	if my_attack_id != attack_sequence_id or is_dead:
 		return
 
-	# สำคัญ:
-	# นอกจากรอ area_entered แล้ว เราตรวจพื้นที่ที่ overlap อยู่แล้วด้วย
-	# เพื่อแก้ปัญหา Parry ครั้งต่อ ๆ ไปไม่ขึ้นข้อความ เพราะ hurtbox กับ hitbox ซ้อนกันอยู่แล้ว
+	# ตรวจพื้นที่ที่ overlap อยู่แล้วด้วย
+	# เพื่อให้ hitbox โดนได้แม้ Area ซ้อนกันอยู่ตั้งแต่ก่อนเปิด Hitbox
 	for area in attack_hitbox.get_overlapping_areas():
 		_try_hit_area(area)
 
@@ -229,7 +258,7 @@ func attack() -> void:
 	await get_tree().create_timer(attack_active_time).timeout
 
 	# ถ้า attack รอบนี้ถูกยกเลิกระหว่างทาง เช่น ถูก Parry ให้หยุดทันที
-	if my_attack_id != attack_sequence_id:
+	if my_attack_id != attack_sequence_id or is_dead:
 		return
 
 	# ปิด Hitbox หลังหมดจังหวะโจมตี
@@ -243,12 +272,11 @@ func attack() -> void:
 	await get_tree().create_timer(attack_cooldown).timeout
 
 	# ถ้า attack รอบนี้ถูกยกเลิกไปแล้ว ไม่ต้องเปิด can_attack
-	if my_attack_id != attack_sequence_id:
+	if my_attack_id != attack_sequence_id or is_dead:
 		return
 
 	# อนุญาตให้โจมตีรอบใหม่
 	can_attack = true
-
 
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# เมื่อ hitbox ชน area อื่น ให้ส่งไปตรวจในฟังก์ชันกลาง
@@ -323,6 +351,7 @@ func stagger() -> void:
 
 	# ตั้งสถานะศัตรูให้ชะงัก
 	is_staggered = true
+	is_winding_up = false
 	is_attacking = false
 	can_attack = false
 	has_hit_player = true
@@ -390,6 +419,7 @@ func posture_break() -> void:
 
 	# ระหว่าง Break ศัตรูห้ามโจมตีและห้ามขยับ
 	is_staggered = true
+	is_winding_up = false
 	is_attacking = false
 	can_attack = false
 	has_hit_player = true
@@ -515,6 +545,7 @@ func die() -> void:
 	attack_sequence_id += 1
 
 	# ปิดสถานะต่อสู้ทั้งหมด
+	is_winding_up = false
 	is_attacking = false
 	is_staggered = false
 	is_posture_broken = false
