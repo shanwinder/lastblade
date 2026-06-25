@@ -44,11 +44,13 @@ signal player_died
 @export var parry_stamina_cost: float = 20.0
 
 # ระยะเวลาที่ Parry มีผลจริง
-# ถ้าศัตรูโจมตีเข้ามาในช่วงนี้ จะ Parry สำเร็จ
-@export var parry_active_time: float = 0.22
+# ค่านี้คือ "หน้าต่างสำเร็จ" ของ Parry
+# ตอนทดสอบตั้งให้กว้างหน่อย เพื่อจับจังหวะง่าย
+@export var parry_active_time: float = 0.45
 
 # เวลาหน่วงหลัง Parry ก่อนจะทำ action อื่นได้
-@export var parry_recovery_time: float = 0.25
+# เพิ่มนิดหน่อยเพื่อให้ Parry ยังมีจังหวะ ไม่รัวเกินไป
+@export var parry_recovery_time: float = 0.1
 
 # ระยะเวลาที่ Hitbox ของดาบเปิดตอนโจมตี
 @export var attack_active_time: float = 0.18
