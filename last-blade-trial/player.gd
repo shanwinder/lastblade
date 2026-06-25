@@ -3,6 +3,9 @@ extends CharacterBody2D
 # ส่งสัญญาณไปให้ HUD ทุกครั้งที่ HP หรือ Stamina เปลี่ยน
 signal stats_changed(current_hp: int, max_hp: int, current_stamina: float, max_stamina: float)
 
+# ส่งสัญญาณเมื่อ Player ตาย เพื่อให้ HUD หรือ Main แสดง Game Over
+signal player_died
+
 # =========================
 # ค่าพื้นฐานของผู้เล่น
 # =========================
@@ -96,6 +99,10 @@ var can_dash: bool = true
 
 # ใช้เช็กว่าผู้เล่นกำลังอยู่ในช่วง Parry หรือไม่
 var is_parrying: bool = false
+
+# ใช้เช็กว่า Player ตายไปแล้วหรือยัง
+# ป้องกันไม่ให้ die() ทำงานซ้ำหลายรอบ
+var is_dead: bool = false
 
 # ทิศที่ผู้เล่นหันหน้าอยู่ 1 = ขวา, -1 = ซ้าย
 var facing_direction: int = 1
@@ -373,6 +380,10 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 
 
 func take_damage(amount: int) -> void:
+	# ถ้า Player ตายไปแล้ว ไม่รับดาเมจซ้ำ
+	if is_dead:
+		return
+		
 	# ถ้ากำลัง Dash อยู่ ไม่รับดาเมจ
 	# เผื่อกรณี Hitbox ศัตรูชนพอดีในจังหวะที่ Hurtbox ยังไม่ถูกปิดทัน
 	if is_dashing:
@@ -407,6 +418,28 @@ func flash_red() -> void:
 
 
 func die() -> void:
-	# ตอนนี้ให้พิมพ์ข้อความก่อน ภายหลังค่อยทำ Game Over
+	# ถ้าตายไปแล้ว ไม่ต้องทำซ้ำ
+	if is_dead:
+		return
+
+	# ตั้งสถานะว่าตายแล้ว
+	is_dead = true
+
+	# ปิด action ต่าง ๆ
+	is_attacking = false
+	is_dashing = false
+	is_parrying = false
+
+	# ปิด Hitbox และ Hurtbox เพื่อไม่ให้ชนอะไรต่อ
+	attack_shape.set_deferred("disabled", true)
+	hurtbox_shape.set_deferred("disabled", true)
+
 	print("Player defeated!")
-	queue_free()
+
+	# ส่งสัญญาณไปให้ HUD แสดง Game Over
+	player_died.emit()
+
+	# ซ่อนตัวละครไว้ก่อน แทนการ queue_free ทันที
+	# เพื่อหลีกเลี่ยง coroutine เก่าที่ยังทำงานแล้วอ้างอิง node ไม่เจอ
+	visible = false
+	set_physics_process(false)

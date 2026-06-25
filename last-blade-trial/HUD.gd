@@ -39,6 +39,11 @@ extends CanvasLayer
 # หลอด Posture ของศัตรู
 @onready var enemy_posture_bar: ProgressBar = $Control/VBoxContainer/EnemyPostureBar
 
+# ข้อความผลลัพธ์ตอนจบเกม เช่น Game Over หรือ Victory
+@onready var game_result_label: Label = $Control/GameResultLabel
+
+# ใช้เช็กว่าเกมจบแล้วหรือยัง
+var is_game_finished: bool = false
 
 func _ready() -> void:
 	# หา node Player จาก Main
@@ -54,6 +59,15 @@ func _ready() -> void:
 	# เชื่อม signal จาก EnemyDummy มายัง HUD
 	# เมื่อ HP หรือ Posture ของศัตรูเปลี่ยน HUD จะอัปเดตทันที
 	enemy.enemy_stats_changed.connect(update_enemy_stats)
+
+	# เชื่อม signal เมื่อตัวละครผู้เล่นตาย
+	player.player_died.connect(show_game_over)
+
+	# เชื่อม signal เมื่อศัตรูตาย
+	enemy.enemy_died.connect(show_victory)
+
+	# ซ่อนข้อความผลลัพธ์ตอนเริ่มเกม
+	game_result_label.text = ""
 
 	# อัปเดต HUD ของ Player ครั้งแรกตอนเริ่มเกม
 	update_player_stats(player.current_hp, player.max_hp, player.current_stamina, player.max_stamina)
@@ -92,3 +106,37 @@ func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, ma
 	# อัปเดตหลอด Posture ศัตรู
 	enemy_posture_bar.max_value = max_posture
 	enemy_posture_bar.value = current_posture
+
+func _process(_delta: float) -> void:
+	# ถ้าเกมยังไม่จบ ไม่ต้องตรวจปุ่ม Restart
+	if not is_game_finished:
+		return
+
+	# เมื่อเกมจบแล้ว กด R เพื่อเริ่มฉากใหม่
+	if Input.is_key_pressed(KEY_R):
+		get_tree().reload_current_scene()
+
+func show_game_over() -> void:
+	# ถ้าเกมจบไปแล้ว ไม่ต้องแสดงซ้ำ
+	if is_game_finished:
+		return
+
+	is_game_finished = true
+
+	# แสดงข้อความ Game Over
+	game_result_label.text = "GAME OVER\nPress R to Restart"
+
+	print("GAME OVER")
+
+
+func show_victory() -> void:
+	# ถ้าเกมจบไปแล้ว ไม่ต้องแสดงซ้ำ
+	if is_game_finished:
+		return
+
+	is_game_finished = true
+
+	# แสดงข้อความ Victory
+	game_result_label.text = "VICTORY!\nPress R to Restart"
+
+	print("VICTORY")

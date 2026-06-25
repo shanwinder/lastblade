@@ -3,6 +3,9 @@ extends CharacterBody2D
 # ส่งสัญญาณไปให้ HUD ทุกครั้งที่ค่า HP หรือ Posture ของศัตรูเปลี่ยน
 signal enemy_stats_changed(current_hp: int, max_hp: int, current_posture: float, max_posture: float)
 
+# ส่งสัญญาณเมื่อศัตรูตาย เพื่อให้ HUD หรือ Main แสดง Victory
+signal enemy_died
+
 # =========================
 # ค่าพื้นฐานของศัตรู
 # =========================
@@ -69,6 +72,10 @@ var player: CharacterBody2D
 # เลือดปัจจุบันของศัตรู
 var current_hp: int
 
+# ใช้เช็กว่าศัตรูตายไปแล้วหรือยัง
+# ป้องกันไม่ให้ die() ทำงานซ้ำหลายรอบ
+var is_dead: bool = false
+
 # Posture ปัจจุบันของศัตรู
 var current_posture: float
 
@@ -130,6 +137,13 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# ถ้าศัตรูตายแล้ว ไม่ต้องทำ AI ต่อ
+	if is_dead:
+		velocity.x = 0
+		velocity.y = 0
+		move_and_slide()
+		return
+		
 	# ถ้าผู้เล่นไม่อยู่แล้ว เช่น ตายไป ให้ศัตรูหยุด
 	if not is_instance_valid(player):
 		velocity.x = 0
@@ -410,6 +424,10 @@ func posture_break() -> void:
 	can_attack = true
 
 func take_damage(amount: int) -> void:
+	# ถ้าศัตรูตายแล้ว ไม่รับดาเมจซ้ำ
+	if is_dead:
+		return
+
 	# เก็บดาเมจสุดท้ายที่จะนำไปลด HP จริง
 	var final_damage: int = amount
 
@@ -434,10 +452,19 @@ func take_damage(amount: int) -> void:
 	# ลด HP ของศัตรูด้วยดาเมจสุดท้าย
 	current_hp -= final_damage
 
+	# กันไม่ให้ HP ติดลบ
+	current_hp = max(current_hp, 0)
+
 	# แจ้ง HUD ว่า HP ศัตรูเปลี่ยนแล้ว
 	emit_enemy_stats()
 
 	print("Enemy HP left:", current_hp)
+
+	# ถ้า HP หมด ให้ตายทันที
+	# วางไว้ก่อน flash เพื่อไม่ให้ศัตรูกระพริบแล้วกลับมาขาวหลังตาย
+	if current_hp <= 0:
+		die()
+		return
 
 	# ถ้าเป็น Critical ให้ใช้เอฟเฟกต์สีส้ม
 	# ถ้าเป็นการโจมตีปกติ ให้กระพริบแดงแบบเดิม
@@ -445,10 +472,6 @@ func take_damage(amount: int) -> void:
 		flash_critical()
 	else:
 		flash_red()
-
-	# ถ้า HP หมด ให้ตาย
-	if current_hp <= 0:
-		die()
 
 func flash_red() -> void:
 	# เปลี่ยนสีศัตรูเป็นแดงชั่วคราวเมื่อโดนตีปกติ
@@ -481,6 +504,37 @@ func flash_critical() -> void:
 			sprite_2d.modulate = Color.WHITE
 
 func die() -> void:
-	# ลบศัตรูออกจากฉาก
+	# ถ้าตายไปแล้ว ไม่ต้องทำซ้ำ
+	if is_dead:
+		return
+
+	# ตั้งสถานะว่าตายแล้ว
+	is_dead = true
+
+	# ยกเลิก attack coroutine เก่าที่อาจค้างอยู่
+	attack_sequence_id += 1
+
+	# ปิดสถานะต่อสู้ทั้งหมด
+	is_attacking = false
+	is_staggered = false
+	is_posture_broken = false
+	can_attack = false
+	can_receive_critical = false
+	has_hit_player = true
+
+	# หยุดการเคลื่อนที่
+	velocity.x = 0
+	velocity.y = 0
+
+	# ปิด Hitbox ของศัตรู
+	attack_shape.set_deferred("disabled", true)
+
 	print("Enemy defeated!")
-	queue_free()
+
+	# ส่งสัญญาณไปให้ HUD แสดง Victory
+	enemy_died.emit()
+
+	# ซ่อนศัตรูไว้ก่อน แทนการ queue_free ทันที
+	# เพื่อป้องกัน coroutine เก่าที่ยัง await แล้วพยายามเปลี่ยนสี/สถานะ
+	visible = false
+	set_physics_process(false)
