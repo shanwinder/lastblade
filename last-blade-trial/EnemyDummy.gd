@@ -490,6 +490,9 @@ func take_damage(amount: int) -> void:
 
 	print("Enemy HP left:", current_hp)
 
+	# แสดงตัวเลขดาเมจลอยขึ้นเหนือศัตรู
+	show_damage_popup(final_damage, is_critical_hit)
+
 	# ถ้า HP หมด ให้ตายทันที
 	# วางไว้ก่อน flash เพื่อไม่ให้ศัตรูกระพริบแล้วกลับมาขาวหลังตาย
 	if current_hp <= 0:
@@ -517,6 +520,53 @@ func flash_red() -> void:
 			sprite_2d.modulate = Color.PURPLE
 		else:
 			sprite_2d.modulate = Color.WHITE
+
+func show_damage_popup(amount: int, is_critical_hit: bool) -> void:
+	# สร้าง Label ใหม่ขึ้นมาเพื่อใช้แสดงตัวเลขดาเมจ
+	var popup := Label.new()
+
+	# ถ้าเป็น Critical ให้แสดงข้อความใหญ่และเด่นกว่า
+	if is_critical_hit:
+		popup.text = "CRITICAL!\n%d" % amount
+		popup.modulate = Color(1.0, 0.65, 0.0, 1.0) # สีส้มทอง
+		popup.add_theme_font_size_override("font_size", 26)
+	else:
+		popup.text = "%d" % amount
+		popup.modulate = Color.WHITE
+		popup.add_theme_font_size_override("font_size", 22)
+
+	# จัดข้อความให้อยู่กึ่งกลาง
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	# ให้ตัวเลขอยู่หน้าสุด
+	popup.z_index = 100
+
+	# เพิ่ม popup เข้าไปในฉากเดียวกับศัตรู
+	# ใช้ get_parent() เพราะ EnemyDummy อยู่ใต้ Main
+	get_parent().add_child(popup)
+
+	# วางตำแหน่ง popup เหนือหัวศัตรูเล็กน้อย
+	popup.global_position = global_position + Vector2(-35, -85)
+
+	# จุดปลายทางที่ตัวเลขจะลอยขึ้นไป
+	var target_position := popup.global_position + Vector2(0, -45)
+
+	# สร้าง Tween เพื่อให้ตัวเลขลอยขึ้นและค่อย ๆ จางหาย
+	var tween := create_tween()
+
+	# ให้ animation หลายอย่างทำพร้อมกัน
+	tween.set_parallel(true)
+
+	# ขยับตัวเลขขึ้น
+	tween.tween_property(popup, "global_position", target_position, 0.45)
+
+	# ค่อย ๆ ทำให้โปร่งใสจนหายไป
+	tween.tween_property(popup, "modulate:a", 0.0, 0.45)
+
+	# หลัง animation จบ ให้ลบ popup ออกจากฉาก
+	tween.set_parallel(false)
+	tween.tween_callback(popup.queue_free)
 
 func flash_critical() -> void:
 	# เปลี่ยนสีศัตรูเป็นสีส้มทอง เพื่อแสดงว่าโดน Critical
