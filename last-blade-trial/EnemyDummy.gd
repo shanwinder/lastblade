@@ -115,13 +115,15 @@ func attack() -> void:
 	print("Enemy Attack! Hitbox ON")
 
 	# เปิด Hitbox ของศัตรู
-	attack_shape.disabled = false
+	# ใช้ set_deferred เพื่อหลีกเลี่ยงปัญหาเปลี่ยน collision state ระหว่าง physics
+	attack_shape.set_deferred("disabled", false)
 
 	# รอช่วงที่การโจมตีมีผล
 	await get_tree().create_timer(attack_active_time).timeout
 
 	# ปิด Hitbox หลังหมดจังหวะโจมตี
-	attack_shape.disabled = true
+	# ใช้ set_deferred เพื่อความปลอดภัยกับระบบ physics
+	attack_shape.set_deferred("disabled", true)
 	print("Enemy Hitbox OFF")
 
 	# รอ cooldown ก่อนโจมตีครั้งต่อไป
@@ -194,19 +196,25 @@ func stagger() -> void:
 	# ศัตรูชะงักเมื่อถูก Parry
 	print("Enemy staggered!")
 
-	# หยุดการโจมตีทันที
+	# หยุดสถานะโจมตีทันที
 	is_attacking = false
 
-	# ปิด Hitbox ศัตรูทันที เพื่อไม่ให้ชนซ้ำ
-	attack_shape.disabled = true
+	# หยุดการเคลื่อนที่ของศัตรู
+	velocity.x = 0
 
-	# เปลี่ยนสีเป็นฟ้าเพื่อแสดงว่าถูก Parry
+	# สำคัญ:
+	# ห้ามใช้ attack_shape.disabled = true ตรง ๆ ในจังหวะ area_entered
+	# เพราะ Godot กำลังประมวลผล collision อยู่
+	# ต้องใช้ set_deferred เพื่อสั่งให้ Godot ปิด hitbox หลังจากจบรอบ physics นี้ก่อน
+	attack_shape.set_deferred("disabled", true)
+
+	# เปลี่ยนสีเป็นฟ้าเพื่อแสดงว่าศัตรูถูก Parry
 	sprite_2d.modulate = Color.CYAN
 
-	# หยุดนิ่งสั้น ๆ
+	# หยุดนิ่งสั้น ๆ ให้ผู้เล่นรู้สึกว่า Parry สำเร็จ
 	await get_tree().create_timer(0.35).timeout
 
-	# กลับสีปกติ ถ้าศัตรูยังอยู่
+	# ถ้า sprite ยังอยู่ในเกม ให้เปลี่ยนกลับเป็นสีขาว
 	if is_instance_valid(sprite_2d):
 		sprite_2d.modulate = Color.WHITE
 
