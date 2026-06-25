@@ -8,7 +8,7 @@ signal enemy_stats_changed(current_hp: int, max_hp: int, current_posture: float,
 # =========================
 
 # เลือดสูงสุดของศัตรู
-@export var max_hp: int = 30
+@export var max_hp: int = 50
 
 # ความเร็วในการเดินเข้าหาผู้เล่น
 @export var move_speed: float = 120.0
@@ -41,6 +41,10 @@ signal enemy_stats_changed(current_hp: int, max_hp: int, current_posture: float,
 # เวลาที่ศัตรู Break หรือเสียสมดุลหนัก
 @export var posture_break_time: float = 1.2
 
+# ตัวคูณดาเมจเมื่อผู้เล่นโจมตีตอนศัตรู Posture Break
+# เช่น 3.0 แปลว่าโจมตีแรงขึ้น 3 เท่า
+@export var critical_damage_multiplier: float = 3.0
+
 # =========================
 # ตัวแปรอ้างอิง Node
 # =========================
@@ -70,6 +74,10 @@ var current_posture: float
 
 # ใช้เช็กว่าศัตรูกำลังอยู่ในสถานะ Posture Break หรือไม่
 var is_posture_broken: bool = false
+
+# ใช้เช็กว่าศัตรูกำลังเปิดช่องให้โดน Critical อยู่หรือไม่
+# จะเปิดเฉพาะตอน Posture Break และใช้ได้ 1 ครั้งต่อการ Break หนึ่งรอบ
+var can_receive_critical: bool = false
 
 # ใช้เช็กว่าศัตรูกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
@@ -358,6 +366,10 @@ func posture_break() -> void:
 
 	# ตั้งสถานะ Break
 	is_posture_broken = true
+	
+	# เปิดช่องให้ Player โจมตี Critical ได้ 1 ครั้ง
+	can_receive_critical = true
+	print("Critical chance opened!")
 
 	# เพิ่ม sequence เพื่อยกเลิก attack coroutine เก่าที่อาจยัง await ค้างอยู่
 	attack_sequence_id += 1
@@ -385,6 +397,9 @@ func posture_break() -> void:
 	if is_instance_valid(sprite_2d):
 		sprite_2d.modulate = Color.WHITE
 
+	# ปิดช่อง Critical เมื่อหมดช่วง Posture Break
+	can_receive_critical = false
+
 	# จบสถานะ Break
 	is_posture_broken = false
 	is_staggered = false
@@ -395,31 +410,75 @@ func posture_break() -> void:
 	can_attack = true
 
 func take_damage(amount: int) -> void:
-	# ลด HP ของศัตรู
-	current_hp -= amount
+	# เก็บดาเมจสุดท้ายที่จะนำไปลด HP จริง
+	var final_damage: int = amount
+
+	# ใช้เช็กว่าการโจมตีครั้งนี้เป็น Critical หรือไม่
+	var is_critical_hit: bool = false
+
+	# ถ้าศัตรูกำลัง Posture Break และยังเปิดช่อง Critical อยู่
+	# การโจมตีครั้งนี้จะกลายเป็น Critical Attack
+	if is_posture_broken and can_receive_critical:
+		is_critical_hit = true
+
+		# คูณดาเมจตามค่า critical_damage_multiplier
+		final_damage = int(round(float(amount) * critical_damage_multiplier))
+
+		# ปิด Critical ทันที เพื่อให้ใช้ได้แค่ 1 ครั้งต่อการ Break หนึ่งรอบ
+		can_receive_critical = false
+
+		print("CRITICAL ATTACK! Damage =", final_damage)
+	else:
+		print("Enemy took damage:", final_damage)
+
+	# ลด HP ของศัตรูด้วยดาเมจสุดท้าย
+	current_hp -= final_damage
+
 	# แจ้ง HUD ว่า HP ศัตรูเปลี่ยนแล้ว
 	emit_enemy_stats()
-	print("Enemy took damage:", amount, "HP left:", current_hp)
 
-	# กระพริบแดงเมื่อโดนตี
-	flash_red()
+	print("Enemy HP left:", current_hp)
+
+	# ถ้าเป็น Critical ให้ใช้เอฟเฟกต์สีส้ม
+	# ถ้าเป็นการโจมตีปกติ ให้กระพริบแดงแบบเดิม
+	if is_critical_hit:
+		flash_critical()
+	else:
+		flash_red()
 
 	# ถ้า HP หมด ให้ตาย
 	if current_hp <= 0:
 		die()
 
-
 func flash_red() -> void:
-	# เปลี่ยนสีศัตรูเป็นแดงชั่วคราว
+	# เปลี่ยนสีศัตรูเป็นแดงชั่วคราวเมื่อโดนตีปกติ
 	sprite_2d.modulate = Color.RED
 
 	# รอ 0.1 วินาที
 	await get_tree().create_timer(0.1).timeout
 
-	# ถ้า sprite ยังอยู่ ให้เปลี่ยนกลับเป็นขาว
+	# ถ้า sprite ยังอยู่ ให้เปลี่ยนกลับตามสถานะปัจจุบัน
 	if is_instance_valid(sprite_2d):
-		sprite_2d.modulate = Color.WHITE
+		# ถ้ายัง Posture Break อยู่ ให้กลับเป็นสีม่วง
+		if is_posture_broken:
+			sprite_2d.modulate = Color.PURPLE
+		else:
+			sprite_2d.modulate = Color.WHITE
 
+func flash_critical() -> void:
+	# เปลี่ยนสีศัตรูเป็นสีส้มทอง เพื่อแสดงว่าโดน Critical
+	sprite_2d.modulate = Color(1.0, 0.65, 0.0, 1.0)
+
+	# รอสั้น ๆ ให้ผู้เล่นเห็น feedback
+	await get_tree().create_timer(0.15).timeout
+
+	# ถ้าศัตรูยังอยู่ ให้ปรับสีกลับ
+	if is_instance_valid(sprite_2d):
+		# ถ้ายังอยู่ในช่วง Posture Break ให้กลับเป็นสีม่วง
+		if is_posture_broken:
+			sprite_2d.modulate = Color.PURPLE
+		else:
+			sprite_2d.modulate = Color.WHITE
 
 func die() -> void:
 	# ลบศัตรูออกจากฉาก
