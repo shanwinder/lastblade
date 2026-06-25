@@ -64,6 +64,18 @@ signal enemy_died
 # 0.08 แปลว่าเกมช้าลงมาก แต่ไม่หยุดสนิท
 @export var hit_stop_time_scale: float = 0.08
 
+# ความแรงกล้องสั่นเมื่อโจมตีปกติโดนศัตรู
+@export var normal_hit_camera_shake_strength: float = 4.0
+
+# ระยะเวลากล้องสั่นเมื่อโจมตีปกติโดนศัตรู
+@export var normal_hit_camera_shake_duration: float = 0.10
+
+# ความแรงกล้องสั่นเมื่อ Critical Attack
+@export var critical_hit_camera_shake_strength: float = 9.0
+
+# ระยะเวลากล้องสั่นเมื่อ Critical Attack
+@export var critical_hit_camera_shake_duration: float = 0.18
+
 # =========================
 # ตัวแปรอ้างอิง Node
 # =========================
@@ -512,6 +524,9 @@ func take_damage(amount: int) -> void:
 	# ทำ Hit Stop เพื่อให้จังหวะโจมตีรู้สึกมีน้ำหนัก
 	apply_hit_stop(is_critical_hit)
 
+	# ทำ Camera Shake เพื่อเพิ่มแรงกระแทกทางภาพ
+	apply_camera_shake(is_critical_hit)
+
 	# ถ้า HP หมด ให้ตายทันที
 	# วางไว้ก่อน flash เพื่อไม่ให้ศัตรูกระพริบแล้วกลับมาขาวหลังตาย
 	if current_hp <= 0:
@@ -613,6 +628,20 @@ func apply_hit_stop(is_critical_hit: bool) -> void:
 
 	# คืนความเร็วเกมกลับเป็นปกติ
 	Engine.time_scale = 1.0
+
+func apply_camera_shake(is_critical_hit: bool) -> void:
+	# ตั้งค่ากล้องสั่นเริ่มต้นเป็นแบบโจมตีปกติ
+	var strength := normal_hit_camera_shake_strength
+	var duration := normal_hit_camera_shake_duration
+
+	# ถ้าเป็น Critical ให้กล้องสั่นแรงและนานขึ้น
+	if is_critical_hit:
+		strength = critical_hit_camera_shake_strength
+		duration = critical_hit_camera_shake_duration
+
+	# เรียกกล้องที่อยู่ใน group game_camera ให้สั่น
+	# ถ้าในฉากยังไม่มีกล้อง group นี้ คำสั่งนี้จะไม่ error แค่ไม่มีอะไรเกิดขึ้น
+	get_tree().call_group("game_camera", "shake", strength, duration)
 
 func flash_critical() -> void:
 	# เปลี่ยนสีศัตรูเป็นสีส้มทอง เพื่อแสดงว่าโดน Critical

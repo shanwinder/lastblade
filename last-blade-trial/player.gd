@@ -58,6 +58,11 @@ signal player_died
 # เวลาหน่วงหลังโจมตี ก่อนจะขยับหรือโจมตีใหม่ได้
 @export var attack_recovery_time: float = 0.12
 
+# ความแรงกล้องสั่นเมื่อ Player โดนโจมตี
+@export var player_hit_camera_shake_strength: float = 7.0
+
+# ระยะเวลากล้องสั่นเมื่อ Player โดนโจมตี
+@export var player_hit_camera_shake_duration: float = 0.15
 
 # =========================
 # อ้างอิง Node ต่าง ๆ
@@ -398,7 +403,15 @@ func take_damage(amount: int) -> void:
 
 	# แจ้ง HUD ว่า HP เปลี่ยนแล้ว
 	emit_stats()
-	
+		
+	# ทำ Camera Shake เมื่อ Player โดนโจมตี
+	get_tree().call_group(
+		"game_camera",
+		"shake",
+		player_hit_camera_shake_strength,
+		player_hit_camera_shake_duration
+	)
+
 	# ทำเอฟเฟกต์กระพริบแดงแบบง่าย ๆ
 	flash_red()
 

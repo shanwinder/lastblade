@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="1_u1xfj"]
 [ext_resource type="Script" uid="uid://d4f0ahgftgx16" path="res://EnemyDummy.gd" id="3_q24mn"]
 [ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="4_gyg6b"]
+[ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="5_dc040"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -123,3 +124,7 @@ offset_left = 360.0
 offset_top = 230.0
 offset_right = 400.0
 offset_bottom = 253.0
+
+[node name="GameCamera" type="Camera2D" parent="." unique_id=532290581]
+position = Vector2(576, 324)
+script = ExtResource("5_dc040")
