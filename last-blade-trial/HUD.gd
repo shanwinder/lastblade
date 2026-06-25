@@ -46,6 +46,10 @@ extends CanvasLayer
 var is_game_finished: bool = false
 
 func _ready() -> void:
+	# กันกรณี reload scene ตอนเกมกำลัง Hit Stop
+	# ให้เริ่มฉากใหม่ด้วยความเร็วปกติเสมอ
+	Engine.time_scale = 1.0
+	
 	# หา node Player จาก Main
 	var player = get_parent().get_node("Player")
 

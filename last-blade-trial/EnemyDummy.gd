@@ -52,6 +52,18 @@ signal enemy_died
 # เช่น 3.0 แปลว่าโจมตีแรงขึ้น 3 เท่า
 @export var critical_damage_multiplier: float = 3.0
 
+# ระยะเวลา Hit Stop เมื่อโจมตีปกติโดนศัตรู
+# ค่านี้สั้นมาก เพื่อให้รู้สึกว่าดาบกระแทกโดนจริง
+@export var normal_hit_stop_time: float = 0.06
+
+# ระยะเวลา Hit Stop เมื่อโจมตี Critical
+# Critical ควรหน่วงนานกว่านิดหนึ่ง เพื่อให้รู้สึกหนักและสะใจ
+@export var critical_hit_stop_time: float = 0.12
+
+# ความเร็วของเกมระหว่าง Hit Stop
+# 0.08 แปลว่าเกมช้าลงมาก แต่ไม่หยุดสนิท
+@export var hit_stop_time_scale: float = 0.08
+
 # =========================
 # ตัวแปรอ้างอิง Node
 # =========================
@@ -110,6 +122,10 @@ var has_hit_player: bool = false
 # ใช้ยกเลิก attack coroutine เก่าที่ค้างอยู่
 # ทุกครั้งที่เริ่ม attack ใหม่หรือถูก parry เราจะเพิ่มค่านี้
 var attack_sequence_id: int = 0
+
+# ใช้กัน Hit Stop ซ้อนกันหลายรอบ
+# ถ้ามี Hit Stop ใหม่เข้ามา จะให้รอบล่าสุดเป็นตัวควบคุม
+var hit_stop_id: int = 0
 
 # ทิศที่ศัตรูหันหน้าอยู่ 1 = ขวา, -1 = ซ้าย
 var facing_direction: int = -1
@@ -493,6 +509,9 @@ func take_damage(amount: int) -> void:
 	# แสดงตัวเลขดาเมจลอยขึ้นเหนือศัตรู
 	show_damage_popup(final_damage, is_critical_hit)
 
+	# ทำ Hit Stop เพื่อให้จังหวะโจมตีรู้สึกมีน้ำหนัก
+	apply_hit_stop(is_critical_hit)
+
 	# ถ้า HP หมด ให้ตายทันที
 	# วางไว้ก่อน flash เพื่อไม่ให้ศัตรูกระพริบแล้วกลับมาขาวหลังตาย
 	if current_hp <= 0:
@@ -568,6 +587,33 @@ func show_damage_popup(amount: int, is_critical_hit: bool) -> void:
 	tween.set_parallel(false)
 	tween.tween_callback(popup.queue_free)
 
+func apply_hit_stop(is_critical_hit: bool) -> void:
+	# เพิ่ม id ทุกครั้งที่เริ่ม Hit Stop
+	# เพื่อให้ถ้ามี Hit Stop ใหม่ซ้อนเข้ามา รอบเก่าจะไม่แย่ง reset time_scale
+	hit_stop_id += 1
+	var my_hit_stop_id := hit_stop_id
+
+	# เลือกระยะเวลาตามประเภทการโจมตี
+	var duration := normal_hit_stop_time
+
+	if is_critical_hit:
+		duration = critical_hit_stop_time
+
+	# ลดความเร็วเวลาของทั้งเกมชั่วคราว
+	# ทำให้การโจมตีรู้สึกกระแทกและมีน้ำหนัก
+	Engine.time_scale = hit_stop_time_scale
+
+	# รอด้วย timer ที่ ignore_time_scale = true
+	# สำคัญมาก: ถ้าไม่ ignore time scale ตัว timer จะช้าตามเกม ทำให้ Hit Stop ยาวเกินไป
+	await get_tree().create_timer(duration, true, false, true).timeout
+
+	# ถ้ามี Hit Stop รอบใหม่เริ่มไปแล้ว ไม่ต้อง reset จากรอบเก่า
+	if my_hit_stop_id != hit_stop_id:
+		return
+
+	# คืนความเร็วเกมกลับเป็นปกติ
+	Engine.time_scale = 1.0
+
 func flash_critical() -> void:
 	# เปลี่ยนสีศัตรูเป็นสีส้มทอง เพื่อแสดงว่าโดน Critical
 	sprite_2d.modulate = Color(1.0, 0.65, 0.0, 1.0)
@@ -590,6 +636,9 @@ func die() -> void:
 
 	# ตั้งสถานะว่าตายแล้ว
 	is_dead = true
+
+	# คืนความเร็วเกมกลับเป็นปกติ เผื่อศัตรูตายระหว่าง Hit Stop
+	Engine.time_scale = 1.0
 
 	# ยกเลิก attack coroutine เก่าที่อาจค้างอยู่
 	attack_sequence_id += 1
