@@ -523,7 +523,7 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# บันทึกว่า target ตัวนี้โดนไปแล้ว
 	hit_targets.append(target)
 
-		# ถ้า Focus เต็ม และศัตรูเปิดช่องให้ Finisher
+	# ถ้า Focus เต็ม และศัตรูเปิดช่องให้ Finisher
 	# ให้ใช้ Focus Finisher แทนการโจมตีปกติ
 	if has_enough_focus_for_finisher() and target.has_method("can_receive_focus_finisher") and target.can_receive_focus_finisher():
 		# ใช้ Focus ตาม cost ที่กำหนด

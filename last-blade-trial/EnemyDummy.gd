@@ -32,6 +32,29 @@ signal enemy_died
 # เวลารอระหว่างการโจมตีแต่ละครั้ง
 @export var attack_cooldown: float = 1.2
 
+# =========================
+# ค่าของท่าโจมตีแบบหนัก
+# =========================
+
+# โอกาสที่ศัตรูจะเลือกใช้ท่าโจมตีหนัก
+# 0.35 = ประมาณ 35% ของการโจมตีทั้งหมด
+@export var heavy_attack_chance: float = 0.35
+
+# ดาเมจของท่าโจมตีหนัก
+# ท่านี้แรงกว่าปกติ เพื่อบังคับให้ผู้เล่นต้อง Dash หลบ
+@export var heavy_attack_damage: int = 18
+
+# เวลาก่อนท่าโจมตีหนักจะออกจริง
+# นานกว่าท่าปกติ เพื่อให้ผู้เล่นมีเวลาอ่านท่า
+@export var heavy_attack_windup_time: float = 0.65
+
+# ระยะเวลาที่ Hitbox ของท่าโจมตีหนักเปิดอยู่
+@export var heavy_attack_active_time: float = 0.24
+
+# เวลาพักเพิ่มหลังใช้ท่าโจมตีหนัก
+# เพื่อให้ท่าหนักมีช่องว่างให้ผู้เล่นสวนกลับ
+@export var heavy_attack_cooldown_bonus: float = 0.35
+
 # ระยะเวลาที่ศัตรูชะงักเมื่อถูก Parry
 @export var stagger_time: float = 0.45
 
@@ -142,6 +165,27 @@ var can_attack: bool = true
 # เพื่อป้องกันดาเมจซ้ำจากการโจมตีครั้งเดียว
 var has_hit_player: bool = false
 
+# ชื่อท่าที่ศัตรูกำลังใช้ในรอบนี้
+# ใช้สำหรับ debug และแยก logic ของท่าโจมตี
+var current_attack_name: String = "normal_slash"
+
+# ดาเมจของท่าปัจจุบัน
+# จะถูกตั้งค่าทุกครั้งก่อนเริ่มโจมตี
+var current_attack_damage: int = 10
+
+# เวลาก่อนโจมตีจริงของท่าปัจจุบัน
+var current_attack_windup_time: float = 0.35
+
+# ระยะเวลาที่ Hitbox เปิดของท่าปัจจุบัน
+var current_attack_active_time: float = 0.18
+
+# cooldown ของท่าปัจจุบัน
+var current_attack_cooldown: float = 1.2
+
+# ท่าปัจจุบันสามารถ Parry ได้หรือไม่
+# Normal Slash = true, Heavy Slash = false
+var current_attack_can_be_parried: bool = true
+
 # ใช้ยกเลิก attack coroutine เก่าที่ค้างอยู่
 # ทุกครั้งที่เริ่ม attack ใหม่หรือถูก parry เราจะเพิ่มค่านี้
 var attack_sequence_id: int = 0
@@ -158,6 +202,9 @@ var attack_hitbox_offset_x: float = 55.0
 
 
 func _ready() -> void:
+	# สุ่มค่าเริ่มต้น เพื่อให้การเลือกท่าโจมตีไม่ซ้ำแบบเดิมทุกครั้งที่เปิดเกม
+	randomize()
+
 	# ตั้งเลือดเริ่มต้นของศัตรู
 	current_hp = max_hp
 
@@ -245,11 +292,57 @@ func emit_enemy_stats() -> void:
 	# ส่งค่า HP และ Posture ของศัตรูไปให้ HUD
 	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
 
+func choose_attack_pattern() -> void:
+	# สุ่มเลข 0.0 ถึง 1.0 เพื่อเลือกว่าจะใช้ท่าปกติหรือท่าหนัก
+	var roll: float = randf()
+
+	# ถ้าสุ่มได้น้อยกว่าโอกาสท่าหนัก ให้ใช้ Heavy Slash
+	if roll < heavy_attack_chance:
+		current_attack_name = "heavy_slash"
+
+		# ท่าหนักแรงกว่า
+		current_attack_damage = heavy_attack_damage
+
+		# ท่าหนักมี wind-up นานกว่า เพื่อให้ผู้เล่นอ่านท่า
+		current_attack_windup_time = heavy_attack_windup_time
+
+		# ท่าหนักเปิด Hitbox นานกว่านิดหนึ่ง
+		current_attack_active_time = heavy_attack_active_time
+
+		# ท่าหนักมี cooldown เพิ่ม เพื่อเปิดช่องให้ผู้เล่นสวนกลับ
+		current_attack_cooldown = attack_cooldown + heavy_attack_cooldown_bonus
+
+		# ท่าหนัก Parry ไม่ได้ ผู้เล่นควร Dash หลบ
+		current_attack_can_be_parried = false
+
+		print("Enemy chose HEAVY SLASH! Dash required.")
+	else:
+		current_attack_name = "normal_slash"
+
+		# ท่าปกติใช้ดาเมจเดิม
+		current_attack_damage = attack_damage
+
+		# ท่าปกติใช้ wind-up เดิม
+		current_attack_windup_time = attack_windup_time
+
+		# ท่าปกติใช้ active time เดิม
+		current_attack_active_time = attack_active_time
+
+		# ท่าปกติใช้ cooldown เดิม
+		current_attack_cooldown = attack_cooldown
+
+		# ท่าปกติ Parry ได้
+		current_attack_can_be_parried = true
+
+		print("Enemy chose NORMAL SLASH! Parry possible.")
 
 func attack() -> void:
 	# ถ้ากำลังเตรียมโจมตี / กำลังโจมตี / กำลังชะงัก / ยังไม่พร้อมโจมตี ห้ามเริ่มโจมตีใหม่
 	if is_winding_up or is_attacking or is_staggered or not can_attack:
 		return
+
+	# เลือก pattern การโจมตีของรอบนี้ก่อนเริ่มโจมตี
+	choose_attack_pattern()
 
 	# ล็อกไม่ให้เริ่มโจมตีซ้อน
 	is_winding_up = true
@@ -262,13 +355,18 @@ func attack() -> void:
 	attack_sequence_id += 1
 	var my_attack_id := attack_sequence_id
 
-	print("Enemy Wind-up!")
+	print("Enemy Wind-up:", current_attack_name)
 
-	# เปลี่ยนสีเป็นเหลืองเพื่อบอกว่าอีกนิดจะโจมตี
-	sprite_2d.modulate = Color.YELLOW
+	# แสดงสีเตือนตามชนิดท่า
+	if current_attack_can_be_parried:
+		# สีเหลือง = ท่าปกติ Parry ได้
+		sprite_2d.modulate = Color.YELLOW
+	else:
+		# สีส้ม = ท่าหนัก Parry ไม่ได้ ควร Dash หลบ
+		sprite_2d.modulate = Color(1.0, 0.35, 0.0, 1.0)
 
-	# รอช่วงเตรียมโจมตี
-	await get_tree().create_timer(attack_windup_time).timeout
+	# รอช่วงเตรียมโจมตีของท่าปัจจุบัน
+	await get_tree().create_timer(current_attack_windup_time).timeout
 
 	# ถ้าระหว่าง wind-up ถูกยกเลิก เช่น ถูก Parry/Break/ตาย ให้หยุดทันที
 	if my_attack_id != attack_sequence_id or is_dead:
@@ -284,7 +382,7 @@ func attack() -> void:
 	if is_instance_valid(sprite_2d):
 		sprite_2d.modulate = Color.WHITE
 
-	print("Enemy Attack! Hitbox ON")
+	print("Enemy Attack! Hitbox ON:", current_attack_name)
 
 	# เปิด Hitbox ของศัตรูแบบ deferred เพื่อปลอดภัยกับระบบ physics
 	attack_shape.set_deferred("disabled", false)
@@ -301,8 +399,8 @@ func attack() -> void:
 	for area in attack_hitbox.get_overlapping_areas():
 		_try_hit_area(area)
 
-	# รอช่วงที่การโจมตีมีผล
-	await get_tree().create_timer(attack_active_time).timeout
+	# รอช่วงที่การโจมตีมีผลตามท่าปัจจุบัน
+	await get_tree().create_timer(current_attack_active_time).timeout
 
 	# ถ้า attack รอบนี้ถูกยกเลิกระหว่างทาง เช่น ถูก Parry ให้หยุดทันที
 	if my_attack_id != attack_sequence_id or is_dead:
@@ -310,13 +408,13 @@ func attack() -> void:
 
 	# ปิด Hitbox หลังหมดจังหวะโจมตี
 	attack_shape.set_deferred("disabled", true)
-	print("Enemy Hitbox OFF")
+	print("Enemy Hitbox OFF:", current_attack_name)
 
 	# จบสถานะโจมตี
 	is_attacking = false
 
-	# รอ cooldown ก่อนโจมตีครั้งต่อไป
-	await get_tree().create_timer(attack_cooldown).timeout
+	# รอ cooldown ตามท่าปัจจุบันก่อนโจมตีครั้งต่อไป
+	await get_tree().create_timer(current_attack_cooldown).timeout
 
 	# ถ้า attack รอบนี้ถูกยกเลิกไปแล้ว ไม่ต้องเปิด can_attack
 	if my_attack_id != attack_sequence_id or is_dead:
@@ -324,7 +422,6 @@ func attack() -> void:
 
 	# อนุญาตให้โจมตีรอบใหม่
 	can_attack = true
-
 
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# เมื่อ hitbox ชน area อื่น ให้ส่งไปตรวจในฟังก์ชันกลาง
@@ -362,7 +459,8 @@ func _try_hit_area(area: Area2D) -> void:
 		return
 
 	# เช็กก่อนว่าเป้าหมายมีระบบ Parry หรือไม่
-	if target.has_method("is_parry_active") and target.is_parry_active():
+	# แต่ Parry จะสำเร็จเฉพาะท่าที่อนุญาตให้ Parry ได้เท่านั้น
+	if current_attack_can_be_parried and target.has_method("is_parry_active") and target.is_parry_active():
 		# ถ้า Player กำลัง Parry อยู่ ถือว่า Parry สำเร็จ
 		has_hit_player = true
 		print("Enemy attack was parried!")
@@ -382,10 +480,14 @@ func _try_hit_area(area: Area2D) -> void:
 		# ไม่ทำดาเมจ เพราะถูก Parry
 		return
 
-	# ถ้าไม่ได้ Parry ให้ทำดาเมจตามปกติ
-	has_hit_player = true
-	target.take_damage(attack_damage)
+	# ถ้าผู้เล่นพยายาม Parry ท่าหนัก ให้แจ้งใน console
+	# ท่าหนักออกแบบมาให้ Dash หลบ ไม่ใช่ Parry
+	if not current_attack_can_be_parried and target.has_method("is_parry_active") and target.is_parry_active():
+		print("Heavy Slash cannot be parried! Player should dash.")
 
+	# ถ้าไม่ได้ Parry สำเร็จ ให้ทำดาเมจตามค่าของท่าปัจจุบัน
+	has_hit_player = true
+	target.take_damage(current_attack_damage)
 
 func stagger() -> void:
 	# ถ้ากำลังชะงักอยู่แล้ว ไม่ต้องเริ่มซ้ำ
