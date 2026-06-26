@@ -503,7 +503,47 @@ func posture_break() -> void:
 
 	can_attack = true
 
+func can_receive_focus_finisher() -> bool:
+	# ศัตรูจะรับ Focus Finisher ได้เฉพาะตอน Posture Break
+	# และยังไม่ตายเท่านั้น
+	return is_posture_broken and not is_dead
 
+func take_focus_finisher_damage(amount: int) -> void:
+	# ถ้าศัตรูตายแล้ว ไม่รับดาเมจซ้ำ
+	if is_dead:
+		return
+
+	print("ENEMY HIT BY FOCUS FINISHER! Damage =", amount)
+
+	# ปิดช่อง Critical ปกติ เพื่อไม่ให้ซ้อนกับระบบ Critical เดิม
+	can_receive_critical = false
+
+	# ลด HP โดยตรง
+	current_hp -= amount
+	current_hp = max(current_hp, 0)
+
+	# อัปเดต HUD
+	emit_enemy_stats()
+
+	print("Enemy HP left:", current_hp)
+
+	# แสดงตัวเลขดาเมจแบบ Critical/Finisher
+	show_damage_popup(amount, true, "FINISHER!")
+
+	# Hit Stop แบบ Critical
+	apply_hit_stop(true)
+
+	# Camera Shake แบบ Critical
+	apply_camera_shake(true)
+
+	# ถ้า HP หมด ให้ตาย
+	if current_hp <= 0:
+		die()
+		return
+
+	# ใช้ flash_critical เพื่อให้เห็นว่าท่านี้เป็นท่าหนัก
+	flash_critical()
+	
 func take_damage(amount: int) -> void:
 	# ถ้าศัตรูตายแล้ว ไม่รับดาเมจซ้ำ
 	if is_dead:
@@ -583,13 +623,16 @@ func flash_red() -> void:
 			sprite_2d.modulate = Color.WHITE
 
 
-func show_damage_popup(amount: int, is_critical_hit: bool) -> void:
+func show_damage_popup(amount: int, is_critical_hit: bool, label_text: String = "") -> void:
 	# สร้าง Label ใหม่ขึ้นมาเพื่อใช้แสดงตัวเลขดาเมจ
 	var popup := Label.new()
 
 	# ถ้าเป็น Critical ให้แสดงข้อความใหญ่และเด่นกว่า
 	if is_critical_hit:
-		popup.text = "CRITICAL!\n%d" % amount
+		if label_text == "":
+			popup.text = "CRITICAL!\n%d" % amount
+		else:
+			popup.text = "%s\n%d" % [label_text, amount]
 		popup.modulate = Color(1.0, 0.65, 0.0, 1.0) # สีส้มทอง
 		popup.add_theme_font_size_override("font_size", 26)
 	else:

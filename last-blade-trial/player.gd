@@ -58,6 +58,15 @@ signal player_died
 # อิงจากแผนใน docs ที่แนะนำ Focus gain = 20
 @export var focus_gain_on_successful_parry: float = 20.0
 
+# Focus ที่ต้องใช้เพื่อทำ Finisher
+# ตอนนี้ตั้งให้ใช้เต็มหลอด 100
+@export var focus_finisher_cost: float = 100.0
+
+# สัดส่วนดาเมจของ Finisher เทียบกับ HP สูงสุดของศัตรู
+# 0.40 = 40% ของ HP สูงสุดศัตรู
+# อิงจาก docs ที่แนะนำ Finisher damage ประมาณ 25–40%
+@export var focus_finisher_damage_ratio: float = 0.40
+
 # ระยะเวลาที่ Parry มีผลจริง
 # ค่านี้คือ "หน้าต่างสำเร็จ" ของ Parry
 # ตอนทดสอบตั้งให้กว้างหน่อย เพื่อจับจังหวะง่าย
@@ -271,6 +280,22 @@ func gain_focus(amount: float) -> void:
 	if int(old_focus) != int(current_focus):
 		emit_stats()
 		
+func has_enough_focus_for_finisher() -> bool:
+	# เช็กว่า Focus มีพอสำหรับใช้ Finisher หรือไม่
+	return current_focus >= focus_finisher_cost
+
+func spend_focus(amount: float) -> void:
+	# ลด Focus ตามจำนวนที่ใช้
+	current_focus -= amount
+
+	# กันไม่ให้ Focus ติดลบ
+	current_focus = clamp(current_focus, 0.0, max_focus)
+
+	print("Focus spent:", int(amount), "Focus =", int(current_focus), "/", int(max_focus))
+
+	# แจ้ง HUD ว่า Focus เปลี่ยนแล้ว
+	emit_stats()
+	
 func regenerate_stamina(delta: float) -> void:
 	# เก็บค่าเดิมไว้ก่อน เพื่อเช็กว่าค่าเปลี่ยนหรือไม่
 	var old_stamina := current_stamina
@@ -459,7 +484,33 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# บันทึกว่า target ตัวนี้โดนไปแล้ว
 	hit_targets.append(target)
 
-	# สั่งให้ target รับดาเมจ
+	# ถ้า Focus เต็ม และศัตรูเปิดช่องให้ Finisher
+	# ให้ใช้ Focus Finisher แทนการโจมตีปกติ
+	if has_enough_focus_for_finisher() and target.has_method("can_receive_focus_finisher") and target.can_receive_focus_finisher():
+		# ใช้ Focus ทั้งหมดตาม cost
+		spend_focus(focus_finisher_cost)
+
+		# คำนวณดาเมจ Finisher จาก HP สูงสุดของศัตรู
+		var finisher_damage: int = attack_damage
+
+		# ถ้า target มี max_hp ให้คำนวณเป็นเปอร์เซ็นต์จาก HP สูงสุด
+		if "max_hp" in target:
+			finisher_damage = int(round(float(target.max_hp) * focus_finisher_damage_ratio))
+
+		# กันไว้ว่า Finisher ต้องแรงกว่าโจมตีปกติอย่างน้อย
+		finisher_damage = max(finisher_damage, attack_damage * 2)
+
+		print("FOCUS FINISHER! Damage =", finisher_damage)
+
+		# สั่งให้ศัตรูรับดาเมจแบบ Finisher
+		if target.has_method("take_focus_finisher_damage"):
+			target.take_focus_finisher_damage(finisher_damage)
+		else:
+			target.take_damage(finisher_damage)
+
+		return
+
+	# ถ้าเงื่อนไขไม่ครบ ให้โจมตีปกติ
 	target.take_damage(attack_damage)
 
 
