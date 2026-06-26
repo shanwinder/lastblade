@@ -70,6 +70,10 @@ signal player_died
 # ระยะเวลาที่ Player จะถูก Knockback
 @export var player_knockback_time: float = 0.14
 
+# ระยะเวลาอมตะหลัง Player โดนโจมตี
+# ป้องกันไม่ให้โดนดาเมจซ้ำติด ๆ กัน
+@export var hurt_invincible_time: float = 0.65
+
 # =========================
 # อ้างอิง Node ต่าง ๆ
 # =========================
@@ -119,6 +123,9 @@ var is_dead: bool = false
 
 # ใช้เช็กว่า Player กำลังถูก Knockback อยู่หรือไม่
 var is_knocked_back: bool = false
+
+# ใช้เช็กว่า Player กำลังอมตะหลังโดนตีอยู่หรือไม่
+var is_hurt_invincible: bool = false
 
 # ความเร็ว Knockback ปัจจุบันของ Player
 var knockback_velocity: Vector2 = Vector2.ZERO
@@ -414,7 +421,12 @@ func take_damage(amount: int) -> void:
 	# ถ้า Player ตายไปแล้ว ไม่รับดาเมจซ้ำ
 	if is_dead:
 		return
-		
+	
+	# ถ้าอยู่ในช่วงอมตะหลังโดนตี ไม่รับดาเมจซ้ำ
+	if is_hurt_invincible:
+		print("Damage ignored by hurt invincibility!")
+		return
+	
 	# ถ้ากำลัง Dash อยู่ ไม่รับดาเมจ
 	# เผื่อกรณี Hitbox ศัตรูชนพอดีในจังหวะที่ Hurtbox ยังไม่ถูกปิดทัน
 	if is_dashing:
@@ -430,6 +442,9 @@ func take_damage(amount: int) -> void:
 	
 	# ทำ Knockback ให้ Player กระเด็นเมื่อโดนโจมตี
 	apply_knockback()
+	
+	# เริ่มช่วงอมตะหลังโดนตี
+	start_hurt_invincibility()
 		
 	# ทำ Camera Shake เมื่อ Player โดนโจมตี
 	get_tree().call_group(
@@ -486,6 +501,52 @@ func apply_knockback() -> void:
 		is_knocked_back = false
 		knockback_velocity = Vector2.ZERO
 		
+func start_hurt_invincibility() -> void:
+	# ถ้า Player ตายแล้ว ไม่ต้องเริ่มอมตะ
+	if is_dead:
+		return
+
+	# เริ่มสถานะอมตะหลังโดนตี
+	is_hurt_invincible = true
+
+	# ปิด Hurtbox ชั่วคราว เพื่อกันการรับดาเมจซ้ำจาก hitbox อื่น
+	hurtbox_shape.set_deferred("disabled", true)
+
+	# ทำเอฟเฟกต์กระพริบระหว่างอมตะ
+	blink_while_invincible()
+
+	# รอระยะเวลาอมตะ
+	await get_tree().create_timer(hurt_invincible_time).timeout
+
+	# ถ้า Player ตายระหว่างนั้น ไม่ต้องเปิด Hurtbox กลับ
+	if is_dead:
+		return
+
+	# จบสถานะอมตะ
+	is_hurt_invincible = false
+
+	# เปิด Hurtbox กลับมา
+	hurtbox_shape.set_deferred("disabled", false)
+
+	# คืนสีปกติ
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color.WHITE
+
+func blink_while_invincible() -> void:
+	# กระพริบไปเรื่อย ๆ ตราบใดที่ยังอยู่ในช่วงอมตะ
+	while is_hurt_invincible and not is_dead:
+		# ทำให้ตัวละครจางลง
+		if is_instance_valid(sprite_2d):
+			sprite_2d.modulate = Color(1.0, 1.0, 1.0, 0.35)
+
+		await get_tree().create_timer(0.08).timeout
+
+		# ทำให้ตัวละครกลับมาชัด
+		if is_instance_valid(sprite_2d):
+			sprite_2d.modulate = Color.WHITE
+
+		await get_tree().create_timer(0.08).timeout
+		
 func flash_red() -> void:
 	# เปลี่ยนสีตัวละครเป็นสีแดงชั่วคราว
 	sprite_2d.modulate = Color.RED
@@ -493,10 +554,9 @@ func flash_red() -> void:
 	# รอ 0.1 วินาที
 	await get_tree().create_timer(0.1).timeout
 
-	# ถ้า Sprite ยังอยู่ ให้เปลี่ยนกลับเป็นสีขาว
-	if is_instance_valid(sprite_2d):
+	# ถ้า Sprite ยังอยู่ และไม่ได้อยู่ในช่วงอมตะ ให้เปลี่ยนกลับเป็นสีขาว
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible:
 		sprite_2d.modulate = Color.WHITE
-
 
 func die() -> void:
 	# ถ้าตายไปแล้ว ไม่ต้องทำซ้ำ
