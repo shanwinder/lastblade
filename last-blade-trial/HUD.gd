@@ -22,6 +22,12 @@ extends CanvasLayer
 # หลอด Stamina ของผู้เล่น
 @onready var stamina_bar: ProgressBar = $Control/VBoxContainer/StaminaBar
 
+# ข้อความ Focus ของผู้เล่น
+@onready var focus_label: Label = $Control/VBoxContainer/FocusLabel
+
+# หลอด Focus ของผู้เล่น
+@onready var focus_bar: ProgressBar = $Control/VBoxContainer/FocusBar
+
 
 # =========================
 # อ้างอิง Label และ ProgressBar ของ Enemy
@@ -73,14 +79,27 @@ func _ready() -> void:
 	# ซ่อนข้อความผลลัพธ์ตอนเริ่มเกม
 	game_result_label.text = ""
 
-	# อัปเดต HUD ของ Player ครั้งแรกตอนเริ่มเกม
-	update_player_stats(player.current_hp, player.max_hp, player.current_stamina, player.max_stamina)
+	update_player_stats(
+	player.current_hp,
+	player.max_hp,
+	player.current_stamina,
+	player.max_stamina,
+	player.current_focus,
+	player.max_focus
+)
 
 	# อัปเดต HUD ของ Enemy ครั้งแรกตอนเริ่มเกม
 	update_enemy_stats(enemy.current_hp, enemy.max_hp, enemy.current_posture, enemy.max_posture)
 
 
-func update_player_stats(current_hp: int, max_hp: int, current_stamina: float, max_stamina: float) -> void:
+func update_player_stats(
+	current_hp: int,
+	max_hp: int,
+	current_stamina: float,
+	max_stamina: float,
+	current_focus: float,
+	max_focus: float
+) -> void:
 	# อัปเดตข้อความ HP ผู้เล่น
 	hp_label.text = "Player HP: %d / %d" % [current_hp, max_hp]
 
@@ -95,6 +114,12 @@ func update_player_stats(current_hp: int, max_hp: int, current_stamina: float, m
 	stamina_bar.max_value = max_stamina
 	stamina_bar.value = current_stamina
 
+	# อัปเดตข้อความ Focus ผู้เล่น
+	focus_label.text = "Focus: %d / %d" % [int(current_focus), int(max_focus)]
+
+	# อัปเดตหลอด Focus ผู้เล่น
+	focus_bar.max_value = max_focus
+	focus_bar.value = current_focus
 
 func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, max_posture: float) -> void:
 	# อัปเดตข้อความ HP ศัตรู

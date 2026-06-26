@@ -1,7 +1,14 @@
 extends CharacterBody2D
 
-# ส่งสัญญาณไปให้ HUD ทุกครั้งที่ HP หรือ Stamina เปลี่ยน
-signal stats_changed(current_hp: int, max_hp: int, current_stamina: float, max_stamina: float)
+# ส่งสัญญาณไปให้ HUD ทุกครั้งที่ HP, Stamina หรือ Focus เปลี่ยน
+signal stats_changed(
+	current_hp: int,
+	max_hp: int,
+	current_stamina: float,
+	max_stamina: float,
+	current_focus: float,
+	max_focus: float
+)
 
 # ส่งสัญญาณเมื่อ Player ตาย เพื่อให้ HUD หรือ Main แสดง Game Over
 signal player_died
@@ -31,6 +38,10 @@ signal player_died
 # Stamina สูงสุดของผู้เล่น
 @export var max_stamina: float = 100.0
 
+# Focus สูงสุดของผู้เล่น
+# ใช้สะสมจากการ Parry สำเร็จ เพื่อใช้ท่าพิเศษในอนาคต
+@export var max_focus: float = 100.0
+
 # ความเร็วในการฟื้น Stamina ต่อวินาที
 @export var stamina_regen_rate: float = 10.0
 
@@ -42,6 +53,10 @@ signal player_died
 
 # Stamina ที่ใช้เมื่อกด Parry หนึ่งครั้ง
 @export var parry_stamina_cost: float = 20.0
+
+# จำนวน Focus ที่ได้รับเมื่อ Parry สำเร็จ
+# อิงจากแผนใน docs ที่แนะนำ Focus gain = 20
+@export var focus_gain_on_successful_parry: float = 20.0
 
 # ระยะเวลาที่ Parry มีผลจริง
 # ค่านี้คือ "หน้าต่างสำเร็จ" ของ Parry
@@ -105,6 +120,9 @@ var current_hp: int
 # Stamina ปัจจุบันของผู้เล่น
 var current_stamina: float
 
+# Focus ปัจจุบันของผู้เล่น
+var current_focus: float
+
 # ใช้เช็กว่าผู้เล่นกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
 
@@ -147,6 +165,10 @@ func _ready() -> void:
 
 	# ตั้ง Stamina เริ่มต้นให้เต็ม
 	current_stamina = max_stamina
+	
+	# ตั้ง Focus เริ่มต้นเป็น 0
+	# ผู้เล่นต้องสะสมจากการ Parry สำเร็จ
+	current_focus = 0.0
 
 	# ปิด Hitbox ดาบไว้ก่อน เพราะยังไม่ได้โจมตี
 	attack_shape.disabled = true
@@ -225,9 +247,30 @@ func _physics_process(_delta: float) -> void:
 		parry()
 
 func emit_stats() -> void:
-	# ส่งค่า HP และ Stamina ปัจจุบันออกไปให้ HUD
-	stats_changed.emit(current_hp, max_hp, current_stamina, max_stamina)
+	# ส่งค่า HP, Stamina และ Focus ปัจจุบันออกไปให้ HUD
+	stats_changed.emit(
+		current_hp,
+		max_hp,
+		current_stamina,
+		max_stamina,
+		current_focus,
+		max_focus
+	)
 
+func gain_focus(amount: float) -> void:
+	# เก็บค่าเดิมไว้ก่อน เพื่อเช็กว่าค่าเปลี่ยนหรือไม่
+	var old_focus: float = current_focus
+
+	# เพิ่ม Focus และไม่ให้เกิน max_focus
+	current_focus += amount
+	current_focus = clamp(current_focus, 0.0, max_focus)
+
+	print("Focus gained:", int(amount), "Focus =", int(current_focus), "/", int(max_focus))
+
+	# ถ้า Focus เปลี่ยน ให้แจ้ง HUD
+	if int(old_focus) != int(current_focus):
+		emit_stats()
+		
 func regenerate_stamina(delta: float) -> void:
 	# เก็บค่าเดิมไว้ก่อน เพื่อเช็กว่าค่าเปลี่ยนหรือไม่
 	var old_stamina := current_stamina
@@ -368,6 +411,9 @@ func on_successful_parry() -> void:
 	# ฟังก์ชันนี้ถูกเรียกเมื่อศัตรูโจมตีเข้ามาในช่วง Parry
 	print("Successful Parry!")
 
+	# ได้ Focus เมื่อ Parry สำเร็จ
+	gain_focus(focus_gain_on_successful_parry)
+	
 	# ให้สีเป็นเหลืองชั่วคราวเพื่อ feedback
 	sprite_2d.modulate = Color.YELLOW
 

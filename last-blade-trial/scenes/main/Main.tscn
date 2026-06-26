@@ -103,6 +103,13 @@ layout_mode = 2
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
 
+[node name="FocusLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=1389652600]
+layout_mode = 2
+
+[node name="FocusBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=668970317]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
 [node name="EnemyHPLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=1926143112]
 layout_mode = 2
 
