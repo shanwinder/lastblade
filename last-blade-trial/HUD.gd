@@ -114,9 +114,12 @@ func update_player_stats(
 	stamina_bar.max_value = max_stamina
 	stamina_bar.value = current_stamina
 
-	# อัปเดตข้อความ Focus ผู้เล่น
-	focus_label.text = "Focus: %d / %d" % [int(current_focus), int(max_focus)]
-
+	# ถ้า Focus เต็ม ให้บอกผู้เล่นว่าพร้อมใช้ท่า Finisher
+	if current_focus >= max_focus:
+		focus_label.text = "Focus: %d / %d  READY" % [int(current_focus), int(max_focus)]
+	else:
+		focus_label.text = "Focus: %d / %d" % [int(current_focus), int(max_focus)]
+		
 	# อัปเดตหลอด Focus ผู้เล่น
 	focus_bar.max_value = max_focus
 	focus_bar.value = current_focus

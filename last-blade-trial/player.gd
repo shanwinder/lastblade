@@ -167,6 +167,10 @@ var attack_hitbox_offset_x: float = 55.0
 # ป้องกันไม่ให้เป้าหมายตัวเดิมโดนดาเมจซ้ำจากการโจมตีครั้งเดียว
 var hit_targets: Array = []
 
+# ใช้เช็กว่าเคยแจ้งเตือน Focus เต็มแล้วหรือยัง
+# ป้องกันไม่ให้ print ซ้ำทุกครั้งที่ Focus เปลี่ยน
+var has_shown_focus_ready_message: bool = false
+
 
 func _ready() -> void:
 	# ตั้งเลือดเริ่มต้นให้เต็ม
@@ -274,6 +278,12 @@ func gain_focus(amount: float) -> void:
 	current_focus += amount
 	current_focus = clamp(current_focus, 0.0, max_focus)
 
+	# ถ้า Focus เต็มครั้งแรก ให้แจ้งผู้เล่นผ่าน console ก่อน
+	# ภายหลังค่อยเปลี่ยนเป็น popup หรือ tutorial text บนจอ
+	if current_focus >= max_focus and not has_shown_focus_ready_message:
+		has_shown_focus_ready_message = true
+		print("FOCUS READY! Break enemy posture, then press Attack for Finisher.")
+		
 	print("Focus gained:", int(amount), "Focus =", int(current_focus), "/", int(max_focus))
 
 	# ถ้า Focus เปลี่ยน ให้แจ้ง HUD
@@ -290,12 +300,41 @@ func spend_focus(amount: float) -> void:
 
 	# กันไม่ให้ Focus ติดลบ
 	current_focus = clamp(current_focus, 0.0, max_focus)
-
+	
+	# เมื่อใช้ Focus ไปแล้ว อนุญาตให้แจ้งเตือน READY ได้อีกครั้งในรอบถัดไป
+	if current_focus < max_focus:
+		has_shown_focus_ready_message = false
+		
 	print("Focus spent:", int(amount), "Focus =", int(current_focus), "/", int(max_focus))
 
 	# แจ้ง HUD ว่า Focus เปลี่ยนแล้ว
 	emit_stats()
 	
+func play_focus_finisher_feedback() -> void:
+	# ถ้า Player ตายแล้ว ไม่ต้องเล่น feedback
+	if is_dead:
+		return
+
+	# เปลี่ยนสีผู้เล่นเป็นสีส้มทองชั่วคราว
+	# เพื่อบอกว่ากำลังใช้ Focus Finisher
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color(1.0, 0.75, 0.15, 1.0)
+
+	# สั่นกล้องแรงกว่าการโจมตีปกติเล็กน้อย
+	get_tree().call_group(
+		"game_camera",
+		"shake",
+		10.0,
+		0.20
+	)
+
+	# รอให้ผู้เล่นเห็นเอฟเฟกต์สั้น ๆ
+	await get_tree().create_timer(0.12).timeout
+
+	# ถ้ายังอยู่ในเกม ให้คืนสีปกติ
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible:
+		sprite_2d.modulate = Color.WHITE
+		
 func regenerate_stamina(delta: float) -> void:
 	# เก็บค่าเดิมไว้ก่อน เพื่อเช็กว่าค่าเปลี่ยนหรือไม่
 	var old_stamina := current_stamina
@@ -484,23 +523,30 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 	# บันทึกว่า target ตัวนี้โดนไปแล้ว
 	hit_targets.append(target)
 
-	# ถ้า Focus เต็ม และศัตรูเปิดช่องให้ Finisher
+		# ถ้า Focus เต็ม และศัตรูเปิดช่องให้ Finisher
 	# ให้ใช้ Focus Finisher แทนการโจมตีปกติ
 	if has_enough_focus_for_finisher() and target.has_method("can_receive_focus_finisher") and target.can_receive_focus_finisher():
-		# ใช้ Focus ทั้งหมดตาม cost
+		# ใช้ Focus ตาม cost ที่กำหนด
 		spend_focus(focus_finisher_cost)
 
-		# คำนวณดาเมจ Finisher จาก HP สูงสุดของศัตรู
-		var finisher_damage: int = attack_damage
+		# ตั้งดาเมจเริ่มต้นไว้ก่อน เผื่อเป้าหมายไม่มีค่า max_hp
+		var finisher_damage: int = attack_damage * 2
 
-		# ถ้า target มี max_hp ให้คำนวณเป็นเปอร์เซ็นต์จาก HP สูงสุด
-		if "max_hp" in target:
-			finisher_damage = int(round(float(target.max_hp) * focus_finisher_damage_ratio))
+		# อ่านค่า max_hp จากศัตรูแบบปลอดภัย
+		# ใช้ get() แทน "max_hp" in target เพื่อลดโอกาส error ใน Godot 4
+		var target_max_hp = target.get("max_hp")
+
+		# ถ้าศัตรูมี max_hp จริง ให้คำนวณดาเมจเป็นเปอร์เซ็นต์จาก HP สูงสุด
+		if target_max_hp != null:
+			finisher_damage = int(round(float(target_max_hp) * focus_finisher_damage_ratio))
 
 		# กันไว้ว่า Finisher ต้องแรงกว่าโจมตีปกติอย่างน้อย
 		finisher_damage = max(finisher_damage, attack_damage * 2)
 
 		print("FOCUS FINISHER! Damage =", finisher_damage)
+		
+		# เล่น feedback ฝั่ง Player ให้รู้ว่าท่าใหญ่ทำงานแล้ว
+		play_focus_finisher_feedback()
 
 		# สั่งให้ศัตรูรับดาเมจแบบ Finisher
 		if target.has_method("take_focus_finisher_damage"):
