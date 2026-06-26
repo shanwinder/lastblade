@@ -24,7 +24,7 @@ signal enemy_died
 
 # เวลาก่อนศัตรูโจมตีจริง
 # ใช้เป็นช่วงเตือนให้ผู้เล่นเห็นจังหวะ Dash หรือ Parry
-@export var attack_windup_time: float = 0.35
+@export var attack_windup_time: float = 0.90
 
 # ระยะเวลาที่ Hitbox ของศัตรูเปิดตอนโจมตี
 @export var attack_active_time: float = 0.18
