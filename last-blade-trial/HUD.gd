@@ -48,6 +48,10 @@ extends CanvasLayer
 # ข้อความผลลัพธ์ตอนจบเกม เช่น Game Over หรือ Victory
 @onready var game_result_label: Label = $Control/GameResultLabel
 
+# Label สำหรับแสดงคำเตือนท่าศัตรู เช่น PARRY! หรือ DASH!
+# สร้างด้วยโค้ดใน _ready() เพื่อไม่ต้องแก้ Main.tscn ตอนนี้
+var attack_hint_label: Label
+
 # ใช้เช็กว่าเกมจบแล้วหรือยัง
 var is_game_finished: bool = false
 
@@ -69,6 +73,11 @@ func _ready() -> void:
 	# เชื่อม signal จาก EnemyDummy มายัง HUD
 	# เมื่อ HP หรือ Posture ของศัตรูเปลี่ยน HUD จะอัปเดตทันที
 	enemy.enemy_stats_changed.connect(update_enemy_stats)
+	
+		# เชื่อม signal คำเตือนท่าศัตรู
+	# ถ้า EnemyDummy มี signal นี้ ให้ HUD แสดงข้อความ PARRY! หรือ DASH!
+	if enemy.has_signal("enemy_attack_hint_changed"):
+		enemy.enemy_attack_hint_changed.connect(update_attack_hint)
 
 	# เชื่อม signal เมื่อตัวละครผู้เล่นตาย
 	player.player_died.connect(show_game_over)
@@ -78,6 +87,9 @@ func _ready() -> void:
 
 	# ซ่อนข้อความผลลัพธ์ตอนเริ่มเกม
 	game_result_label.text = ""
+	
+	# สร้าง Label สำหรับคำเตือนท่าศัตรู
+	create_attack_hint_label()
 
 	update_player_stats(
 	player.current_hp,
@@ -91,6 +103,47 @@ func _ready() -> void:
 	# อัปเดต HUD ของ Enemy ครั้งแรกตอนเริ่มเกม
 	update_enemy_stats(enemy.current_hp, enemy.max_hp, enemy.current_posture, enemy.max_posture)
 
+func create_attack_hint_label() -> void:
+	# สร้าง Label ใหม่สำหรับบอกผู้เล่นว่าควร Parry หรือ Dash
+	attack_hint_label = Label.new()
+
+	# เริ่มต้นให้ไม่มีข้อความ
+	attack_hint_label.text = ""
+
+	# ทำให้ตัวอักษรใหญ่พอสำหรับอ่านบนมือถือ
+	attack_hint_label.add_theme_font_size_override("font_size", 42)
+
+	# จัดข้อความให้อยู่กึ่งกลาง
+	attack_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	attack_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	# ตั้งขนาดพื้นที่ข้อความ
+	attack_hint_label.custom_minimum_size = Vector2(500, 80)
+
+	# วางตำแหน่งกลางบนของจอแบบง่าย ๆ ก่อน
+	# ภายหลังค่อยปรับให้ responsive กับมือถือจริง
+	attack_hint_label.position = Vector2(390, 90)
+
+	# ให้ข้อความอยู่หน้าสุด
+	attack_hint_label.z_index = 200
+
+	# เพิ่มเข้าไปใต้ Control ของ HUD
+	$Control.add_child(attack_hint_label)
+
+
+func update_attack_hint(hint_text: String, hint_color: Color) -> void:
+	# ถ้ายังไม่ได้สร้าง Label ให้ไม่ทำอะไร เพื่อป้องกัน error
+	if attack_hint_label == null:
+		return
+
+	# อัปเดตข้อความ เช่น PARRY! หรือ DASH!
+	attack_hint_label.text = hint_text
+
+	# อัปเดตสีให้ตรงกับท่าโจมตี
+	attack_hint_label.modulate = hint_color
+
+	# ถ้าไม่มีข้อความ ให้ซ่อน Label
+	attack_hint_label.visible = hint_text != ""
 
 func update_player_stats(
 	current_hp: int,

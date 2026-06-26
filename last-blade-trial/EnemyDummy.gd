@@ -6,6 +6,10 @@ signal enemy_stats_changed(current_hp: int, max_hp: int, current_posture: float,
 # ส่งสัญญาณเมื่อศัตรูตาย เพื่อให้ HUD หรือ Main แสดง Victory
 signal enemy_died
 
+# ส่งสัญญาณไปให้ HUD แสดงคำเตือนท่าโจมตีของศัตรู
+# เช่น Normal Slash ให้ Parry / Heavy Slash ให้ Dash
+signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
+
 # =========================
 # ค่าพื้นฐานของศัตรู
 # =========================
@@ -24,7 +28,7 @@ signal enemy_died
 
 # เวลาก่อนศัตรูโจมตีจริง
 # ใช้เป็นช่วงเตือนให้ผู้เล่นเห็นจังหวะ Dash หรือ Parry
-@export var attack_windup_time: float = 0.90
+@export var attack_windup_time: float = 0.65
 
 # ระยะเวลาที่ Hitbox ของศัตรูเปิดตอนโจมตี
 @export var attack_active_time: float = 0.18
@@ -46,7 +50,7 @@ signal enemy_died
 
 # เวลาก่อนท่าโจมตีหนักจะออกจริง
 # นานกว่าท่าปกติ เพื่อให้ผู้เล่นมีเวลาอ่านท่า
-@export var heavy_attack_windup_time: float = 0.65
+@export var heavy_attack_windup_time: float = 0.95
 
 # ระยะเวลาที่ Hitbox ของท่าโจมตีหนักเปิดอยู่
 @export var heavy_attack_active_time: float = 0.24
@@ -291,6 +295,18 @@ func _physics_process(_delta: float) -> void:
 func emit_enemy_stats() -> void:
 	# ส่งค่า HP และ Posture ของศัตรูไปให้ HUD
 	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
+	
+func emit_attack_hint() -> void:
+	# ถ้าท่าปัจจุบัน Parry ได้ ให้บอกผู้เล่นว่าควร Parry
+	if current_attack_can_be_parried:
+		enemy_attack_hint_changed.emit("PARRY!", Color.YELLOW)
+	else:
+		# ถ้าท่าปัจจุบัน Parry ไม่ได้ ให้บอกผู้เล่นว่าควร Dash
+		enemy_attack_hint_changed.emit("DASH!", Color(1.0, 0.35, 0.0, 1.0))
+
+func clear_attack_hint() -> void:
+	# ส่งข้อความว่าง เพื่อให้ HUD ซ่อนคำเตือน
+	enemy_attack_hint_changed.emit("", Color.WHITE)
 
 func choose_attack_pattern() -> void:
 	# สุ่มเลข 0.0 ถึง 1.0 เพื่อเลือกว่าจะใช้ท่าปกติหรือท่าหนัก
@@ -357,6 +373,9 @@ func attack() -> void:
 
 	print("Enemy Wind-up:", current_attack_name)
 
+	# ส่งคำเตือนขึ้น HUD เพื่อให้ผู้เล่นอ่านท่าได้จากจอ ไม่ต้องดู console
+	emit_attack_hint()
+
 	# แสดงสีเตือนตามชนิดท่า
 	if current_attack_can_be_parried:
 		# สีเหลือง = ท่าปกติ Parry ได้
@@ -377,6 +396,10 @@ func attack() -> void:
 
 	# เริ่มโจมตีจริง
 	is_attacking = true
+
+	# ล้างคำเตือนเมื่อเข้าสู่จังหวะโจมตีจริง
+	# เพราะผู้เล่นต้องตัดสินใจไปแล้วในช่วง Wind-up
+	clear_attack_hint()
 
 	# เปลี่ยนสีกลับก่อนเปิด Hitbox
 	if is_instance_valid(sprite_2d):
@@ -496,6 +519,9 @@ func stagger() -> void:
 
 	print("Enemy staggered!")
 
+	# ล้างคำเตือน เพราะท่าโจมตีถูกยกเลิกแล้ว
+	clear_attack_hint()
+
 	# เพิ่ม sequence เพื่อยกเลิก attack coroutine เก่าที่อาจยัง await ค้างอยู่
 	attack_sequence_id += 1
 
@@ -558,6 +584,9 @@ func posture_break() -> void:
 		return
 
 	print("Enemy POSTURE BROKEN!")
+
+	# ล้างคำเตือน เพราะศัตรูเสียสมดุลและหยุดโจมตีแล้ว
+	clear_attack_hint()
 
 	# ตั้งสถานะ Break
 	is_posture_broken = true
@@ -877,6 +906,9 @@ func die() -> void:
 
 	# ตั้งสถานะว่าตายแล้ว
 	is_dead = true
+
+	# ล้างคำเตือนบน HUD เมื่อศัตรูตาย
+	clear_attack_hint()
 
 	# คืนความเร็วเกมกลับเป็นปกติ เผื่อศัตรูตายระหว่าง Hit Stop
 	Engine.time_scale = 1.0
