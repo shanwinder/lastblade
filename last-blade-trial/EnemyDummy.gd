@@ -59,6 +59,32 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # เพื่อให้ท่าหนักมีช่องว่างให้ผู้เล่นสวนกลับ
 @export var heavy_attack_cooldown_bonus: float = 0.35
 
+# =========================
+# ค่าของท่าโจมตีแบบหน่วงจังหวะ
+# =========================
+
+# โอกาสที่ศัตรูจะเลือกใช้ท่า Delayed Slash
+# ท่านี้เอาไว้หลอกผู้เล่นที่กด Parry เร็วเกินไป
+@export var delayed_attack_chance: float = 0.25
+
+# ดาเมจของท่า Delayed Slash
+# ตั้งให้เท่าหรือแรงกว่าปกตินิดเดียว เพราะความยากอยู่ที่จังหวะ
+@export var delayed_attack_damage: int = 12
+
+# ช่วงแรกของท่า Delayed Slash ที่ให้ผู้เล่นรอ
+# ระหว่างนี้ HUD จะแสดง WAIT...
+@export var delayed_attack_wait_time: float = 0.65
+
+# ช่วงท้ายก่อนฟันจริง
+# ระหว่างนี้ HUD จะเปลี่ยนเป็น PARRY!
+@export var delayed_attack_parry_time: float = 0.35
+
+# ระยะเวลาที่ Hitbox ของ Delayed Slash เปิดอยู่
+@export var delayed_attack_active_time: float = 0.18
+
+# เวลาพักเพิ่มหลังใช้ Delayed Slash
+@export var delayed_attack_cooldown_bonus: float = 0.20
+
 # ระยะเวลาที่ศัตรูชะงักเมื่อถูก Parry
 @export var stagger_time: float = 0.45
 
@@ -190,6 +216,19 @@ var current_attack_cooldown: float = 1.2
 # Normal Slash = true, Heavy Slash = false
 var current_attack_can_be_parried: bool = true
 
+# ใช้เช็กว่าท่าปัจจุบันเป็น Delayed Slash หรือไม่
+# เพราะ Delayed Slash ต้องมี hint 2 ช่วง คือ WAIT... แล้วค่อย PARRY!
+var current_attack_is_delayed: bool = false
+
+# เวลารอก่อนเข้าสู่ช่วง Parry ของท่า Delayed Slash
+var current_attack_delay_wait_time: float = 0.0
+
+# ข้อความ hint หลักของท่าปัจจุบัน
+var current_attack_hint_text: String = "PARRY!"
+
+# สีของ hint หลักของท่าปัจจุบัน
+var current_attack_hint_color: Color = Color.YELLOW
+
 # ใช้ยกเลิก attack coroutine เก่าที่ค้างอยู่
 # ทุกครั้งที่เริ่ม attack ใหม่หรือถูก parry เราจะเพิ่มค่านี้
 var attack_sequence_id: int = 0
@@ -297,23 +336,59 @@ func emit_enemy_stats() -> void:
 	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
 	
 func emit_attack_hint() -> void:
-	# ถ้าท่าปัจจุบัน Parry ได้ ให้บอกผู้เล่นว่าควร Parry
-	if current_attack_can_be_parried:
-		enemy_attack_hint_changed.emit("PARRY!", Color.YELLOW)
-	else:
-		# ถ้าท่าปัจจุบัน Parry ไม่ได้ ให้บอกผู้เล่นว่าควร Dash
-		enemy_attack_hint_changed.emit("DASH!", Color(1.0, 0.35, 0.0, 1.0))
+	# ส่งข้อความเตือนตามท่าปัจจุบัน
+	# Normal = PARRY!, Heavy = DASH!, Delayed ช่วงแรก = WAIT...
+	enemy_attack_hint_changed.emit(current_attack_hint_text, current_attack_hint_color)
 
 func clear_attack_hint() -> void:
 	# ส่งข้อความว่าง เพื่อให้ HUD ซ่อนคำเตือน
 	enemy_attack_hint_changed.emit("", Color.WHITE)
 
+func emit_delayed_parry_hint() -> void:
+	# ช่วงท้ายของ Delayed Slash ให้บอกผู้เล่นว่าตอนนี้ค่อย Parry
+	enemy_attack_hint_changed.emit("PARRY!", Color.YELLOW)
+	
 func choose_attack_pattern() -> void:
-	# สุ่มเลข 0.0 ถึง 1.0 เพื่อเลือกว่าจะใช้ท่าปกติหรือท่าหนัก
+	# สุ่มเลข 0.0 ถึง 1.0 เพื่อเลือก pattern การโจมตี
 	var roll: float = randf()
 
-	# ถ้าสุ่มได้น้อยกว่าโอกาสท่าหนัก ให้ใช้ Heavy Slash
-	if roll < heavy_attack_chance:
+	# รีเซ็ตค่าเริ่มต้นของท่าปัจจุบันก่อนเลือกท่าใหม่
+	current_attack_is_delayed = false
+	current_attack_delay_wait_time = 0.0
+
+	# ถ้าสุ่มได้อยู่ในช่วง Delayed Slash ให้ใช้ท่าหน่วงจังหวะ
+	if roll < delayed_attack_chance:
+		current_attack_name = "delayed_slash"
+
+		# ท่านี้ Parry ได้ แต่ต้องรอจังหวะท้าย
+		current_attack_can_be_parried = true
+
+		# ใช้ดาเมจของ Delayed Slash
+		current_attack_damage = delayed_attack_damage
+
+		# เวลารวมก่อนฟันจริง = ช่วง WAIT + ช่วง PARRY
+		current_attack_windup_time = delayed_attack_wait_time + delayed_attack_parry_time
+
+		# เก็บเวลาช่วง WAIT ไว้ใช้แยก hint
+		current_attack_delay_wait_time = delayed_attack_wait_time
+
+		# Hitbox เปิดตามค่าของท่านี้
+		current_attack_active_time = delayed_attack_active_time
+
+		# cooldown เพิ่มเล็กน้อย เพราะเป็นท่าหลอกจังหวะ
+		current_attack_cooldown = attack_cooldown + delayed_attack_cooldown_bonus
+
+		# ทำเครื่องหมายว่าท่านี้เป็น delayed
+		current_attack_is_delayed = true
+
+		# ช่วงแรกให้ HUD บอก WAIT... ไม่ใช่ PARRY! ทันที
+		current_attack_hint_text = "WAIT..."
+		current_attack_hint_color = Color(0.75, 0.35, 1.0, 1.0)
+
+		print("Enemy chose DELAYED SLASH! Wait, then parry.")
+
+	# ถ้าไม่ใช่ Delayed แต่ยังอยู่ในช่วง Heavy ให้ใช้ Heavy Slash
+	elif roll < delayed_attack_chance + heavy_attack_chance:
 		current_attack_name = "heavy_slash"
 
 		# ท่าหนักแรงกว่า
@@ -331,7 +406,12 @@ func choose_attack_pattern() -> void:
 		# ท่าหนัก Parry ไม่ได้ ผู้เล่นควร Dash หลบ
 		current_attack_can_be_parried = false
 
+		# Hint ของ Heavy คือ DASH!
+		current_attack_hint_text = "DASH!"
+		current_attack_hint_color = Color(1.0, 0.35, 0.0, 1.0)
+
 		print("Enemy chose HEAVY SLASH! Dash required.")
+
 	else:
 		current_attack_name = "normal_slash"
 
@@ -349,6 +429,10 @@ func choose_attack_pattern() -> void:
 
 		# ท่าปกติ Parry ได้
 		current_attack_can_be_parried = true
+
+		# Hint ของ Normal คือ PARRY!
+		current_attack_hint_text = "PARRY!"
+		current_attack_hint_color = Color.YELLOW
 
 		print("Enemy chose NORMAL SLASH! Parry possible.")
 
@@ -384,8 +468,33 @@ func attack() -> void:
 		# สีส้ม = ท่าหนัก Parry ไม่ได้ ควร Dash หลบ
 		sprite_2d.modulate = Color(1.0, 0.35, 0.0, 1.0)
 
-	# รอช่วงเตรียมโจมตีของท่าปัจจุบัน
-	await get_tree().create_timer(current_attack_windup_time).timeout
+	# ถ้าเป็น Delayed Slash จะมี 2 ช่วง
+	# ช่วงแรก HUD ขึ้น WAIT... เพื่อห้ามผู้เล่นรีบ Parry
+	# ช่วงท้าย HUD ค่อยเปลี่ยนเป็น PARRY!
+	if current_attack_is_delayed:
+		# แสดงสีม่วงเพื่อบอกว่านี่คือท่าหน่วงจังหวะ
+		if is_instance_valid(sprite_2d):
+			sprite_2d.modulate = Color(0.75, 0.35, 1.0, 1.0)
+
+		# รอช่วงหลอกจังหวะ
+		await get_tree().create_timer(current_attack_delay_wait_time).timeout
+
+		# ถ้าระหว่างรอถูกยกเลิก เช่น Posture Break หรือตาย ให้หยุดทันที
+		if my_attack_id != attack_sequence_id or is_dead:
+			return
+
+		# เข้าสู่ช่วงที่ผู้เล่นควรกด Parry
+		emit_delayed_parry_hint()
+
+		# เปลี่ยนเป็นสีเหลืองเพื่อบอกว่าช่วงนี้ Parry ได้แล้ว
+		if is_instance_valid(sprite_2d):
+			sprite_2d.modulate = Color.YELLOW
+
+		# รอช่วงท้ายก่อนฟันจริง
+		await get_tree().create_timer(delayed_attack_parry_time).timeout
+	else:
+		# ท่าปกติและท่าหนักใช้ wind-up แบบเดิม
+		await get_tree().create_timer(current_attack_windup_time).timeout
 
 	# ถ้าระหว่าง wind-up ถูกยกเลิก เช่น ถูก Parry/Break/ตาย ให้หยุดทันที
 	if my_attack_id != attack_sequence_id or is_dead:
@@ -506,7 +615,7 @@ func _try_hit_area(area: Area2D) -> void:
 	# ถ้าผู้เล่นพยายาม Parry ท่าหนัก ให้แจ้งใน console
 	# ท่าหนักออกแบบมาให้ Dash หลบ ไม่ใช่ Parry
 	if not current_attack_can_be_parried and target.has_method("is_parry_active") and target.is_parry_active():
-		print("Heavy Slash cannot be parried! Player should dash.")
+		print(current_attack_name, " cannot be parried! Player should dash.")
 
 	# ถ้าไม่ได้ Parry สำเร็จ ให้ทำดาเมจตามค่าของท่าปัจจุบัน
 	has_hit_player = true

@@ -74,7 +74,7 @@ func _ready() -> void:
 	# เมื่อ HP หรือ Posture ของศัตรูเปลี่ยน HUD จะอัปเดตทันที
 	enemy.enemy_stats_changed.connect(update_enemy_stats)
 	
-		# เชื่อม signal คำเตือนท่าศัตรู
+	# เชื่อม signal คำเตือนท่าศัตรู
 	# ถ้า EnemyDummy มี signal นี้ ให้ HUD แสดงข้อความ PARRY! หรือ DASH!
 	if enemy.has_signal("enemy_attack_hint_changed"):
 		enemy.enemy_attack_hint_changed.connect(update_attack_hint)
@@ -136,7 +136,7 @@ func update_attack_hint(hint_text: String, hint_color: Color) -> void:
 	if attack_hint_label == null:
 		return
 
-	# อัปเดตข้อความ เช่น PARRY! หรือ DASH!
+	# อัปเดตข้อความ เช่น PARRY!, DASH! หรือ WAIT...
 	attack_hint_label.text = hint_text
 
 	# อัปเดตสีให้ตรงกับท่าโจมตี
