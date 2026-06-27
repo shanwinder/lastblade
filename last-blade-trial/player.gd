@@ -43,7 +43,7 @@ signal player_died
 @export var max_focus: float = 100.0
 
 # ความเร็วในการฟื้น Stamina ต่อวินาที
-@export var stamina_regen_rate: float = 10.0
+@export var stamina_regen_rate: float = 30.0
 
 # Stamina ที่ใช้เมื่อโจมตีหนึ่งครั้ง
 @export var attack_stamina_cost: float = 18.0

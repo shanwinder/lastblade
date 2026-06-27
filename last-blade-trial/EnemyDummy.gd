@@ -15,7 +15,7 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # =========================
 
 # เลือดสูงสุดของศัตรู
-@export var max_hp: int = 50
+@export var max_hp: int = 100
 
 # ความเร็วในการเดินเข้าหาผู้เล่น
 @export var move_speed: float = 120.0
