@@ -170,6 +170,10 @@ const ENEMY_NORMAL_COLLISION_MASK: int = WORLD_BODY_LAYER | PLAYER_BODY_LAYER
 # ใช้ค่าเดียวกับ Player เพื่อให้ Enemy ไม่เดินหรือถูก Knockback หลุดสนาม
 @export var arena_max_x: float = 1030.0
 
+# อ้างอิง ArenaManager ถ้ามีในฉาก
+# ถ้าไม่มี จะใช้ arena_min_x / arena_max_x ใน Enemy เป็น fallback
+var arena_manager: Node = null
+
 # อ้างอิง Sprite2D เพื่อใช้กลับด้านและเปลี่ยนสี
 @onready var sprite_2d: Sprite2D = $Sprite2D
 
@@ -282,6 +286,15 @@ func _ready() -> void:
 	# ให้ศัตรูชน World และ Player ตามปกติ
 	collision_mask = ENEMY_NORMAL_COLLISION_MASK
 
+	# หา ArenaManager จาก group
+	# ถ้ามี จะใช้ขอบสนามจาก ArenaManager แทนค่าที่ตั้งใน Enemy
+	var arena_nodes := get_tree().get_nodes_in_group("arena_manager")
+	if arena_nodes.size() > 0:
+		arena_manager = arena_nodes[0]
+		print("Enemy found ArenaManager")
+	else:
+		print("Enemy using fallback arena bounds")
+		
 	# ตั้งเลือดเริ่มต้นของศัตรู
 	current_hp = max_hp
 
@@ -307,8 +320,12 @@ func _ready() -> void:
 	emit_enemy_stats()
 
 func clamp_to_arena() -> void:
-	# จำกัดตำแหน่งศัตรูให้อยู่ในขอบสนาม
-	# เพื่อไม่ให้ Enemy เดินหรือถูก Knockback ออกนอกพื้นที่เล่น
+	# ถ้ามี ArenaManager ให้ใช้ค่าขอบสนามจาก ArenaManager
+	if is_instance_valid(arena_manager) and arena_manager.has_method("clamp_node_x"):
+		arena_manager.clamp_node_x(self)
+		return
+
+	# ถ้าไม่มี ArenaManager ให้ใช้ค่าที่ตั้งไว้ใน Enemy เป็น fallback
 	global_position.x = clamp(global_position.x, arena_min_x, arena_max_x)
 
 func _physics_process(_delta: float) -> void:

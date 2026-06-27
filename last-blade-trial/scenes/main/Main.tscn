@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://7i1h2iabnsg4"]
 
+[ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_1rhdn"]
 [ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="1_nha0i"]
 [ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="1_u1xfj"]
 [ext_resource type="Script" uid="uid://d4f0ahgftgx16" path="res://EnemyDummy.gd" id="3_q24mn"]
@@ -25,6 +26,9 @@ size = Vector2(70, 70)
 size = Vector2(75, 50)
 
 [node name="Main" type="Node2D" unique_id=2023704259]
+
+[node name="Node" type="Node" parent="." unique_id=877919969]
+script = ExtResource("1_1rhdn")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
 position = Vector2(576, 324)
