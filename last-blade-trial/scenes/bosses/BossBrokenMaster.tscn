@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cjj8b0p4bdtye"]
+
+[ext_resource type="Script" uid="uid://4532dbf3gmai" path="res://BossBrokenMaster.gd" id="1_n16ad"]
+[ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="2_5ids1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ifqgg"]
+size = Vector2(64, 64)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g58pq"]
+size = Vector2(70, 70)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_5q3e4"]
+size = Vector2(75, 50)
+
+[node name="BossBrokenMaster" type="CharacterBody2D" unique_id=631216959]
+script = ExtResource("1_n16ad")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=832055061]
+modulate = Color(0.7014107, 0.3491902, 0.8808251, 1)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_5ids1")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=114168782]
+shape = SubResource("RectangleShape2D_ifqgg")
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=1730137929]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=880521421]
+shape = SubResource("RectangleShape2D_g58pq")
+
+[node name="AttackHitbox" type="Area2D" parent="." unique_id=1508724340]
+position = Vector2(-55, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=930818321]
+shape = SubResource("RectangleShape2D_5q3e4")
+disabled = true

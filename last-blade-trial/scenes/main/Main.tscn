@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://d4f0ahgftgx16" path="res://EnemyDummy.gd" id="3_q24mn"]
 [ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="4_gyg6b"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="5_dc040"]
+[ext_resource type="PackedScene" uid="uid://cjj8b0p4bdtye" path="res://scenes/bosses/BossBrokenMaster.tscn" id="5_sjxhf"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -27,7 +28,7 @@ size = Vector2(75, 50)
 
 [node name="Main" type="Node2D" unique_id=2023704259]
 
-[node name="Node" type="Node" parent="." unique_id=877919969]
+[node name="ArenaManager" type="Node" parent="." unique_id=877919969]
 script = ExtResource("1_1rhdn")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
@@ -76,6 +77,9 @@ position = Vector2(-55, 0)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/AttackHitbox" unique_id=1718272491]
 shape = SubResource("RectangleShape2D_5q3e4")
 disabled = true
+
+[node name="BossBrokenMaster" parent="." unique_id=631216959 instance=ExtResource("5_sjxhf")]
+position = Vector2(780, 324)
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1436178556]
 script = ExtResource("4_gyg6b")
