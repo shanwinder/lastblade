@@ -55,6 +55,10 @@ var attack_hint_label: Label
 # ใช้เช็กว่าเกมจบแล้วหรือยัง
 var is_game_finished: bool = false
 
+# ชื่อเป้าหมายที่ HUD จะใช้แสดงบนจอ
+# ตอนนี้ใน Main ใช้ BossBrokenMaster แล้ว จึงตั้งค่าเริ่มต้นเป็น Boss
+var combat_target_display_name: String = "Boss"
+
 func find_combat_target():
 	# หาเป้าหมายต่อสู้หลักจาก group combat_target
 	# ตอนนี้ BossBrokenMaster จะ add_to_group("combat_target") ใน _ready()
@@ -99,6 +103,13 @@ func _ready() -> void:
 	# ถ้าหาศัตรูหรือบอสไม่เจอ ให้หยุดเพื่อกัน error
 	if enemy == null:
 		return
+	
+	# ถ้าเป้าหมายที่เจอมีคำว่า Boss ในชื่อ node
+	# ให้ HUD แสดงคำว่า Boss แทน Enemy
+	if "Boss" in enemy.name:
+		combat_target_display_name = "Boss"
+	else:
+		combat_target_display_name = "Enemy"
 
 	# เชื่อม signal จาก Player มายัง HUD
 	# เมื่อ HP หรือ Stamina เปลี่ยน HUD จะอัปเดตทันที
@@ -213,14 +224,14 @@ func update_player_stats(
 
 func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, max_posture: float) -> void:
 	# อัปเดตข้อความ HP ศัตรู
-	enemy_hp_label.text = "Enemy HP: %d / %d" % [current_hp, max_hp]
+	enemy_hp_label.text = "%s HP: %d / %d" % [combat_target_display_name, current_hp, max_hp]
 
 	# อัปเดตหลอด HP ศัตรู
 	enemy_hp_bar.max_value = max_hp
 	enemy_hp_bar.value = current_hp
 
 	# อัปเดตข้อความ Posture ศัตรู
-	enemy_posture_label.text = "Enemy Posture: %d / %d" % [int(current_posture), int(max_posture)]
+	enemy_posture_label.text = "%s Posture: %d / %d" % [combat_target_display_name, int(current_posture), int(max_posture)]
 
 	# อัปเดตหลอด Posture ศัตรู
 	enemy_posture_bar.max_value = max_posture
