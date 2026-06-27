@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://7i1h2iabnsg4"]
 
-[ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_1rhdn"]
-[ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="1_nha0i"]
-[ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="1_u1xfj"]
-[ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="4_gyg6b"]
-[ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="5_dc040"]
-[ext_resource type="PackedScene" uid="uid://cjj8b0p4bdtye" path="res://scenes/bosses/BossBrokenMaster.tscn" id="5_sjxhf"]
+[ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_tedvd"]
+[ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="2_mknfb"]
+[ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="3_5ds0b"]
+[ext_resource type="PackedScene" uid="uid://cjj8b0p4bdtye" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
+[ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="5_7w3th"]
+[ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -19,15 +19,15 @@ size = Vector2(70, 70)
 [node name="Main" type="Node2D" unique_id=2023704259]
 
 [node name="ArenaManager" type="Node" parent="." unique_id=877919969]
-script = ExtResource("1_1rhdn")
+script = ExtResource("1_tedvd")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
 position = Vector2(576, 324)
-script = ExtResource("1_nha0i")
+script = ExtResource("2_mknfb")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=322533980]
 scale = Vector2(0.25, 0.25)
-texture = ExtResource("1_u1xfj")
+texture = ExtResource("3_5ds0b")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1510513533]
 shape = SubResource("RectangleShape2D_nha0i")
@@ -44,11 +44,11 @@ disabled = true
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=749896351]
 shape = SubResource("RectangleShape2D_32k8f")
 
-[node name="BossBrokenMaster" parent="." unique_id=631216959 instance=ExtResource("5_sjxhf")]
+[node name="EnemyDummy" parent="." unique_id=631216959 instance=ExtResource("4_tedvd")]
 position = Vector2(780, 324)
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1436178556]
-script = ExtResource("4_gyg6b")
+script = ExtResource("5_7w3th")
 
 [node name="Control" type="Control" parent="HUD" unique_id=1109049797]
 layout_mode = 3
@@ -107,4 +107,4 @@ offset_bottom = 253.0
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=532290581]
 position = Vector2(576, 324)
-script = ExtResource("5_dc040")
+script = ExtResource("6_jpax5")

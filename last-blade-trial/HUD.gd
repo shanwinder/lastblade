@@ -56,28 +56,34 @@ var attack_hint_label: Label
 var is_game_finished: bool = false
 
 func find_combat_target():
-	# หา node ศัตรูหรือบอสจากลูกทั้งหมดของ Main
-	# วิธีนี้ไม่สนใจว่า node ชื่อ EnemyDummy หรือ BossBrokenMaster
-	# ขอแค่ node นั้นมี signal สำหรับ HUD ก็พอ
+	# หาเป้าหมายต่อสู้หลักจาก group combat_target
+	# ตอนนี้ BossBrokenMaster จะ add_to_group("combat_target") ใน _ready()
+	var combat_targets := get_tree().get_nodes_in_group("combat_target")
 
+	# ถ้าเจอเป้าหมายใน group ให้ใช้ตัวแรก
+	if combat_targets.size() > 0:
+		var target = combat_targets[0]
+		print("HUD found combat target from group:", target.name)
+		return target
+
+	# ถ้ายังไม่เจอจาก group ให้ใช้วิธีสำรอง
+	# วนหาจากลูกของ Main ที่มี signal แบบศัตรูหรือบอส
 	var main_node = get_parent()
 
-	# วนดูทุก node ลูกของ Main
 	for child in main_node.get_children():
-		# ข้าม HUD ตัวเอง เพื่อไม่ให้ตรวจตัวเองผิด
+		# ข้าม HUD ตัวเอง
 		if child == self:
 			continue
 
-		# ตรวจว่า node นี้มี signal แบบศัตรูหรือบอสหรือไม่
-		# BossBrokenMaster และ EnemyDummy มี signal เหล่านี้เหมือนกัน
+		# ศัตรูหรือบอสต้องมี signal สองตัวนี้
 		if child.has_signal("enemy_stats_changed") and child.has_signal("enemy_died"):
-			print("HUD found combat target:", child.name)
+			print("HUD found combat target by signal:", child.name)
 			return child
 
-	# ถ้าหาไม่เจอ ให้คืนค่า null
+	# ถ้าหาไม่เจอ ให้แจ้ง error ใน console
 	print("HUD ERROR: combat target not found")
 	return null
-	
+
 func _ready() -> void:
 	# กันกรณี reload scene ตอนเกมกำลัง Hit Stop
 	# ให้เริ่มฉากใหม่ด้วยความเร็วปกติเสมอ

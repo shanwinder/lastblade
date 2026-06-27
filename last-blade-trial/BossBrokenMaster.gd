@@ -269,6 +269,11 @@ func _ready() -> void:
 	# สุ่มค่าเริ่มต้น เพื่อให้การเลือกท่าโจมตีไม่ซ้ำแบบเดิมทุกครั้งที่เปิดเกม
 	randomize()
 	
+	# เพิ่มบอสเข้า group combat_target
+	# HUD จะใช้ group นี้ในการหาเป้าหมายต่อสู้หลัก
+	# ทำให้ไม่ต้องล็อกชื่อ node ว่าต้องเป็น EnemyDummy อีกต่อไป
+	add_to_group("combat_target")
+	
 	# ตั้ง Layer ของศัตรูให้เป็น Layer Enemy
 	collision_layer = ENEMY_BODY_LAYER
 
