@@ -44,7 +44,7 @@ disabled = true
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=749896351]
 shape = SubResource("RectangleShape2D_32k8f")
 
-[node name="EnemyDummy" parent="." unique_id=631216959 instance=ExtResource("5_sjxhf")]
+[node name="BossBrokenMaster" parent="." unique_id=631216959 instance=ExtResource("5_sjxhf")]
 position = Vector2(780, 324)
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1436178556]

@@ -3,7 +3,7 @@ extends CanvasLayer
 # =========================
 # HUD.gd
 # ใช้แสดงค่า HP, Stamina ของ Player
-# และ HP, Posture ของ EnemyDummy
+# และ HP, Posture ของ Enemy หรือ Boss
 # =========================
 
 # =========================
@@ -55,6 +55,29 @@ var attack_hint_label: Label
 # ใช้เช็กว่าเกมจบแล้วหรือยัง
 var is_game_finished: bool = false
 
+func find_combat_target():
+	# หา node ศัตรูหรือบอสจากลูกทั้งหมดของ Main
+	# วิธีนี้ไม่สนใจว่า node ชื่อ EnemyDummy หรือ BossBrokenMaster
+	# ขอแค่ node นั้นมี signal สำหรับ HUD ก็พอ
+
+	var main_node = get_parent()
+
+	# วนดูทุก node ลูกของ Main
+	for child in main_node.get_children():
+		# ข้าม HUD ตัวเอง เพื่อไม่ให้ตรวจตัวเองผิด
+		if child == self:
+			continue
+
+		# ตรวจว่า node นี้มี signal แบบศัตรูหรือบอสหรือไม่
+		# BossBrokenMaster และ EnemyDummy มี signal เหล่านี้เหมือนกัน
+		if child.has_signal("enemy_stats_changed") and child.has_signal("enemy_died"):
+			print("HUD found combat target:", child.name)
+			return child
+
+	# ถ้าหาไม่เจอ ให้คืนค่า null
+	print("HUD ERROR: combat target not found")
+	return null
+	
 func _ready() -> void:
 	# กันกรณี reload scene ตอนเกมกำลัง Hit Stop
 	# ให้เริ่มฉากใหม่ด้วยความเร็วปกติเสมอ
@@ -63,14 +86,19 @@ func _ready() -> void:
 	# หา node Player จาก Main
 	var player = get_parent().get_node("Player")
 
-	# หา node EnemyDummy จาก Main
-	var enemy = get_parent().get_node("EnemyDummy")
+	# หา Enemy หรือ Boss อัตโนมัติ
+	# ไม่ล็อกชื่อว่า EnemyDummy อีกต่อไป
+	var enemy = find_combat_target()
+
+	# ถ้าหาศัตรูหรือบอสไม่เจอ ให้หยุดเพื่อกัน error
+	if enemy == null:
+		return
 
 	# เชื่อม signal จาก Player มายัง HUD
 	# เมื่อ HP หรือ Stamina เปลี่ยน HUD จะอัปเดตทันที
 	player.stats_changed.connect(update_player_stats)
 
-	# เชื่อม signal จาก EnemyDummy มายัง HUD
+	# เชื่อม signal จาก Enemy หรือ Boss มายัง HUD
 	# เมื่อ HP หรือ Posture ของศัตรูเปลี่ยน HUD จะอัปเดตทันที
 	enemy.enemy_stats_changed.connect(update_enemy_stats)
 	
