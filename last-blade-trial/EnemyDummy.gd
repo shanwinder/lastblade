@@ -142,6 +142,22 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # อ้างอิง Player
 var player: CharacterBody2D
 
+# =========================
+# ระบบ Collision Layer ของศัตรู
+# =========================
+
+# Layer 1 ใช้สำหรับพื้น / กำแพง / ขอบสนาม
+const WORLD_BODY_LAYER: int = 1
+
+# Layer 2 ใช้สำหรับตัว Player
+const PLAYER_BODY_LAYER: int = 2
+
+# Layer 3 ใช้สำหรับตัว Enemy
+const ENEMY_BODY_LAYER: int = 4
+
+# ตอนปกติ Enemy ต้องชน World และ Player
+const ENEMY_NORMAL_COLLISION_MASK: int = WORLD_BODY_LAYER | PLAYER_BODY_LAYER
+
 # อ้างอิง Sprite2D เพื่อใช้กลับด้านและเปลี่ยนสี
 @onready var sprite_2d: Sprite2D = $Sprite2D
 
@@ -247,6 +263,12 @@ var attack_hitbox_offset_x: float = 55.0
 func _ready() -> void:
 	# สุ่มค่าเริ่มต้น เพื่อให้การเลือกท่าโจมตีไม่ซ้ำแบบเดิมทุกครั้งที่เปิดเกม
 	randomize()
+	
+	# ตั้ง Layer ของศัตรูให้เป็น Layer Enemy
+	collision_layer = ENEMY_BODY_LAYER
+
+	# ให้ศัตรูชน World และ Player ตามปกติ
+	collision_mask = ENEMY_NORMAL_COLLISION_MASK
 
 	# ตั้งเลือดเริ่มต้นของศัตรู
 	current_hp = max_hp

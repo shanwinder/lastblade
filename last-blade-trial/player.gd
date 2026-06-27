@@ -163,6 +163,41 @@ var facing_direction: int = 1
 # ระยะห่างของ Hitbox ดาบจากตัวผู้เล่น
 var attack_hitbox_offset_x: float = 55.0
 
+# =========================
+# ระบบ Collision Layer ของตัวละคร
+# =========================
+
+# Layer 1 ใช้สำหรับพื้น / กำแพง / ขอบสนาม
+# ใน Godot ค่า Layer แบบ bit คือ 1
+const WORLD_BODY_LAYER: int = 1
+
+# Layer 2 ใช้สำหรับตัว Player
+# ใน Godot ค่า Layer แบบ bit คือ 2
+const PLAYER_BODY_LAYER: int = 2
+
+# Layer 3 ใช้สำหรับตัว Enemy
+# ใน Godot ค่า Layer แบบ bit คือ 4
+const ENEMY_BODY_LAYER: int = 4
+
+# ตอนปกติ Player ต้องชน World และ Enemy
+const PLAYER_NORMAL_COLLISION_MASK: int = WORLD_BODY_LAYER | ENEMY_BODY_LAYER
+
+# ตอน Dash Player จะชนเฉพาะ World
+# ทำให้ Dash ผ่าน Enemy ได้ แต่ยังไม่ทะลุขอบสนามในอนาคต
+const PLAYER_DASH_COLLISION_MASK: int = WORLD_BODY_LAYER
+
+# =========================
+# ขอบเขตสนามแบบง่าย
+# =========================
+
+# ขอบซ้ายของสนาม
+# ใช้กันไม่ให้ Player ถอยออกนอกพื้นที่เล่น
+@export var arena_min_x: float = 120.0
+
+# ขอบขวาของสนาม
+# ค่า 1030 เหมาะกับหน้าจอประมาณ 1152 px ใน scene ปัจจุบัน
+@export var arena_max_x: float = 1030.0
+
 # ใช้เก็บรายชื่อเป้าหมายที่โดนโจมตีไปแล้วในการฟันครั้งนี้
 # ป้องกันไม่ให้เป้าหมายตัวเดิมโดนดาเมจซ้ำจากการโจมตีครั้งเดียว
 var hit_targets: Array = []
@@ -173,6 +208,12 @@ var has_shown_focus_ready_message: bool = false
 
 
 func _ready() -> void:
+	# ตั้ง Layer ของ Player ให้เป็น Layer Player
+	collision_layer = PLAYER_BODY_LAYER
+
+	# ตอนปกติ Player ต้องชนทั้งขอบสนาม/พื้น และตัวศัตรู
+	collision_mask = PLAYER_NORMAL_COLLISION_MASK
+
 	# ตั้งเลือดเริ่มต้นให้เต็ม
 	current_hp = max_hp
 
@@ -214,6 +255,10 @@ func _physics_process(_delta: float) -> void:
 	if is_knocked_back:
 		velocity = knockback_velocity
 		move_and_slide()
+
+		# จำกัดไม่ให้ Knockback ดัน Player ออกนอกสนาม
+		clamp_to_arena()
+
 		return
 		
 	# ถ้ากำลัง Dash อยู่ ให้เคลื่อนที่ด้วยความเร็ว Dash
@@ -222,6 +267,10 @@ func _physics_process(_delta: float) -> void:
 		velocity.x = facing_direction * dash_speed
 		velocity.y = 0
 		move_and_slide()
+
+		# จำกัดไม่ให้ Dash ออกนอกสนาม
+		clamp_to_arena()
+
 		return
 
 	# รับค่าการกดปุ่มซ้าย/ขวา จาก ui_left และ ui_right
@@ -238,6 +287,9 @@ func _physics_process(_delta: float) -> void:
 
 	# สั่งให้ CharacterBody2D เคลื่อนที่ตาม velocity
 	move_and_slide()
+
+	# จำกัดไม่ให้ Player เดินออกนอกสนาม
+	clamp_to_arena()
 
 	# ถ้ามีการเดิน และไม่ได้โจมตี ให้เปลี่ยนทิศหันหน้า
 	if direction != 0 and not is_attacking:
@@ -388,6 +440,28 @@ func attack() -> void:
 	# จบสถานะโจมตี
 	is_attacking = false
 
+func start_dash_collision_mode() -> void:
+	# ตอน Dash ให้ Player ไม่อยู่บน Layer ปกติชั่วคราว
+	# เพื่อไม่ให้ Enemy ที่กำลังชน Player ขวางการ Dash
+	collision_layer = 0
+
+	# ตอน Dash ให้ Player ชนเฉพาะ World
+	# ดังนั้นจะทะลุศัตรูได้ แต่ยังชนกำแพง/ขอบสนามได้ถ้ามี
+	collision_mask = PLAYER_DASH_COLLISION_MASK
+
+
+func end_dash_collision_mode() -> void:
+	# เมื่อ Dash จบ ให้ Player กลับมาอยู่บน Layer Player ตามเดิม
+	collision_layer = PLAYER_BODY_LAYER
+
+	# กลับมาชน World และ Enemy ตามปกติ
+	collision_mask = PLAYER_NORMAL_COLLISION_MASK
+
+
+func clamp_to_arena() -> void:
+	# จำกัดตำแหน่ง Player ให้อยู่ในขอบสนาม
+	# ป้องกันการ Dash หรือ Knockback ออกนอกพื้นที่เล่น
+	global_position.x = clamp(global_position.x, arena_min_x, arena_max_x)
 
 func dash() -> void:
 	# ถ้า Stamina ไม่พอ ห้าม Dash
@@ -405,6 +479,10 @@ func dash() -> void:
 	# เริ่ม Dash
 	is_dashing = true
 
+	# เปิดโหมด Dash-through
+	# ระหว่างนี้ Player จะทะลุตัวศัตรูได้
+	start_dash_collision_mode()
+
 	# ปิดการ Dash ซ้ำจนกว่า cooldown จะหมด
 	can_dash = false
 
@@ -419,6 +497,10 @@ func dash() -> void:
 
 	# จบ Dash
 	is_dashing = false
+
+	# ปิดโหมด Dash-through
+	# ให้ Player กลับมาชนศัตรูตามปกติ
+	end_dash_collision_mode()
 
 	# เปิด Hurtbox กลับมา เพื่อให้รับดาเมจได้ตามปกติ
 	hurtbox_shape.disabled = false
