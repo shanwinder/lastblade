@@ -158,6 +158,18 @@ const ENEMY_BODY_LAYER: int = 4
 # ตอนปกติ Enemy ต้องชน World และ Player
 const ENEMY_NORMAL_COLLISION_MASK: int = WORLD_BODY_LAYER | PLAYER_BODY_LAYER
 
+# =========================
+# ขอบเขตสนามของศัตรู
+# =========================
+
+# ขอบซ้ายของสนาม
+# ใช้ค่าเดียวกับ Player เพื่อให้ทั้งสองฝ่ายอยู่ในพื้นที่เดียวกัน
+@export var arena_min_x: float = 120.0
+
+# ขอบขวาของสนาม
+# ใช้ค่าเดียวกับ Player เพื่อให้ Enemy ไม่เดินหรือถูก Knockback หลุดสนาม
+@export var arena_max_x: float = 1030.0
+
 # อ้างอิง Sprite2D เพื่อใช้กลับด้านและเปลี่ยนสี
 @onready var sprite_2d: Sprite2D = $Sprite2D
 
@@ -294,6 +306,10 @@ func _ready() -> void:
 	# ส่งค่าเริ่มต้นให้ HUD แสดง Enemy Posture
 	emit_enemy_stats()
 
+func clamp_to_arena() -> void:
+	# จำกัดตำแหน่งศัตรูให้อยู่ในขอบสนาม
+	# เพื่อไม่ให้ Enemy เดินหรือถูก Knockback ออกนอกพื้นที่เล่น
+	global_position.x = clamp(global_position.x, arena_min_x, arena_max_x)
 
 func _physics_process(_delta: float) -> void:
 	# ถ้าศัตรูตายแล้ว ไม่ต้องทำ AI ต่อ
@@ -301,12 +317,20 @@ func _physics_process(_delta: float) -> void:
 		velocity.x = 0
 		velocity.y = 0
 		move_and_slide()
+
+		# กันตำแหน่งศัตรูไม่ให้หลุดสนาม แม้ตอนตาย
+		clamp_to_arena()
+
 		return
 
 	# ถ้าศัตรูกำลังถูก Knockback ให้ขยับตามแรงกระเด็น
 	if is_knocked_back:
 		velocity = knockback_velocity
 		move_and_slide()
+
+		# กันไม่ให้ Knockback ดันศัตรูออกนอกสนาม
+		clamp_to_arena()
+
 		return
 		
 	# ถ้าผู้เล่นไม่อยู่แล้ว เช่น ตายไป ให้ศัตรูหยุด
@@ -314,6 +338,10 @@ func _physics_process(_delta: float) -> void:
 		velocity.x = 0
 		velocity.y = 0
 		move_and_slide()
+
+		# กันตำแหน่งศัตรูไม่ให้หลุดสนาม
+		clamp_to_arena()
+
 		return
 
 	# ถ้ากำลังชะงักจาก Parry ให้หยุดนิ่ง
@@ -321,6 +349,10 @@ func _physics_process(_delta: float) -> void:
 		velocity.x = 0
 		velocity.y = 0
 		move_and_slide()
+
+		# ศัตรูที่ชะงักต้องยังอยู่ในสนาม
+		clamp_to_arena()
+
 		return
 
 	# ถ้ากำลังเตรียมโจมตีหรือกำลังโจมตี ให้หยุดอยู่กับที่
@@ -328,6 +360,10 @@ func _physics_process(_delta: float) -> void:
 		velocity.x = 0
 		velocity.y = 0
 		move_and_slide()
+
+		# ระหว่างเตรียมโจมตีหรือโจมตีจริง ศัตรูต้องไม่หลุดสนาม
+		clamp_to_arena()
+
 		return
 
 	# คำนวณระยะห่างระหว่างศัตรูกับผู้เล่นในแกน x
@@ -351,6 +387,9 @@ func _physics_process(_delta: float) -> void:
 
 	velocity.y = 0
 	move_and_slide()
+	
+	# จำกัดไม่ให้ศัตรูเดินออกนอกสนาม
+	clamp_to_arena()
 
 
 func emit_enemy_stats() -> void:
