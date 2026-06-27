@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_1rhdn"]
 [ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="1_nha0i"]
 [ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="1_u1xfj"]
-[ext_resource type="Script" uid="uid://d4f0ahgftgx16" path="res://EnemyDummy.gd" id="3_q24mn"]
 [ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="4_gyg6b"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="5_dc040"]
 [ext_resource type="PackedScene" uid="uid://cjj8b0p4bdtye" path="res://scenes/bosses/BossBrokenMaster.tscn" id="5_sjxhf"]
@@ -16,15 +15,6 @@ size = Vector2(80, 50)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_32k8f"]
 size = Vector2(70, 70)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ifqgg"]
-size = Vector2(64, 64)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_g58pq"]
-size = Vector2(70, 70)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_5q3e4"]
-size = Vector2(75, 50)
 
 [node name="Main" type="Node2D" unique_id=2023704259]
 
@@ -54,31 +44,7 @@ disabled = true
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=749896351]
 shape = SubResource("RectangleShape2D_32k8f")
 
-[node name="EnemyDummy" type="CharacterBody2D" parent="." unique_id=842392976]
-position = Vector2(750, 324)
-script = ExtResource("3_q24mn")
-
-[node name="Sprite2D" type="Sprite2D" parent="EnemyDummy" unique_id=1279923162]
-modulate = Color(0.808973, 0, 0.118325256, 1)
-scale = Vector2(0.25, 0.25)
-texture = ExtResource("1_u1xfj")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy" unique_id=1334114629]
-shape = SubResource("RectangleShape2D_ifqgg")
-
-[node name="Hurtbox" type="Area2D" parent="EnemyDummy" unique_id=305134459]
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/Hurtbox" unique_id=1759081521]
-shape = SubResource("RectangleShape2D_g58pq")
-
-[node name="AttackHitbox" type="Area2D" parent="EnemyDummy" unique_id=1157834237]
-position = Vector2(-55, 0)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="EnemyDummy/AttackHitbox" unique_id=1718272491]
-shape = SubResource("RectangleShape2D_5q3e4")
-disabled = true
-
-[node name="BossBrokenMaster" parent="." unique_id=631216959 instance=ExtResource("5_sjxhf")]
+[node name="EnemyDummy" parent="." unique_id=631216959 instance=ExtResource("5_sjxhf")]
 position = Vector2(780, 324)
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1436178556]
