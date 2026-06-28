@@ -204,6 +204,10 @@ var arena_manager: Node = null
 # เช่น PARRY!, DASH!, WAIT..., PARRY FAST!
 var boss_hint_label: Label = null
 
+# Tween สำหรับทำ animation ให้ข้อความเตือนเหนือหัวบอส
+# ใช้เก็บไว้เพื่อหยุด animation เก่าก่อนเริ่ม animation ใหม่
+var boss_hint_tween: Tween = null
+
 # ตำแหน่งข้อความเหนือหัวบอส
 # ค่า x ติดลบเพื่อขยับให้ข้อความอยู่กึ่งกลางเหนือบอส
 @export var boss_hint_offset: Vector2 = Vector2(-160, -110)
@@ -481,14 +485,51 @@ func update_boss_hint_label(hint_text: String, hint_color: Color) -> void:
 	if boss_hint_label == null:
 		return
 
+	# ถ้ามี animation เก่าค้างอยู่ ให้หยุดก่อน
+	# ป้องกันข้อความเด้งซ้อนกันหลายรอบ
+	if boss_hint_tween != null:
+		boss_hint_tween.kill()
+		boss_hint_tween = null
+
+	# ถ้าข้อความว่าง แปลว่าต้องซ่อน hint
+	if hint_text == "":
+		boss_hint_label.text = ""
+		boss_hint_label.visible = false
+		boss_hint_label.scale = Vector2.ONE
+		boss_hint_label.modulate = Color.WHITE
+		return
+
 	# อัปเดตข้อความ เช่น PARRY!, DASH!, WAIT..., PARRY FAST!
 	boss_hint_label.text = hint_text
 
 	# อัปเดตสีข้อความตามชนิดท่า
 	boss_hint_label.modulate = hint_color
 
-	# ถ้าข้อความว่าง ให้ซ่อน
-	boss_hint_label.visible = hint_text != ""
+	# แสดงข้อความ
+	boss_hint_label.visible = true
+
+	# เริ่มจากขนาดเล็กกว่าปกตินิดหนึ่ง
+	# แล้วเด้งกลับเป็นขนาดจริง เพื่อให้ผู้เล่นสังเกตเห็นทันที
+	boss_hint_label.scale = Vector2(0.75, 0.75)
+
+	# สร้าง Tween ใหม่สำหรับ animation เด้ง
+	boss_hint_tween = create_tween()
+
+	# ทำให้ข้อความเด้งจากเล็กไปใหญ่
+	boss_hint_tween.tween_property(
+		boss_hint_label,
+		"scale",
+		Vector2(1.15, 1.15),
+		0.08
+	)
+
+	# แล้วกลับมาขนาดปกติ
+	boss_hint_tween.tween_property(
+		boss_hint_label,
+		"scale",
+		Vector2.ONE,
+		0.08
+	)
 
 func emit_enemy_stats() -> void:
 	# ส่งค่า HP และ Posture ของศัตรูไปให้ HUD
