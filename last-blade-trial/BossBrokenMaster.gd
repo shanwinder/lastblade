@@ -175,6 +175,15 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # ระยะเวลาที่ประกาย Parry ขยายและจางหาย
 @export var parry_spark_duration: float = 0.22
 
+# ข้อความเส้นดาบของบอส ใช้เป็น placeholder VFX ตอน hitbox เปิด
+@export var boss_slash_effect_text: String = "╱"
+
+# ขนาดตัวอักษรของเส้นดาบบอส
+@export var boss_slash_effect_font_size: int = 68
+
+# ระยะเวลาที่เส้นดาบบอสพุ่งและจางหาย
+@export var boss_slash_effect_duration: float = 0.16
+
 # ข้อความที่ขึ้นเมื่อผู้เล่นพยายาม Parry ท่าหนักที่ต้อง Dash เท่านั้น
 @export var heavy_wrong_parry_feedback_text: String = "DASH ONLY!"
 
@@ -743,6 +752,9 @@ func attack() -> void:
 	clear_attack_hint()
 	sprite_2d.modulate = Color.WHITE
 
+	# แสดงเส้นดาบตอน hitbox เปิด เพื่อให้ผู้เล่นเห็นจังหวะฟันจริง
+	show_boss_slash_effect()
+
 	print("Boss Attack! Hitbox ON:", current_attack_name)
 
 	# เปิด hitbox แบบ deferred เพื่อหลีกเลี่ยง physics flush error
@@ -1126,6 +1138,42 @@ func show_parry_spark(target: Node) -> void:
 	tween.tween_property(spark, "modulate:a", 0.0, parry_spark_duration)
 	tween.set_parallel(false)
 	tween.tween_callback(spark.queue_free)
+
+
+func show_boss_slash_effect() -> void:
+	# สร้างเส้นดาบของบอสแบบ placeholder โดยใช้ Label ชั่วคราว
+	# ใช้ตอน hitbox เปิด เพื่อให้ผู้เล่นเห็นจังหวะฟันจริงชัดขึ้น
+	var slash := Label.new()
+	slash.text = boss_slash_effect_text
+	slash.modulate = Color(1.0, 0.92, 0.45, 0.85)
+	slash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	slash.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	slash.z_index = 170
+	slash.scale = Vector2(0.65, 0.65)
+	slash.add_theme_font_size_override("font_size", boss_slash_effect_font_size)
+
+	# เพิ่ม slash เข้า parent เดียวกับบอส เพื่อใช้ global_position ได้ง่าย
+	get_parent().add_child(slash)
+
+	# วางเส้นดาบด้านหน้าบอสตามทิศที่บอสหัน และยกขึ้นเล็กน้อยให้เห็นเหนือพื้น
+	var slash_position: Vector2 = global_position + Vector2(float(facing_direction) * 52.0 - 25.0, -70.0)
+	slash.global_position = slash_position
+
+	# หมุนเส้นดาบตามทิศทาง เพื่อให้เห็นว่าบอสฟันเข้าหาผู้เล่น
+	if facing_direction >= 0:
+		slash.rotation_degrees = -32.0
+	else:
+		slash.rotation_degrees = 32.0
+
+	# ทำให้เส้นดาบพุ่งไปข้างหน้า ขยายขึ้น และจางหายเร็ว
+	var target_position: Vector2 = slash.global_position + Vector2(float(facing_direction) * 34.0, 0.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(slash, "global_position", target_position, boss_slash_effect_duration)
+	tween.tween_property(slash, "scale", Vector2(1.25, 1.25), boss_slash_effect_duration)
+	tween.tween_property(slash, "modulate:a", 0.0, boss_slash_effect_duration)
+	tween.set_parallel(false)
+	tween.tween_callback(slash.queue_free)
 
 
 func show_wrong_parry_feedback_once(target: Node) -> void:
