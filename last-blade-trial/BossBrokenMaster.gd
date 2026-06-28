@@ -150,6 +150,21 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # ระยะเวลากล้องสั่นเมื่อ Critical หรือ Focus Finisher
 @export var critical_hit_camera_shake_duration: float = 0.18
 
+# ข้อความที่ขึ้นเมื่อผู้เล่นพยายาม Parry ท่าหนักที่ต้อง Dash เท่านั้น
+@export var heavy_wrong_parry_feedback_text: String = "DASH ONLY!"
+
+# ขนาดตัวอักษรของ feedback ตอน Parry ท่าหนักผิด
+@export var heavy_wrong_parry_feedback_font_size: int = 28
+
+# ระยะเวลาที่ข้อความ feedback ลอยขึ้นและจางหาย
+@export var heavy_wrong_parry_feedback_duration: float = 0.45
+
+# ความแรงกล้องสั่นสั้น ๆ ตอนผู้เล่น Parry ท่าหนักผิด
+@export var heavy_wrong_parry_camera_shake_strength: float = 5.0
+
+# ระยะเวลากล้องสั่นตอนผู้เล่น Parry ท่าหนักผิด
+@export var heavy_wrong_parry_camera_shake_duration: float = 0.12
+
 # =========================
 # Debug: Boss Pattern Debug Mode
 # =========================
@@ -726,9 +741,10 @@ func _try_hit_area(area: Area2D) -> void:
 
 		return
 
-	# ถ้าผู้เล่นพยายาม Parry ท่าหนัก ให้ print เตือนก่อนโดนลงโทษ
+	# ถ้าผู้เล่นพยายาม Parry ท่าหนัก ให้ feedback ชัด ๆ ก่อนโดนลงโทษ
 	if not current_attack_can_be_parried and target.has_method("is_parry_active") and target.is_parry_active():
 		print(current_attack_name, "cannot be parried! Player should DASH.")
+		show_wrong_parry_feedback(target)
 
 	# ถ้า Parry ไม่สำเร็จ ให้ทำดาเมจตามท่าปัจจุบัน
 	has_hit_player = true
@@ -935,6 +951,46 @@ func show_damage_popup(amount: int, is_critical_hit: bool, label_text: String = 
 	tween.set_parallel(true)
 	tween.tween_property(popup, "global_position", target_position, 0.45)
 	tween.tween_property(popup, "modulate:a", 0.0, 0.45)
+	tween.set_parallel(false)
+	tween.tween_callback(popup.queue_free)
+
+
+func show_wrong_parry_feedback(target: Node) -> void:
+	# แสดงข้อความเตือนเหนือผู้เล่นเมื่อ Parry ท่าหนักผิด
+	# จุดประสงค์คือให้ผู้เล่นเข้าใจทันทีว่าท่านี้ต้อง Dash เท่านั้น
+	if not target is Node2D:
+		return
+
+	var target_node := target as Node2D
+	var popup := Label.new()
+	popup.text = heavy_wrong_parry_feedback_text
+	popup.modulate = Color(1.0, 0.25, 0.05, 1.0)
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	popup.z_index = 150
+	popup.add_theme_font_size_override("font_size", heavy_wrong_parry_feedback_font_size)
+
+	# เพิ่ม popup เข้า parent เดียวกับบอส เพื่อใช้ global_position ได้ง่าย
+	get_parent().add_child(popup)
+	popup.global_position = target_node.global_position + Vector2(-70.0, -95.0)
+
+	# เล่นเสียงทุ้มสั้น ๆ เพื่อบอกว่าการ Parry นี้ผิดจังหวะ/ผิดวิธี
+	play_placeholder_sfx(140.0, 0.10, 1.2)
+
+	# สั่นกล้องเล็กน้อย เพื่อย้ำว่าผู้เล่นตอบสนองผิดแบบถูกลงโทษ
+	get_tree().call_group(
+		"game_camera",
+		"shake",
+		heavy_wrong_parry_camera_shake_strength,
+		heavy_wrong_parry_camera_shake_duration
+	)
+
+	# ทำให้ข้อความลอยขึ้นและจางหาย
+	var target_position: Vector2 = popup.global_position + Vector2(0.0, -35.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "global_position", target_position, heavy_wrong_parry_feedback_duration)
+	tween.tween_property(popup, "modulate:a", 0.0, heavy_wrong_parry_feedback_duration)
 	tween.set_parallel(false)
 	tween.tween_callback(popup.queue_free)
 
