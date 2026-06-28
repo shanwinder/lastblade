@@ -113,6 +113,25 @@ signal player_died
 @export var dash_trail_start_alpha: float = 0.35
 
 # =========================
+# Stamina Feedback Placeholder
+# =========================
+
+# เปิด/ปิดข้อความแจ้งเตือนเมื่อ Stamina ไม่พอ
+@export var stamina_feedback_enabled: bool = true
+
+# ข้อความหลักที่แสดงเมื่อ Stamina ไม่พอ
+@export var stamina_feedback_text: String = "NO STAMINA!"
+
+# ขนาดตัวอักษรของข้อความ Stamina ไม่พอ
+@export var stamina_feedback_font_size: int = 24
+
+# ระยะเวลาที่ข้อความลอยขึ้นและจางหาย
+@export var stamina_feedback_duration: float = 0.35
+
+# สีของข้อความ Stamina ไม่พอ
+@export var stamina_feedback_color: Color = Color(1.0, 0.35, 0.10, 1.0)
+
+# =========================
 # อ้างอิง Node ต่าง ๆ
 # =========================
 
@@ -165,6 +184,9 @@ var is_knocked_back: bool = false
 
 # ใช้เช็กว่า Player กำลังอมตะหลังโดนตีอยู่หรือไม่
 var is_hurt_invincible: bool = false
+
+# ใช้กันไม่ให้ข้อความ NO STAMINA! ซ้อนกันหลายอันในเวลาเดียวกัน
+var is_showing_stamina_feedback: bool = false
 
 # ความเร็ว Knockback ปัจจุบันของ Player
 var knockback_velocity: Vector2 = Vector2.ZERO
@@ -399,9 +421,10 @@ func regenerate_stamina(delta: float) -> void:
 
 
 func attack() -> void:
-	# ถ้า Stamina ไม่พอ ห้ามโจมตี
+	# ถ้า Stamina ไม่พอ ห้ามโจมตี และแจ้งบนจอทันที
 	if current_stamina < attack_stamina_cost:
 		print("Not enough stamina to attack. Stamina =", int(current_stamina))
+		show_stamina_insufficient_feedback()
 		return
 
 	# ใช้ Stamina สำหรับการโจมตี
@@ -463,9 +486,10 @@ func clamp_to_arena() -> void:
 
 
 func dash() -> void:
-	# ถ้า Stamina ไม่พอ ห้าม Dash
+	# ถ้า Stamina ไม่พอ ห้าม Dash และแจ้งบนจอทันที
 	if current_stamina < dash_stamina_cost:
 		print("Not enough stamina to dash. Stamina =", int(current_stamina))
+		show_stamina_insufficient_feedback()
 		return
 
 	# ใช้ Stamina สำหรับ Dash
@@ -511,6 +535,54 @@ func dash() -> void:
 	print("Dash Ready")
 
 
+func show_stamina_insufficient_feedback() -> void:
+	# ถ้าปิด feedback ไว้ หรือกำลังแสดงอยู่แล้ว ไม่ต้องสร้างซ้ำ
+	if not stamina_feedback_enabled:
+		return
+
+	if is_showing_stamina_feedback:
+		return
+
+	if is_dead:
+		return
+
+	is_showing_stamina_feedback = true
+
+	# สร้าง Label ชั่วคราวเหนือหัว Player เพื่อบอกว่า Stamina ไม่พอ
+	var popup := Label.new()
+	popup.text = stamina_feedback_text
+	popup.modulate = stamina_feedback_color
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	popup.z_index = 180
+	popup.add_theme_font_size_override("font_size", stamina_feedback_font_size)
+
+	# เพิ่ม popup เข้า parent เดียวกับ Player เพื่อใช้ global_position ได้ง่าย
+	get_parent().add_child(popup)
+	popup.global_position = global_position + Vector2(-80.0, -105.0)
+
+	# กระพริบสี Player สั้น ๆ เพื่อให้รู้ว่ากดแล้ว action ไม่ออก
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color(1.0, 0.35, 0.10, 1.0)
+
+	# ทำให้ข้อความลอยขึ้นและจางหาย
+	var target_position: Vector2 = popup.global_position + Vector2(0.0, -28.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "global_position", target_position, stamina_feedback_duration)
+	tween.tween_property(popup, "modulate:a", 0.0, stamina_feedback_duration)
+	tween.set_parallel(false)
+	tween.tween_callback(Callable(popup, "queue_free"))
+
+	# รอให้ feedback จบ แล้วอนุญาตให้แสดงใหม่ได้
+	await get_tree().create_timer(stamina_feedback_duration).timeout
+
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_parrying:
+		sprite_2d.modulate = Color.WHITE
+
+	is_showing_stamina_feedback = false
+
+
 func spawn_dash_trail() -> void:
 	# ถ้าปิด Dash trail ไว้ หรือไม่มี sprite ให้ไม่ต้องสร้างอะไร
 	if not dash_trail_enabled:
@@ -553,9 +625,10 @@ func create_dash_trail_ghost() -> void:
 
 
 func parry() -> void:
-	# ถ้า Stamina ไม่พอ ห้าม Parry
+	# ถ้า Stamina ไม่พอ ห้าม Parry และแจ้งบนจอทันที
 	if current_stamina < parry_stamina_cost:
 		print("Not enough stamina to parry. Stamina =", int(current_stamina))
+		show_stamina_insufficient_feedback()
 		return
 
 	# ใช้ Stamina สำหรับ Parry
