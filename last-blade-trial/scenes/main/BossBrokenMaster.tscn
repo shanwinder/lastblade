@@ -1,11 +1,11 @@
-[gd_scene format=3 uid="uid://7i1h2iabnsg4"]
+[gd_scene format=3]
 
-[ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_tedvd"]
-[ext_resource type="Script" uid="uid://bgn1t6o38flks" path="res://player.gd" id="2_mknfb"]
-[ext_resource type="Texture2D" uid="uid://7jrmvjfqe2ag" path="res://icon.svg" id="3_5ds0b"]
-[ext_resource type="PackedScene" uid="uid://cjj8b0p4bdtye" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
-[ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="5_7w3th"]
-[ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
+[ext_resource type="Script" path="res://arena_manager.gd" id="1_tedvd"]
+[ext_resource type="Script" path="res://player.gd" id="2_mknfb"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player_silhouette.svg" id="3_5ds0b"]
+[ext_resource type="PackedScene" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
+[ext_resource type="Script" path="res://HUD.gd" id="5_7w3th"]
+[ext_resource type="Script" path="res://game_camera.gd" id="6_jpax5"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -16,88 +16,88 @@ size = Vector2(80, 50)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_32k8f"]
 size = Vector2(70, 70)
 
-[node name="Main" type="Node2D" unique_id=2023704259]
+[node name="Main" type="Node2D"]
 
-[node name="ArenaManager" type="Node" parent="." unique_id=877919969]
+[node name="ArenaManager" type="Node" parent="."]
 script = ExtResource("1_tedvd")
 
-[node name="Player" type="CharacterBody2D" parent="." unique_id=1479619094]
+[node name="Player" type="CharacterBody2D" parent="."]
 position = Vector2(576, 324)
 script = ExtResource("2_mknfb")
 
-[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=322533980]
+[node name="Sprite2D" type="Sprite2D" parent="Player"]
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("3_5ds0b")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1510513533]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
 shape = SubResource("RectangleShape2D_nha0i")
 
-[node name="AttackHitbox" type="Area2D" parent="Player" unique_id=935621437]
+[node name="AttackHitbox" type="Area2D" parent="Player"]
 position = Vector2(55, 0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/AttackHitbox" unique_id=1980833262]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/AttackHitbox"]
 shape = SubResource("RectangleShape2D_u4lie")
 disabled = true
 
-[node name="Hurtbox" type="Area2D" parent="Player" unique_id=479939176]
+[node name="Hurtbox" type="Area2D" parent="Player"]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=749896351]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox"]
 shape = SubResource("RectangleShape2D_32k8f")
 
-[node name="BossBrokenMaster" parent="." unique_id=631216959 instance=ExtResource("4_tedvd")]
+[node name="BossBrokenMaster" parent="." instance=ExtResource("4_tedvd")]
 position = Vector2(780, 324)
 
-[node name="HUD" type="CanvasLayer" parent="." unique_id=1436178556]
+[node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("5_7w3th")
 
-[node name="Control" type="Control" parent="HUD" unique_id=1109049797]
+[node name="Control" type="Control" parent="HUD"]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Control" unique_id=2131567454]
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Control"]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 20.0
 offset_right = 240.0
 offset_bottom = 132.0
 
-[node name="HPLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=988905118]
+[node name="HPLabel" type="Label" parent="HUD/Control/VBoxContainer"]
 layout_mode = 2
 
-[node name="HPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=33474983]
+[node name="HPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer"]
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
 
-[node name="StaminaLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=201452736]
+[node name="StaminaLabel" type="Label" parent="HUD/Control/VBoxContainer"]
 layout_mode = 2
 
-[node name="StaminaBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1768925273]
+[node name="StaminaBar" type="ProgressBar" parent="HUD/Control/VBoxContainer"]
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
 
-[node name="EnemyHPLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=1926143112]
+[node name="EnemyHPLabel" type="Label" parent="HUD/Control/VBoxContainer"]
 layout_mode = 2
 
-[node name="EnemyHPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=310632392]
+[node name="EnemyHPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer"]
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
 
-[node name="EnemyPostureLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=528575630]
+[node name="EnemyPostureLabel" type="Label" parent="HUD/Control/VBoxContainer"]
 layout_mode = 2
 
-[node name="EnemyPostureBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=2068430457]
+[node name="EnemyPostureBar" type="ProgressBar" parent="HUD/Control/VBoxContainer"]
 custom_minimum_size = Vector2(220, 18)
 layout_mode = 2
 
-[node name="FocusLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=1389652600]
+[node name="FocusLabel" type="Label" parent="HUD/Control/VBoxContainer"]
 layout_mode = 2
 
-[node name="FocusBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=668970317]
+[node name="FocusBar" type="ProgressBar" parent="HUD/Control/VBoxContainer"]
 layout_mode = 2
 
-[node name="GameResultLabel" type="Label" parent="HUD/Control" unique_id=1110389547]
+[node name="GameResultLabel" type="Label" parent="HUD/Control"]
 custom_minimum_size = Vector2(450, 120)
 layout_mode = 0
 offset_left = 360.0
@@ -105,6 +105,6 @@ offset_top = 230.0
 offset_right = 400.0
 offset_bottom = 253.0
 
-[node name="GameCamera" type="Camera2D" parent="." unique_id=532290581]
+[node name="GameCamera" type="Camera2D" parent="."]
 position = Vector2(576, 324)
 script = ExtResource("6_jpax5")
