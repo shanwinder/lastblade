@@ -177,46 +177,14 @@ func _ready() -> void:
 	update_enemy_stats(enemy.current_hp, enemy.max_hp, enemy.current_posture, enemy.max_posture)
 
 func create_attack_hint_label() -> void:
-	# สร้าง Label ใหม่สำหรับบอกผู้เล่นว่าควร Parry หรือ Dash
-	attack_hint_label = Label.new()
+	# ตอนนี้ย้ายข้อความเตือนการโจมตีไปไว้เหนือหัวบอสแล้ว
+	# จึงไม่ต้องสร้าง Label กลางจอใน HUD อีก
+	attack_hint_label = null
 
-	# เริ่มต้นให้ไม่มีข้อความ
-	attack_hint_label.text = ""
-
-	# ทำให้ตัวอักษรใหญ่พอสำหรับอ่านบนมือถือ
-	attack_hint_label.add_theme_font_size_override("font_size", 42)
-
-	# จัดข้อความให้อยู่กึ่งกลาง
-	attack_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	attack_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-
-	# ตั้งขนาดพื้นที่ข้อความ
-	attack_hint_label.custom_minimum_size = Vector2(500, 80)
-
-	# วางตำแหน่งกลางบนของจอแบบง่าย ๆ ก่อน
-	# ภายหลังค่อยปรับให้ responsive กับมือถือจริง
-	attack_hint_label.position = Vector2(390, 90)
-
-	# ให้ข้อความอยู่หน้าสุด
-	attack_hint_label.z_index = 200
-
-	# เพิ่มเข้าไปใต้ Control ของ HUD
-	$Control.add_child(attack_hint_label)
-
-
-func update_attack_hint(hint_text: String, hint_color: Color) -> void:
-	# ถ้ายังไม่ได้สร้าง Label ให้ไม่ทำอะไร เพื่อป้องกัน error
-	if attack_hint_label == null:
-		return
-
-	# อัปเดตข้อความ เช่น PARRY!, DASH! หรือ WAIT...
-	attack_hint_label.text = hint_text
-
-	# อัปเดตสีให้ตรงกับท่าโจมตี
-	attack_hint_label.modulate = hint_color
-
-	# ถ้าไม่มีข้อความ ให้ซ่อน Label
-	attack_hint_label.visible = hint_text != ""
+func update_attack_hint(_hint_text: String, _hint_color: Color) -> void:
+	# ตอนนี้ BossBrokenMaster.gd แสดง hint เหนือหัวบอสเองแล้ว
+	# HUD จึงไม่ต้องอัปเดตข้อความเตือนกลางจอ
+	return
 
 func update_player_stats(
 	current_hp: int,

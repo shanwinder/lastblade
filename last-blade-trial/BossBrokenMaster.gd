@@ -200,6 +200,17 @@ var arena_manager: Node = null
 # อ้างอิง CollisionShape2D ของ AttackHitbox เพื่อเปิด/ปิดพื้นที่โจมตี
 @onready var attack_shape: CollisionShape2D = $AttackHitbox/CollisionShape2D
 
+# Label สำหรับแสดงคำเตือนเหนือหัวบอส
+# เช่น PARRY!, DASH!, WAIT..., PARRY FAST!
+var boss_hint_label: Label = null
+
+# ตำแหน่งข้อความเหนือหัวบอส
+# ค่า x ติดลบเพื่อขยับให้ข้อความอยู่กึ่งกลางเหนือบอส
+@export var boss_hint_offset: Vector2 = Vector2(-160, -110)
+
+# ขนาดตัวอักษรของข้อความเหนือหัวบอส
+@export var boss_hint_font_size: int = 34
+
 # =========================
 # ตัวแปรสถานะ
 # =========================
@@ -336,6 +347,10 @@ func _ready() -> void:
 	# เชื่อมสัญญาณ เมื่อ AttackHitbox ของศัตรูชน Area2D อื่น
 	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
+	# สร้างข้อความเตือนเหนือหัวบอส
+	# เพื่อให้ผู้เล่นอ่านจังหวะได้โดยไม่ต้องละสายตาจากบอส
+	create_boss_hint_label()
+
 	print("Boss Broken Master ready. HP =", current_hp)
 
 	# ส่งค่าเริ่มต้นให้ HUD แสดง Enemy Posture
@@ -430,22 +445,75 @@ func _physics_process(_delta: float) -> void:
 	# จำกัดไม่ให้ศัตรูเดินออกนอกสนาม
 	clamp_to_arena()
 
+func create_boss_hint_label() -> void:
+	# สร้าง Label ใหม่สำหรับแสดงคำเตือนเหนือหัวบอส
+	boss_hint_label = Label.new()
+
+	# เริ่มต้นให้ไม่มีข้อความ
+	boss_hint_label.text = ""
+
+	# ซ่อนไว้ก่อน จะแสดงเฉพาะตอนบอสกำลังเตรียมโจมตี
+	boss_hint_label.visible = false
+
+	# ตั้งขนาดพื้นที่ข้อความ
+	# ให้กว้างพอสำหรับคำว่า PARRY FAST!
+	boss_hint_label.custom_minimum_size = Vector2(320, 60)
+
+	# วางข้อความเหนือหัวบอสแบบ local position
+	# เพราะ Label เป็นลูกของบอส จึงจะขยับตามบอสอัตโนมัติ
+	boss_hint_label.position = boss_hint_offset
+
+	# จัดข้อความให้อยู่กึ่งกลาง
+	boss_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	# ทำให้ตัวอักษรอ่านง่าย
+	boss_hint_label.add_theme_font_size_override("font_size", boss_hint_font_size)
+
+	# ให้ข้อความอยู่หน้าตัวบอส
+	boss_hint_label.z_index = 200
+
+	# เพิ่ม Label เป็นลูกของบอส
+	add_child(boss_hint_label)
+
+func update_boss_hint_label(hint_text: String, hint_color: Color) -> void:
+	# ถ้ายังไม่ได้สร้าง Label ให้หยุด เพื่อกัน error
+	if boss_hint_label == null:
+		return
+
+	# อัปเดตข้อความ เช่น PARRY!, DASH!, WAIT..., PARRY FAST!
+	boss_hint_label.text = hint_text
+
+	# อัปเดตสีข้อความตามชนิดท่า
+	boss_hint_label.modulate = hint_color
+
+	# ถ้าข้อความว่าง ให้ซ่อน
+	boss_hint_label.visible = hint_text != ""
 
 func emit_enemy_stats() -> void:
 	# ส่งค่า HP และ Posture ของศัตรูไปให้ HUD
 	enemy_stats_changed.emit(current_hp, max_hp, current_posture, max_posture)
 	
 func emit_attack_hint() -> void:
-	# ส่งข้อความเตือนตามท่าปัจจุบัน
-	# Normal = PARRY!, Heavy = DASH!, Delayed ช่วงแรก = WAIT...
-	enemy_attack_hint_changed.emit(current_attack_hint_text, current_attack_hint_color)
+	# แสดงข้อความเตือนเหนือหัวบอส
+	# ทำให้ผู้เล่นไม่ต้องละสายตาจากบอสไปมอง HUD ด้านบน
+	update_boss_hint_label(current_attack_hint_text, current_attack_hint_color)
 
+	# ยังส่ง signal ไว้ก่อน เผื่ออนาคต HUD หรือระบบอื่นอยากรับข้อมูลนี้
+	enemy_attack_hint_changed.emit(current_attack_hint_text, current_attack_hint_color)
+	
 func clear_attack_hint() -> void:
-	# ส่งข้อความว่าง เพื่อให้ HUD ซ่อนคำเตือน
+	# ซ่อนข้อความเตือนเหนือหัวบอส
+	update_boss_hint_label("", Color.WHITE)
+
+	# ส่งข้อความว่าง เพื่อให้ระบบอื่นซ่อนคำเตือนด้วย
 	enemy_attack_hint_changed.emit("", Color.WHITE)
 
 func emit_delayed_parry_hint() -> void:
 	# ช่วงท้ายของ Delayed Slash ให้บอกผู้เล่นว่าตอนนี้ค่อย Parry
+	update_boss_hint_label("PARRY!", Color.YELLOW)
+
+	# ยังส่ง signal ไว้ก่อน เผื่อระบบอื่นใช้ต่อ
 	enemy_attack_hint_changed.emit("PARRY!", Color.YELLOW)
 	
 func choose_attack_pattern() -> void:
