@@ -128,9 +128,13 @@ func _ready() -> void:
 	# ตั้งชื่อที่ HUD จะใช้แสดง เช่น Boss หรือ Enemy
 	update_combat_target_display_name(enemy)
 
-	# ถ้าเป้าหมายที่เจอมีคำว่า Boss ในชื่อ node
-	# ให้ HUD แสดงคำว่า Boss แทน Enemy
-	if "Boss" in enemy.name:
+	# อ่านชื่อที่ target อยากให้ HUD แสดง
+	# BossBrokenMaster.gd จะมี combat_display_name = "Boss"
+	var display_name = enemy.get("combat_display_name")
+
+	if display_name != null and str(display_name).strip_edges() != "":
+		combat_target_display_name = str(display_name).strip_edges()
+	elif "Boss" in enemy.name:
 		combat_target_display_name = "Boss"
 	else:
 		combat_target_display_name = "Enemy"

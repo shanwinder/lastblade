@@ -18,7 +18,7 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 @export var max_hp: int = 150
 
 # ชื่อที่ HUD ใช้แสดงบนหน้าจอ
-# แม้ node ในฉากจะชื่ออะไรก็ตาม ถ้า script นี้เป็นบอส HUD จะใช้คำว่า Boss
+# ใช้แก้ปัญหากรณี node ในฉากชื่อไม่ตรงกับชนิดจริง
 @export var combat_display_name: String = "Boss"
 
 # ความเร็วในการเดินเข้าหาผู้เล่น
@@ -753,7 +753,7 @@ func reduce_posture(amount: float) -> void:
 	current_posture -= amount
 	current_posture = clamp(current_posture, 0.0, max_posture)
 
-	print("Enemy posture reduced:", int(current_posture), "/", int(max_posture))
+	print("Boss posture reduced:", int(current_posture), "/", int(max_posture))
 
 	# แจ้ง HUD ว่า Posture เปลี่ยนแล้ว
 	emit_enemy_stats()
@@ -829,7 +829,7 @@ func take_focus_finisher_damage(amount: int) -> void:
 	if is_dead:
 		return
 
-	print("ENEMY HIT BY FOCUS FINISHER! Damage =", amount)
+	print("Boss HIT BY FOCUS FINISHER! Damage =", amount)
 
 	# ปิดช่อง Critical ปกติ เพื่อไม่ให้ซ้อนกับระบบ Critical เดิม
 	can_receive_critical = false
@@ -841,7 +841,7 @@ func take_focus_finisher_damage(amount: int) -> void:
 	# อัปเดต HUD
 	emit_enemy_stats()
 
-	print("Enemy HP left:", current_hp)
+	print("Boss HP left:", current_hp)
 
 	# แสดงตัวเลขดาเมจแบบ Critical/Finisher
 	show_damage_popup(amount, true, "FINISHER!")
@@ -884,7 +884,7 @@ func take_damage(amount: int) -> void:
 
 		print("CRITICAL ATTACK! Damage =", final_damage)
 	else:
-		print("Enemy took damage:", final_damage)
+		print("Boss took damage:", final_damage)
 
 	# ลด HP ของศัตรูด้วยดาเมจสุดท้าย
 	current_hp -= final_damage
@@ -895,7 +895,7 @@ func take_damage(amount: int) -> void:
 	# แจ้ง HUD ว่า HP ศัตรูเปลี่ยนแล้ว
 	emit_enemy_stats()
 
-	print("Enemy HP left:", current_hp)
+	print("Boss HP left:", current_hp)
 
 	# แสดงตัวเลขดาเมจลอยขึ้นเหนือศัตรู
 	show_damage_popup(final_damage, is_critical_hit)

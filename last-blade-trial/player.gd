@@ -347,7 +347,7 @@ func gain_focus(amount: float) -> void:
 	# ภายหลังค่อยเปลี่ยนเป็น popup หรือ tutorial text บนจอ
 	if current_focus >= max_focus and not has_shown_focus_ready_message:
 		has_shown_focus_ready_message = true
-		print("FOCUS READY! Break enemy posture, then press Attack for Finisher.")
+		print("FOCUS READY! Break boss posture, then press Attack for Finisher.")
 		
 	print("Focus gained:", int(amount), "Focus =", int(current_focus), "/", int(max_focus))
 

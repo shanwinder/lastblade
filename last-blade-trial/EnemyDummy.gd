@@ -755,7 +755,7 @@ func reduce_posture(amount: float) -> void:
 	current_posture -= amount
 	current_posture = clamp(current_posture, 0.0, max_posture)
 
-	print("Enemy posture reduced:", int(current_posture), "/", int(max_posture))
+	print("Boss posture reduced:", int(current_posture), "/", int(max_posture))
 
 	# แจ้ง HUD ว่า Posture เปลี่ยนแล้ว
 	emit_enemy_stats()
@@ -831,7 +831,7 @@ func take_focus_finisher_damage(amount: int) -> void:
 	if is_dead:
 		return
 
-	print("ENEMY HIT BY FOCUS FINISHER! Damage =", amount)
+	print("Boss HIT BY FOCUS FINISHER! Damage =", amount)
 
 	# ปิดช่อง Critical ปกติ เพื่อไม่ให้ซ้อนกับระบบ Critical เดิม
 	can_receive_critical = false
@@ -843,7 +843,7 @@ func take_focus_finisher_damage(amount: int) -> void:
 	# อัปเดต HUD
 	emit_enemy_stats()
 
-	print("Enemy HP left:", current_hp)
+	print("Boss HP left:", current_hp)
 
 	# แสดงตัวเลขดาเมจแบบ Critical/Finisher
 	show_damage_popup(amount, true, "FINISHER!")
@@ -886,7 +886,7 @@ func take_damage(amount: int) -> void:
 
 		print("CRITICAL ATTACK! Damage =", final_damage)
 	else:
-		print("Enemy took damage:", final_damage)
+		print("Boss took damage:", final_damage)
 
 	# ลด HP ของศัตรูด้วยดาเมจสุดท้าย
 	current_hp -= final_damage
