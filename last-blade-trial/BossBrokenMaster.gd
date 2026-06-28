@@ -97,6 +97,18 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # Cooldown เพิ่มหลัง Delayed Slash
 @export var delayed_attack_cooldown_bonus: float = 0.25
 
+# เปิดระบบตรวจว่าผู้เล่นกด Parry เร็วเกินไประหว่าง WAIT... หรือไม่
+@export var delayed_watch_early_parry_during_wait: bool = true
+
+# ข้อความที่ขึ้นเมื่อผู้เล่นกด Parry เร็วเกินไปในช่วง WAIT...
+@export var delayed_early_parry_feedback_text: String = "TOO EARLY!"
+
+# ขนาดตัวอักษรของ feedback ตอนกด Parry เร็วเกินไป
+@export var delayed_early_parry_feedback_font_size: int = 26
+
+# ระยะเวลาที่ข้อความกดเร็วเกินไปลอยขึ้นและจางหาย
+@export var delayed_early_parry_feedback_duration: float = 0.42
+
 # =========================
 # ค่าของระบบ Parry / Posture
 # =========================
@@ -296,6 +308,9 @@ var has_hit_player: bool = false
 
 # กันไม่ให้ข้อความ DASH ONLY! ขึ้นซ้ำหลายครั้งในการโจมตีท่าเดียว
 var has_shown_wrong_parry_feedback_this_attack: bool = false
+
+# กันไม่ให้ข้อความ TOO EARLY! ขึ้นซ้ำหลายครั้งในการโจมตีท่าเดียว
+var has_shown_early_parry_feedback_this_attack: bool = false
 
 # ชื่อท่าปัจจุบันของบอส
 var current_attack_name: String = "normal_slash"
@@ -615,6 +630,7 @@ func attack() -> void:
 	can_attack = false
 	has_hit_player = false
 	has_shown_wrong_parry_feedback_this_attack = false
+	has_shown_early_parry_feedback_this_attack = false
 
 	# เพิ่ม sequence id เพื่อให้ coroutine เก่าถูกยกเลิกได้
 	attack_sequence_id += 1
@@ -635,7 +651,10 @@ func attack() -> void:
 
 	# ถ้าเป็น Delayed Slash ต้องมีช่วง WAIT... แล้วค่อย PARRY!
 	if current_attack_is_delayed:
-		await get_tree().create_timer(current_attack_delay_wait_time).timeout
+		if delayed_watch_early_parry_during_wait:
+			await watch_early_parry_during_delayed_wait(my_attack_id, current_attack_delay_wait_time)
+		else:
+			await get_tree().create_timer(current_attack_delay_wait_time).timeout
 
 		# ถ้าถูกยกเลิกระหว่างรอ ให้หยุดทันที
 		if my_attack_id != attack_sequence_id or is_dead:
@@ -721,6 +740,26 @@ func watch_wrong_parry_during_windup(my_attack_id: int, duration: float) -> void
 			show_wrong_parry_feedback_once(player)
 
 		# ใช้ delta ของ physics process เพื่อให้เวลารวมใกล้เคียง wind-up จริง
+		elapsed_time += get_physics_process_delta_time()
+
+
+func watch_early_parry_during_delayed_wait(my_attack_id: int, duration: float) -> void:
+	# คอยดูช่วง WAIT... ของ Delayed Slash ว่าผู้เล่นกด Parry เร็วเกินไปหรือไม่
+	# ถ้าพบ ให้เตือนว่าเร็วเกินไป แต่ยังไม่ลงโทษทันที เพราะเป้าหมายคือสอนจังหวะ
+	var elapsed_time: float = 0.0
+
+	while elapsed_time < duration:
+		await get_tree().physics_frame
+
+		# ถ้า attack รอบนี้ถูกยกเลิก ให้หยุดดูทันที
+		if my_attack_id != attack_sequence_id or is_dead or not is_winding_up:
+			return
+
+		# ช่วง WAIT... ยังไม่ใช่จังหวะ Parry ถ้าผู้เล่นกดตอนนี้ให้ขึ้นข้อความเตือน
+		if is_instance_valid(player) and player.has_method("is_parry_active") and player.is_parry_active():
+			show_early_delayed_parry_feedback_once(player)
+
+		# ใช้ delta ของ physics process เพื่อให้เวลารวมตรงกับช่วง WAIT...
 		elapsed_time += get_physics_process_delta_time()
 
 
@@ -1037,6 +1076,48 @@ func show_wrong_parry_feedback(target: Node) -> void:
 	tween.set_parallel(true)
 	tween.tween_property(popup, "global_position", target_position, heavy_wrong_parry_feedback_duration)
 	tween.tween_property(popup, "modulate:a", 0.0, heavy_wrong_parry_feedback_duration)
+	tween.set_parallel(false)
+	tween.tween_callback(popup.queue_free)
+
+
+func show_early_delayed_parry_feedback_once(target: Node) -> void:
+	# กันไม่ให้ข้อความ TOO EARLY! ขึ้นซ้ำในการโจมตีท่าเดียว
+	if has_shown_early_parry_feedback_this_attack:
+		return
+
+	has_shown_early_parry_feedback_this_attack = true
+	print(current_attack_name, "early parry during WAIT phase. Player should wait.")
+	show_early_delayed_parry_feedback(target)
+
+
+func show_early_delayed_parry_feedback(target: Node) -> void:
+	# แสดงข้อความเตือนเมื่อผู้เล่นกด Parry เร็วเกินไปในท่า Delayed Slash
+	# ใช้เป็น feedback เพื่อสอนว่าช่วง WAIT... ยังไม่ใช่จังหวะ Parry
+	if not target is Node2D:
+		return
+
+	var target_node := target as Node2D
+	var popup := Label.new()
+	popup.text = delayed_early_parry_feedback_text
+	popup.modulate = Color(0.75, 0.35, 1.0, 1.0)
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	popup.z_index = 150
+	popup.add_theme_font_size_override("font_size", delayed_early_parry_feedback_font_size)
+
+	# เพิ่ม popup เข้า parent เดียวกับบอส เพื่อใช้ global_position ได้ง่าย
+	get_parent().add_child(popup)
+	popup.global_position = target_node.global_position + Vector2(-70.0, -95.0)
+
+	# เล่นเสียงกลาง ๆ สั้น ๆ เพื่อเตือนว่าจังหวะนี้ยังเร็วเกินไป
+	play_placeholder_sfx(260.0, 0.08, 0.9)
+
+	# ทำให้ข้อความลอยขึ้นและจางหาย
+	var target_position: Vector2 = popup.global_position + Vector2(0.0, -32.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "global_position", target_position, delayed_early_parry_feedback_duration)
+	tween.tween_property(popup, "modulate:a", 0.0, delayed_early_parry_feedback_duration)
 	tween.set_parallel(false)
 	tween.tween_callback(popup.queue_free)
 
