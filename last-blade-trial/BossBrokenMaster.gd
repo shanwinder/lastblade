@@ -166,6 +166,15 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # ระยะเวลากล้องสั่นเมื่อ Critical หรือ Focus Finisher
 @export var critical_hit_camera_shake_duration: float = 0.18
 
+# ข้อความประกายตอน Parry สำเร็จ ใช้เป็น placeholder VFX ก่อนมี sprite จริง
+@export var parry_spark_text: String = "✦"
+
+# ขนาดตัวอักษรของประกาย Parry
+@export var parry_spark_font_size: int = 44
+
+# ระยะเวลาที่ประกาย Parry ขยายและจางหาย
+@export var parry_spark_duration: float = 0.22
+
 # ข้อความที่ขึ้นเมื่อผู้เล่นพยายาม Parry ท่าหนักที่ต้อง Dash เท่านั้น
 @export var heavy_wrong_parry_feedback_text: String = "DASH ONLY!"
 
@@ -858,6 +867,9 @@ func _try_hit_area(area: Area2D) -> void:
 		# เล่นเสียง placeholder ตอน Parry สำเร็จ
 		play_placeholder_sfx(880.0, 0.08, 1.0)
 
+		# แสดงประกาย Parry เพื่อให้ผู้เล่นเห็นชัดว่าจังหวะนี้สำเร็จจริง
+		show_parry_spark(target)
+
 		# เรียก feedback ฝั่ง Player
 		if target.has_method("on_successful_parry"):
 			target.on_successful_parry()
@@ -1082,6 +1094,38 @@ func show_damage_popup(amount: int, is_critical_hit: bool, label_text: String = 
 	tween.tween_property(popup, "modulate:a", 0.0, 0.45)
 	tween.set_parallel(false)
 	tween.tween_callback(popup.queue_free)
+
+
+func show_parry_spark(target: Node) -> void:
+	# สร้างประกาย Parry แบบ placeholder โดยใช้ Label ชั่วคราว
+	# วางไว้ระหว่าง Player กับ Boss เพื่อให้ผู้เล่นเห็นว่าดาบปะทะสำเร็จ
+	if not target is Node2D:
+		return
+
+	var target_node := target as Node2D
+	var spark := Label.new()
+	spark.text = parry_spark_text
+	spark.modulate = Color(1.0, 0.9, 0.25, 1.0)
+	spark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	spark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	spark.z_index = 180
+	spark.scale = Vector2(0.45, 0.45)
+	spark.add_theme_font_size_override("font_size", parry_spark_font_size)
+
+	# เพิ่ม spark เข้า parent เดียวกับบอส เพื่อใช้ global_position ได้ง่าย
+	get_parent().add_child(spark)
+	var spark_position: Vector2 = (global_position + target_node.global_position) * 0.5 + Vector2(-20.0, -70.0)
+	spark.global_position = spark_position
+
+	# ทำให้ประกายขยายขึ้น ลอยขึ้นเล็กน้อย และจางหายเร็ว
+	var target_position: Vector2 = spark.global_position + Vector2(0.0, -22.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(spark, "scale", Vector2(1.35, 1.35), parry_spark_duration)
+	tween.tween_property(spark, "global_position", target_position, parry_spark_duration)
+	tween.tween_property(spark, "modulate:a", 0.0, parry_spark_duration)
+	tween.set_parallel(false)
+	tween.tween_callback(spark.queue_free)
 
 
 func show_wrong_parry_feedback_once(target: Node) -> void:
