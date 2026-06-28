@@ -519,7 +519,7 @@ func update_boss_hint_label(hint_text: String, hint_color: Color) -> void:
 	boss_hint_tween.tween_property(
 		boss_hint_label,
 		"scale",
-		Vector2(1.15, 1.15),
+		Vector2(1.0, 1.0),
 		0.08
 	)
 
