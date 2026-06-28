@@ -472,11 +472,11 @@ func play_placeholder_sfx(frequency: float, duration: float, volume_multiplier: 
 
 	# สร้าง AudioStreamPlayer ใหม่แบบชั่วคราว
 	# ใช้เล่นเสียงสั้น ๆ แล้วลบทิ้ง
-	var audio_player := AudioStreamPlayer.new()
+	var audio_player: AudioStreamPlayer = AudioStreamPlayer.new()
 
 	# สร้างเสียงด้วย AudioStreamGenerator
 	# วิธีนี้ยังไม่ต้องมีไฟล์ .wav หรือ .ogg
-	var generator := AudioStreamGenerator.new()
+	var generator: AudioStreamGenerator = AudioStreamGenerator.new()
 	generator.mix_rate = PLACEHOLDER_SFX_MIX_RATE
 	generator.buffer_length = duration
 
@@ -490,7 +490,7 @@ func play_placeholder_sfx(frequency: float, duration: float, volume_multiplier: 
 	audio_player.play()
 
 	# ดึง playback สำหรับใส่ sample เสียงเข้าไป
-	var playback := audio_player.get_stream_playback() as AudioStreamGeneratorPlayback
+	var playback: AudioStreamGeneratorPlayback = audio_player.get_stream_playback() as AudioStreamGeneratorPlayback
 
 	# ถ้า playback ไม่มี ให้ลบ player แล้วหยุด เพื่อกัน error
 	if playback == null:
@@ -498,21 +498,28 @@ func play_placeholder_sfx(frequency: float, duration: float, volume_multiplier: 
 		return
 
 	# คำนวณจำนวน sample ตามระยะเวลาเสียง
-	var frame_count := int(float(PLACEHOLDER_SFX_MIX_RATE) * duration)
+	var frame_count: int = int(float(PLACEHOLDER_SFX_MIX_RATE) * duration)
+
+	# คำนวณความดังดิบก่อน
+	var raw_volume: float = placeholder_sfx_volume * volume_multiplier
 
 	# จำกัดความดังไม่ให้ดังเกินไป
-	var final_volume := clamp(placeholder_sfx_volume * volume_multiplier, 0.0, 0.5)
+	# ใช้ clampf เพื่อให้ผลลัพธ์เป็น float ชัดเจน ไม่ใช่ Variant
+	var final_volume: float = clampf(raw_volume, 0.0, 0.5)
 
 	# ใช้ phase สำหรับสร้างคลื่น sine
-	var phase := 0.0
+	var phase: float = 0.0
 
 	# สร้างเสียง sine wave แบบง่าย ๆ
 	for i in range(frame_count):
 		# ทำ fade out ช่วงท้าย เพื่อไม่ให้เสียงตัดแข็งเกินไป
-		var fade := 1.0 - (float(i) / float(frame_count))
+		var fade: float = 1.0 - (float(i) / float(frame_count))
+
+		# คำนวณค่าคลื่นเสียง
+		var wave_value: float = sin(phase * TAU)
 
 		# คำนวณ sample ของเสียง
-		var sample := sin(phase * TAU) * final_volume * fade
+		var sample: float = wave_value * final_volume * fade
 
 		# ใส่เสียงซ้าย/ขวาเท่ากัน
 		playback.push_frame(Vector2(sample, sample))
