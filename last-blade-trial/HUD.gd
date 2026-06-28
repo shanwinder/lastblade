@@ -56,8 +56,8 @@ var attack_hint_label: Label
 var is_game_finished: bool = false
 
 # ชื่อเป้าหมายที่ HUD จะใช้แสดงบนจอ
-# ตอนนี้ใน Main ใช้ BossBrokenMaster แล้ว จึงตั้งค่าเริ่มต้นเป็น Boss
-var combat_target_display_name: String = "Boss"
+# ค่าเริ่มต้นเป็น Enemy เผื่อในอนาคตมีศัตรูทั่วไป
+var combat_target_display_name: String = "Enemy"
 
 func find_combat_target():
 	# หาเป้าหมายต่อสู้หลักจาก group combat_target
@@ -88,6 +88,27 @@ func find_combat_target():
 	print("HUD ERROR: combat target not found")
 	return null
 
+func update_combat_target_display_name(target) -> void:
+	# ตั้งค่าเริ่มต้นไว้ก่อน เผื่อ target ไม่มีข้อมูลชื่อแสดงผล
+	combat_target_display_name = "Enemy"
+
+	# ถ้า target ไม่มีจริง ให้หยุด
+	if target == null:
+		return
+
+	# อ่านค่าชื่อแสดงผลจาก script ของเป้าหมาย
+	# BossBrokenMaster.gd จะมี combat_display_name = "Boss"
+	var display_name = target.get("combat_display_name")
+
+	# ถ้ามีค่าชื่อแสดงผล และไม่ใช่ข้อความว่าง ให้ใช้ค่านั้น
+	if display_name != null and str(display_name).strip_edges() != "":
+		combat_target_display_name = str(display_name).strip_edges()
+		return
+
+	# วิธีสำรอง ถ้าชื่อ node มีคำว่า Boss ให้แสดงเป็น Boss
+	if "Boss" in target.name:
+		combat_target_display_name = "Boss"
+		
 func _ready() -> void:
 	# กันกรณี reload scene ตอนเกมกำลัง Hit Stop
 	# ให้เริ่มฉากใหม่ด้วยความเร็วปกติเสมอ
@@ -104,6 +125,9 @@ func _ready() -> void:
 	if enemy == null:
 		return
 	
+	# ตั้งชื่อที่ HUD จะใช้แสดง เช่น Boss หรือ Enemy
+	update_combat_target_display_name(enemy)
+
 	# ถ้าเป้าหมายที่เจอมีคำว่า Boss ในชื่อ node
 	# ให้ HUD แสดงคำว่า Boss แทน Enemy
 	if "Boss" in enemy.name:
@@ -223,17 +247,19 @@ func update_player_stats(
 	focus_bar.value = current_focus
 
 func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, max_posture: float) -> void:
-	# อัปเดตข้อความ HP ศัตรู
+	# อัปเดตข้อความ HP ของเป้าหมายต่อสู้
+	# ถ้า target เป็นบอส จะแสดง Boss HP
+	# ถ้า target เป็นศัตรูทั่วไป จะแสดง Enemy HP
 	enemy_hp_label.text = "%s HP: %d / %d" % [combat_target_display_name, current_hp, max_hp]
 
-	# อัปเดตหลอด HP ศัตรู
+	# อัปเดตหลอด HP ของเป้าหมายต่อสู้
 	enemy_hp_bar.max_value = max_hp
 	enemy_hp_bar.value = current_hp
 
-	# อัปเดตข้อความ Posture ศัตรู
+	# อัปเดตข้อความ Posture ของเป้าหมายต่อสู้
 	enemy_posture_label.text = "%s Posture: %d / %d" % [combat_target_display_name, int(current_posture), int(max_posture)]
 
-	# อัปเดตหลอด Posture ศัตรู
+	# อัปเดตหลอด Posture ของเป้าหมายต่อสู้
 	enemy_posture_bar.max_value = max_posture
 	enemy_posture_bar.value = current_posture
 

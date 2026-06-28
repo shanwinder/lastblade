@@ -17,6 +17,10 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # เลือดสูงสุดของบอส
 @export var max_hp: int = 150
 
+# ชื่อที่ HUD ใช้แสดงบนหน้าจอ
+# แม้ node ในฉากจะชื่ออะไรก็ตาม ถ้า script นี้เป็นบอส HUD จะใช้คำว่า Boss
+@export var combat_display_name: String = "Boss"
+
 # ความเร็วในการเดินเข้าหาผู้เล่น
 @export var move_speed: float = 95.0
 
@@ -285,9 +289,9 @@ func _ready() -> void:
 	var arena_nodes := get_tree().get_nodes_in_group("arena_manager")
 	if arena_nodes.size() > 0:
 		arena_manager = arena_nodes[0]
-		print("Enemy found ArenaManager")
+		print("Boss found ArenaManager")
 	else:
-		print("Enemy using fallback arena bounds")
+		print("Boss using fallback arena bounds")
 		
 	# ตั้งเลือดเริ่มต้นของศัตรู
 	current_hp = max_hp
@@ -527,7 +531,7 @@ func attack() -> void:
 	attack_sequence_id += 1
 	var my_attack_id := attack_sequence_id
 
-	print("Enemy Wind-up:", current_attack_name)
+	print("Boss Wind-up:", current_attack_name)
 
 	# ส่งคำเตือนขึ้น HUD เพื่อให้ผู้เล่นอ่านท่าได้จากจอ ไม่ต้องดู console
 	emit_attack_hint()
@@ -586,7 +590,7 @@ func attack() -> void:
 	if is_instance_valid(sprite_2d):
 		sprite_2d.modulate = Color.WHITE
 
-	print("Enemy Attack! Hitbox ON:", current_attack_name)
+	print("Boss Attack! Hitbox ON:", current_attack_name)
 
 	# เปิด Hitbox ของศัตรูแบบ deferred เพื่อปลอดภัยกับระบบ physics
 	attack_shape.set_deferred("disabled", false)
@@ -612,7 +616,7 @@ func attack() -> void:
 
 	# ปิด Hitbox หลังหมดจังหวะโจมตี
 	attack_shape.set_deferred("disabled", true)
-	print("Enemy Hitbox OFF:", current_attack_name)
+	print("Boss Hitbox OFF:", current_attack_name)
 
 	# จบสถานะโจมตี
 	is_attacking = false
@@ -655,7 +659,7 @@ func _try_hit_area(area: Area2D) -> void:
 	# ถ้า target คือตัวศัตรูเอง ให้ข้าม
 	# ป้องกัน EnemyDummy โจมตีโดน Hurtbox ของตัวเอง
 	if target == self:
-		print("Enemy attack ignored own Hurtbox")
+		print("Boss attack ignored own Hurtbox")
 		return
 
 	# ถ้าเป้าหมายไม่มีฟังก์ชัน take_damage ก็ไม่ต้องทำอะไร
@@ -667,7 +671,7 @@ func _try_hit_area(area: Area2D) -> void:
 	if current_attack_can_be_parried and target.has_method("is_parry_active") and target.is_parry_active():
 		# ถ้า Player กำลัง Parry อยู่ ถือว่า Parry สำเร็จ
 		has_hit_player = true
-		print("Enemy attack was parried!")
+		print("Boss attack was parried!")
 
 		# เรียก feedback ฝั่ง Player
 		if target.has_method("on_successful_parry"):
@@ -698,7 +702,7 @@ func stagger() -> void:
 	if is_staggered:
 		return
 
-	print("Enemy staggered!")
+	print("Boss staggered!")
 
 	# ล้างคำเตือน เพราะท่าโจมตีถูกยกเลิกแล้ว
 	clear_attack_hint()
