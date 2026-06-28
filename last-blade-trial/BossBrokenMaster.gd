@@ -216,6 +216,22 @@ var boss_hint_tween: Tween = null
 @export var boss_hint_font_size: int = 34
 
 # =========================
+# ระบบเสียง Placeholder ของบอส
+# =========================
+
+# เปิด/ปิดเสียง placeholder
+# ภายหลังถ้ามีไฟล์เสียงจริง จะค่อยเปลี่ยนระบบนี้เป็น AudioStreamPlayer แบบใช้ไฟล์
+@export var enable_placeholder_sfx: bool = true
+
+# ความดังของเสียง placeholder
+# ค่าที่ปลอดภัยควรอยู่ประมาณ 0.05 - 0.20
+@export var placeholder_sfx_volume: float = 0.10
+
+# sample rate ของเสียงที่สร้างด้วยโค้ด
+# 44100 เป็นค่ามาตรฐานเสียงทั่วไป
+const PLACEHOLDER_SFX_MIX_RATE: int = 44100
+
+# =========================
 # ตัวแปรสถานะ
 # =========================
 
@@ -449,6 +465,68 @@ func _physics_process(_delta: float) -> void:
 	# จำกัดไม่ให้ศัตรูเดินออกนอกสนาม
 	clamp_to_arena()
 
+func play_placeholder_sfx(frequency: float, duration: float, volume_multiplier: float = 1.0) -> void:
+	# ถ้าปิดระบบเสียง placeholder ไว้ ไม่ต้องเล่นเสียง
+	if not enable_placeholder_sfx:
+		return
+
+	# สร้าง AudioStreamPlayer ใหม่แบบชั่วคราว
+	# ใช้เล่นเสียงสั้น ๆ แล้วลบทิ้ง
+	var audio_player := AudioStreamPlayer.new()
+
+	# สร้างเสียงด้วย AudioStreamGenerator
+	# วิธีนี้ยังไม่ต้องมีไฟล์ .wav หรือ .ogg
+	var generator := AudioStreamGenerator.new()
+	generator.mix_rate = PLACEHOLDER_SFX_MIX_RATE
+	generator.buffer_length = duration
+
+	# ใส่ stream เข้า AudioStreamPlayer
+	audio_player.stream = generator
+
+	# เพิ่มเข้า scene เดียวกับบอส
+	add_child(audio_player)
+
+	# เริ่มเล่นเสียงก่อน เพื่อให้ดึง playback ได้
+	audio_player.play()
+
+	# ดึง playback สำหรับใส่ sample เสียงเข้าไป
+	var playback := audio_player.get_stream_playback() as AudioStreamGeneratorPlayback
+
+	# ถ้า playback ไม่มี ให้ลบ player แล้วหยุด เพื่อกัน error
+	if playback == null:
+		audio_player.queue_free()
+		return
+
+	# คำนวณจำนวน sample ตามระยะเวลาเสียง
+	var frame_count := int(float(PLACEHOLDER_SFX_MIX_RATE) * duration)
+
+	# จำกัดความดังไม่ให้ดังเกินไป
+	var final_volume := clamp(placeholder_sfx_volume * volume_multiplier, 0.0, 0.5)
+
+	# ใช้ phase สำหรับสร้างคลื่น sine
+	var phase := 0.0
+
+	# สร้างเสียง sine wave แบบง่าย ๆ
+	for i in range(frame_count):
+		# ทำ fade out ช่วงท้าย เพื่อไม่ให้เสียงตัดแข็งเกินไป
+		var fade := 1.0 - (float(i) / float(frame_count))
+
+		# คำนวณ sample ของเสียง
+		var sample := sin(phase * TAU) * final_volume * fade
+
+		# ใส่เสียงซ้าย/ขวาเท่ากัน
+		playback.push_frame(Vector2(sample, sample))
+
+		# ขยับ phase ตามความถี่เสียง
+		phase += frequency / float(PLACEHOLDER_SFX_MIX_RATE)
+
+	# รอให้เสียงเล่นจบ แล้วลบ AudioStreamPlayer ทิ้ง
+	await get_tree().create_timer(duration).timeout
+
+	# ถ้า player ยังอยู่ในเกม ให้ลบทิ้ง
+	if is_instance_valid(audio_player):
+		audio_player.queue_free()
+		
 func create_boss_hint_label() -> void:
 	# สร้าง Label ใหม่สำหรับแสดงคำเตือนเหนือหัวบอส
 	boss_hint_label = Label.new()
@@ -836,6 +914,10 @@ func _try_hit_area(area: Area2D) -> void:
 		has_hit_player = true
 		print("Boss attack was parried!")
 
+		# เล่นเสียง placeholder ตอนผู้เล่น Parry สำเร็จ
+		# เสียงสูงสั้น เพื่อให้รู้สึกว่าปัดดาบสำเร็จ
+		play_placeholder_sfx(880.0, 0.08, 1.0)
+
 		# เรียก feedback ฝั่ง Player
 		if target.has_method("on_successful_parry"):
 			target.on_successful_parry()
@@ -932,6 +1014,10 @@ func posture_break() -> void:
 		return
 
 	print("Boss POSTURE BROKEN!")
+	
+	# เล่นเสียง placeholder ตอนบอสเสีย Posture
+	# ใช้เสียงต่ำกว่า Parry เพื่อให้รู้สึกหนัก
+	play_placeholder_sfx(220.0, 0.18, 1.4)
 
 	# ล้างคำเตือน เพราะศัตรูเสียสมดุลและหยุดโจมตีแล้ว
 	clear_attack_hint()
@@ -993,6 +1079,10 @@ func take_focus_finisher_damage(amount: int) -> void:
 		return
 
 	print("Boss HIT BY FOCUS FINISHER! Damage =", amount)
+	
+	# เล่นเสียง placeholder ตอน Focus Finisher โดนบอส
+	# เสียงกลาง-ต่ำและยาวกว่า เพื่อให้รู้สึกหนัก
+	play_placeholder_sfx(330.0, 0.22, 1.6)
 
 	# ปิดช่อง Critical ปกติ เพื่อไม่ให้ซ้อนกับระบบ Critical เดิม
 	can_receive_critical = false
@@ -1281,6 +1371,10 @@ func die() -> void:
 	attack_shape.set_deferred("disabled", true)
 
 	print("Boss defeated!")
+	
+	# เล่นเสียง placeholder ตอนชนะบอส
+	# เสียงสูงขึ้นเพื่อให้รู้สึกเป็น Victory feedback
+	play_placeholder_sfx(660.0, 0.25, 1.4)
 
 	# ส่งสัญญาณไปให้ HUD แสดง Victory
 	enemy_died.emit()
