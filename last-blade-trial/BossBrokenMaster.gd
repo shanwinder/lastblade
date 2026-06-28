@@ -165,6 +165,10 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # ระยะเวลากล้องสั่นตอนผู้เล่น Parry ท่าหนักผิด
 @export var heavy_wrong_parry_camera_shake_duration: float = 0.12
 
+# เปิดระบบตรวจ Parry ผิดระหว่าง wind-up ของท่าหนัก
+# ช่วยแก้กรณีผู้เล่นกด Parry เร็วเกินไปจนหมดช่วง Parry ก่อนโดนฟันจริง
+@export var heavy_watch_wrong_parry_during_windup: bool = true
+
 # =========================
 # Debug: Boss Pattern Debug Mode
 # =========================
@@ -289,6 +293,9 @@ var can_attack: bool = true
 
 # กันไม่ให้การโจมตีครั้งเดียวโดนผู้เล่นซ้ำหลายรอบ
 var has_hit_player: bool = false
+
+# กันไม่ให้ข้อความ DASH ONLY! ขึ้นซ้ำหลายครั้งในการโจมตีท่าเดียว
+var has_shown_wrong_parry_feedback_this_attack: bool = false
 
 # ชื่อท่าปัจจุบันของบอส
 var current_attack_name: String = "normal_slash"
@@ -607,6 +614,7 @@ func attack() -> void:
 	is_winding_up = true
 	can_attack = false
 	has_hit_player = false
+	has_shown_wrong_parry_feedback_this_attack = false
 
 	# เพิ่ม sequence id เพื่อให้ coroutine เก่าถูกยกเลิกได้
 	attack_sequence_id += 1
@@ -638,7 +646,10 @@ func attack() -> void:
 		sprite_2d.modulate = Color.YELLOW
 		await get_tree().create_timer(delayed_attack_parry_time).timeout
 	else:
-		await get_tree().create_timer(current_attack_windup_time).timeout
+		if should_watch_wrong_parry_during_windup():
+			await watch_wrong_parry_during_windup(my_attack_id, current_attack_windup_time)
+		else:
+			await get_tree().create_timer(current_attack_windup_time).timeout
 
 	# ถ้าถูกยกเลิกระหว่าง wind-up ให้หยุดทันที
 	if my_attack_id != attack_sequence_id or is_dead:
@@ -685,6 +696,32 @@ func attack() -> void:
 		return
 
 	can_attack = true
+
+
+func should_watch_wrong_parry_during_windup() -> bool:
+	# ตรวจเฉพาะท่าที่ Parry ไม่ได้ เช่น Heavy Slash
+	# เพื่อไม่ให้ไปกระทบ Normal / Quick / Delayed ที่ควร Parry ได้
+	return heavy_watch_wrong_parry_during_windup and not current_attack_can_be_parried
+
+
+func watch_wrong_parry_during_windup(my_attack_id: int, duration: float) -> void:
+	# คอยดูระหว่าง wind-up ว่าผู้เล่นเผลอกด Parry ใส่ท่าที่ต้อง Dash หรือไม่
+	# แก้กรณีกด Parry เร็วเกินไป แล้ว Parry หมดก่อน hitbox ชน จนข้อความไม่ขึ้น
+	var elapsed_time: float = 0.0
+
+	while elapsed_time < duration:
+		await get_tree().physics_frame
+
+		# ถ้า attack รอบนี้ถูกยกเลิก เช่น บอสตายหรือ Posture Break ให้หยุดดูทันที
+		if my_attack_id != attack_sequence_id or is_dead or not is_winding_up:
+			return
+
+		# ถ้า Player กำลัง Parry ระหว่างท่าหนัก ให้เตือนทันทีว่า Dash เท่านั้น
+		if is_instance_valid(player) and player.has_method("is_parry_active") and player.is_parry_active():
+			show_wrong_parry_feedback_once(player)
+
+		# ใช้ delta ของ physics process เพื่อให้เวลารวมใกล้เคียง wind-up จริง
+		elapsed_time += get_physics_process_delta_time()
 
 
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
@@ -741,10 +778,9 @@ func _try_hit_area(area: Area2D) -> void:
 
 		return
 
-	# ถ้าผู้เล่นพยายาม Parry ท่าหนัก ให้ feedback ชัด ๆ ก่อนโดนลงโทษ
+	# ถ้าผู้เล่นพยายาม Parry ท่าหนักตอน hitbox ชน ให้ feedback ชัด ๆ ก่อนโดนลงโทษ
 	if not current_attack_can_be_parried and target.has_method("is_parry_active") and target.is_parry_active():
-		print(current_attack_name, "cannot be parried! Player should DASH.")
-		show_wrong_parry_feedback(target)
+		show_wrong_parry_feedback_once(target)
 
 	# ถ้า Parry ไม่สำเร็จ ให้ทำดาเมจตามท่าปัจจุบัน
 	has_hit_player = true
@@ -953,6 +989,16 @@ func show_damage_popup(amount: int, is_critical_hit: bool, label_text: String = 
 	tween.tween_property(popup, "modulate:a", 0.0, 0.45)
 	tween.set_parallel(false)
 	tween.tween_callback(popup.queue_free)
+
+
+func show_wrong_parry_feedback_once(target: Node) -> void:
+	# กันไม่ให้ข้อความ DASH ONLY! ขึ้นซ้ำในการโจมตีท่าเดียว
+	if has_shown_wrong_parry_feedback_this_attack:
+		return
+
+	has_shown_wrong_parry_feedback_this_attack = true
+	print(current_attack_name, "cannot be parried! Player should DASH.")
+	show_wrong_parry_feedback(target)
 
 
 func show_wrong_parry_feedback(target: Node) -> void:
