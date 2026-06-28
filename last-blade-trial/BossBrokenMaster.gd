@@ -1117,7 +1117,7 @@ func die() -> void:
 	# ปิด Hitbox ของศัตรู
 	attack_shape.set_deferred("disabled", true)
 
-	print("Enemy defeated!")
+	print("Boss defeated!")
 
 	# ส่งสัญญาณไปให้ HUD แสดง Victory
 	enemy_died.emit()
