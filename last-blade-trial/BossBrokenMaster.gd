@@ -487,8 +487,36 @@ func choose_attack_pattern() -> void:
 
 	# ถ้าสุ่มได้อยู่ในช่วง Delayed Slash ให้ใช้ท่าหน่วงจังหวะ
 	elif roll < quick_attack_chance + delayed_attack_chance:
+		current_attack_name = "delayed_slash"
 
-	# ถ้าไม่ใช่ Delayed แต่ยังอยู่ในช่วง Heavy ให้ใช้ Heavy Slash
+		# ท่านี้ Parry ได้ แต่ต้องรอจังหวะท้าย
+		current_attack_can_be_parried = true
+
+		# ใช้ดาเมจของ Delayed Slash
+		current_attack_damage = delayed_attack_damage
+
+		# เวลารวมก่อนฟันจริง = ช่วง WAIT + ช่วง PARRY
+		current_attack_windup_time = delayed_attack_wait_time + delayed_attack_parry_time
+
+		# เก็บเวลาช่วง WAIT ไว้ใช้แยก hint
+		current_attack_delay_wait_time = delayed_attack_wait_time
+
+		# Hitbox เปิดตามค่าของท่านี้
+		current_attack_active_time = delayed_attack_active_time
+
+		# cooldown เพิ่มเล็กน้อย เพราะเป็นท่าหลอกจังหวะ
+		current_attack_cooldown = attack_cooldown + delayed_attack_cooldown_bonus
+
+		# ทำเครื่องหมายว่าท่านี้เป็น delayed
+		current_attack_is_delayed = true
+
+		# ช่วงแรกให้ HUD บอก WAIT... ไม่ใช่ PARRY! ทันที
+		current_attack_hint_text = "WAIT..."
+		current_attack_hint_color = Color(0.75, 0.35, 1.0, 1.0)
+
+		print("Boss chose DELAYED SLASH! Wait, then parry.")
+
+	# ถ้าไม่ใช่ Quick / Delayed แต่ยังอยู่ในช่วง Heavy ให้ใช้ Heavy Slash
 	elif roll < quick_attack_chance + delayed_attack_chance + heavy_attack_chance:
 		current_attack_name = "heavy_slash"
 
@@ -513,6 +541,7 @@ func choose_attack_pattern() -> void:
 
 		print("Boss chose HEAVY SLASH! Dash required.")
 
+	# ถ้าไม่เข้าเงื่อนไขด้านบน ให้ใช้ Normal Slash
 	else:
 		current_attack_name = "normal_slash"
 
