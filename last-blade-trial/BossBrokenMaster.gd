@@ -56,6 +56,10 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # Cooldown เพิ่มหลัง Quick Slash
 @export var quick_attack_cooldown_bonus: float = 0.05
 
+# จำนวนท่าอื่นขั้นต่ำที่ต้องคั่นก่อน Quick Slash จะสุ่มออกได้อีกครั้ง
+# ค่า 2 แปลว่า Quick Slash จะไม่ออกติดกัน และต้องมีท่าอื่นคั่นอย่างน้อย 2 รอบ
+@export var quick_attack_min_attacks_between_uses: int = 2
+
 # =========================
 # ค่าของ Heavy Slash
 # =========================
@@ -311,6 +315,10 @@ var has_shown_wrong_parry_feedback_this_attack: bool = false
 
 # กันไม่ให้ข้อความ TOO EARLY! ขึ้นซ้ำหลายครั้งในการโจมตีท่าเดียว
 var has_shown_early_parry_feedback_this_attack: bool = false
+
+# นับจำนวนท่าอื่นที่คั่นหลังจาก Quick Slash ครั้งล่าสุด
+# เริ่มต้นค่าสูง เพื่อให้ Quick Slash มีสิทธิ์ออกได้ตั้งแต่ต้นถ้าสุ่มถึง
+var attacks_since_last_quick_slash: int = 999
 
 # ชื่อท่าปัจจุบันของบอส
 var current_attack_name: String = "normal_slash"
@@ -593,6 +601,7 @@ func apply_attack_pattern(pattern_name: String) -> void:
 
 func choose_attack_pattern() -> void:
 	# ถ้าเปิด Debug Mode และไม่ได้เลือก random ให้บังคับใช้ท่าที่กำหนด
+	# Debug Mode ต้อง bypass กฎกัน Quick Slash ถี่ เพื่อให้ใช้ทดสอบท่าเร็วเดี่ยว ๆ ได้
 	if debug_force_attack_pattern_enabled and debug_forced_attack_pattern != "random":
 		apply_attack_pattern(debug_forced_attack_pattern)
 
@@ -601,20 +610,65 @@ func choose_attack_pattern() -> void:
 
 		return
 
-	# ถ้าไม่ได้เปิด debug ให้สุ่มท่าตามโอกาสปกติ
+	# ถ้าไม่ได้เปิด debug ให้สุ่มท่าตามโอกาสปกติ แต่ควบคุมไม่ให้ Quick Slash ออกถี่เกินไป
+	var selected_pattern: String = choose_random_attack_pattern()
+	apply_attack_pattern(selected_pattern)
+	register_attack_pattern_choice(selected_pattern)
+
+	if debug_print_attack_pattern:
+		print("Boss chose pattern:", current_attack_name, "Quick gap =", attacks_since_last_quick_slash)
+
+
+func choose_random_attack_pattern() -> String:
+	# สุ่มท่าปกติ โดยถ้าสุ่มโดน Quick Slash แต่ยังไม่ถึงระยะพักขั้นต่ำ
+	# จะเปลี่ยนไปสุ่มเฉพาะกลุ่มท่าอื่นแทน เพื่อไม่ให้ท่าเร็วรัวเกินไป
 	var roll: float = randf()
 
 	if roll < quick_attack_chance:
-		apply_attack_pattern("quick_slash")
-	elif roll < quick_attack_chance + delayed_attack_chance:
-		apply_attack_pattern("delayed_slash")
-	elif roll < quick_attack_chance + delayed_attack_chance + heavy_attack_chance:
-		apply_attack_pattern("heavy_slash")
-	else:
-		apply_attack_pattern("normal_slash")
+		if can_use_quick_slash_now():
+			return "quick_slash"
+		return choose_non_quick_attack_pattern()
 
-	if debug_print_attack_pattern:
-		print("Boss chose pattern:", current_attack_name)
+	if roll < quick_attack_chance + delayed_attack_chance:
+		return "delayed_slash"
+
+	if roll < quick_attack_chance + delayed_attack_chance + heavy_attack_chance:
+		return "heavy_slash"
+
+	return "normal_slash"
+
+
+func can_use_quick_slash_now() -> bool:
+	# Quick Slash ใช้ได้เมื่อมีท่าอื่นคั่นครบจำนวนขั้นต่ำแล้วเท่านั้น
+	return attacks_since_last_quick_slash >= quick_attack_min_attacks_between_uses
+
+
+func choose_non_quick_attack_pattern() -> String:
+	# สุ่มเฉพาะ delayed / heavy / normal เมื่อ Quick Slash ถูกบล็อกเพราะออกถี่เกินไป
+	# ใช้น้ำหนักจากค่า chance เดิม และให้ normal ได้ส่วนที่เหลือ
+	var normal_attack_chance: float = max(0.05, 1.0 - delayed_attack_chance - heavy_attack_chance)
+	var total_weight: float = delayed_attack_chance + heavy_attack_chance + normal_attack_chance
+
+	if total_weight <= 0.0:
+		return "normal_slash"
+
+	var roll: float = randf() * total_weight
+
+	if roll < delayed_attack_chance:
+		return "delayed_slash"
+
+	if roll < delayed_attack_chance + heavy_attack_chance:
+		return "heavy_slash"
+
+	return "normal_slash"
+
+
+func register_attack_pattern_choice(pattern_name: String) -> void:
+	# บันทึกว่าท่าล่าสุดเป็น Quick Slash หรือไม่ เพื่อใช้คุมไม่ให้ท่าเร็วออกถี่เกินไป
+	if pattern_name == "quick_slash":
+		attacks_since_last_quick_slash = 0
+	else:
+		attacks_since_last_quick_slash += 1
 
 
 func attack() -> void:
