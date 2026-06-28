@@ -40,6 +40,30 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 @export var attack_cooldown: float = 1.35
 
 # =========================
+# ค่าของท่าโจมตีเร็ว
+# =========================
+
+# โอกาสที่บอสจะเลือกใช้ท่า Quick Slash
+# ท่านี้เร็วกว่า Normal Slash แต่ดาเมจเบากว่า
+@export var quick_attack_chance: float = 0.20
+
+# ดาเมจของท่า Quick Slash
+# ตั้งให้เบากว่าท่าปกติ เพราะความยากอยู่ที่ออกไว
+@export var quick_attack_damage: int = 8
+
+# เวลาก่อน Quick Slash จะฟันจริง
+# สั้นกว่าท่าปกติ เพื่อฝึกผู้เล่นให้ตอบสนองเร็ว
+@export var quick_attack_windup_time: float = 0.38
+
+# ระยะเวลาที่ Hitbox ของ Quick Slash เปิดอยู่
+# สั้นกว่าท่าปกติเล็กน้อย
+@export var quick_attack_active_time: float = 0.14
+
+# เวลาพักเพิ่มหลัง Quick Slash
+# ตั้งให้น้อย เพราะเป็นท่าเบา
+@export var quick_attack_cooldown_bonus: float = 0.05
+
+# =========================
 # ค่าของท่าโจมตีแบบหนัก
 # =========================
 
@@ -432,39 +456,40 @@ func choose_attack_pattern() -> void:
 	current_attack_is_delayed = false
 	current_attack_delay_wait_time = 0.0
 
-	# ถ้าสุ่มได้อยู่ในช่วง Delayed Slash ให้ใช้ท่าหน่วงจังหวะ
-	if roll < delayed_attack_chance:
-		current_attack_name = "delayed_slash"
+	# ถ้าสุ่มได้อยู่ในช่วง Quick Slash ให้ใช้ท่าโจมตีเร็ว
+	if roll < quick_attack_chance:
+		current_attack_name = "quick_slash"
 
-		# ท่านี้ Parry ได้ แต่ต้องรอจังหวะท้าย
+		# ท่านี้ Parry ได้ แต่ต้องกดไว
 		current_attack_can_be_parried = true
 
-		# ใช้ดาเมจของ Delayed Slash
-		current_attack_damage = delayed_attack_damage
+		# ใช้ดาเมจของ Quick Slash
+		current_attack_damage = quick_attack_damage
 
-		# เวลารวมก่อนฟันจริง = ช่วง WAIT + ช่วง PARRY
-		current_attack_windup_time = delayed_attack_wait_time + delayed_attack_parry_time
+		# ใช้ wind-up ที่สั้นกว่าท่าปกติ
+		current_attack_windup_time = quick_attack_windup_time
 
-		# เก็บเวลาช่วง WAIT ไว้ใช้แยก hint
-		current_attack_delay_wait_time = delayed_attack_wait_time
+		# ใช้ active time ของ Quick Slash
+		current_attack_active_time = quick_attack_active_time
 
-		# Hitbox เปิดตามค่าของท่านี้
-		current_attack_active_time = delayed_attack_active_time
+		# cooldown เพิ่มเล็กน้อย เพราะเป็นท่าเบา
+		current_attack_cooldown = attack_cooldown + quick_attack_cooldown_bonus
 
-		# cooldown เพิ่มเล็กน้อย เพราะเป็นท่าหลอกจังหวะ
-		current_attack_cooldown = attack_cooldown + delayed_attack_cooldown_bonus
+		# ไม่ใช่ท่า delayed จึงไม่ต้องมี WAIT...
+		current_attack_is_delayed = false
+		current_attack_delay_wait_time = 0.0
 
-		# ทำเครื่องหมายว่าท่านี้เป็น delayed
-		current_attack_is_delayed = true
+		# Hint บอกผู้เล่นว่าต้อง Parry เร็ว
+		current_attack_hint_text = "PARRY FAST!"
+		current_attack_hint_color = Color(0.35, 0.85, 1.0, 1.0)
 
-		# ช่วงแรกให้ HUD บอก WAIT... ไม่ใช่ PARRY! ทันที
-		current_attack_hint_text = "WAIT..."
-		current_attack_hint_color = Color(0.75, 0.35, 1.0, 1.0)
+		print("Boss chose QUICK SLASH! Fast parry required.")
 
-		print("Boss chose DELAYED SLASH! Wait, then parry.")
+	# ถ้าสุ่มได้อยู่ในช่วง Delayed Slash ให้ใช้ท่าหน่วงจังหวะ
+	elif roll < quick_attack_chance + delayed_attack_chance:
 
 	# ถ้าไม่ใช่ Delayed แต่ยังอยู่ในช่วง Heavy ให้ใช้ Heavy Slash
-	elif roll < delayed_attack_chance + heavy_attack_chance:
+	elif roll < quick_attack_chance + delayed_attack_chance + heavy_attack_chance:
 		current_attack_name = "heavy_slash"
 
 		# ท่าหนักแรงกว่า
