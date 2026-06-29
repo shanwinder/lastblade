@@ -17,6 +17,7 @@
 [ext_resource type="Script" uid="uid://bi30j8tod7u0s" path="res://duel_1_dummy_manager.gd" id="15_duel_dummy"]
 [ext_resource type="Script" path="res://boss_fight_hint_cleanup_manager.gd" id="16_hint_cleanup"]
 [ext_resource type="Script" path="res://run_metrics_manager.gd" id="17_run_metrics"]
+[ext_resource type="Script" path="res://arena_visual_manager.gd" id="18_arena_visual"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -31,6 +32,9 @@ size = Vector2(70, 70)
 
 [node name="ArenaManager" type="Node" parent="." unique_id=1157779080]
 script = ExtResource("1_tedvd")
+
+[node name="ArenaVisualManager" type="Node2D" parent="."]
+script = ExtResource("18_arena_visual")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=220317986]
 position = Vector2(576, 324)
