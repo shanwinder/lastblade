@@ -1,18 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <!-- Boss Broken Master silhouette prototype ปรับ contrast: เพิ่มขอบทอง/ม่วงให้แยกจากฉากหลังและ Player ชัดขึ้น -->
+  <!-- Boss Broken Master upgraded: บอสเงาใหญ่ อ่าน silhouette ชัดขึ้น พร้อมดาบหักและ aura สีทอง/ม่วง -->
   <rect width="256" height="256" fill="none"/>
+
+  <!-- เงาฐานเท้า ทำให้บอสดูหนักและยืนแน่นกว่า Player -->
+  <ellipse cx="145" cy="234" rx="78" ry="13" fill="#09050d" opacity="0.78"/>
+
+  <!-- aura ด้านหลังแบบจาง ๆ เพิ่มความเป็นบอสโดยไม่ใช้ texture ใหญ่ -->
+  <path d="M71 56 C103 12 171 17 197 62 C224 108 208 181 162 211 C110 241 55 203 49 145 C45 108 52 82 71 56 Z" fill="#2b1234" opacity="0.28"/>
+  <path d="M86 66 C113 31 163 33 183 70 C205 111 190 169 154 194 C113 223 73 190 68 144 C64 111 71 84 86 66 Z" fill="#140c1d" opacity="0.64"/>
+
+  <!-- ตัวบอสหลัก ใช้ขอบทองเพื่อแยกกับฉากหลัง -->
   <g stroke="#ffd166" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="130" cy="45" rx="25" ry="28" fill="#170f1f"/>
-    <path d="M92 84 C102 58 158 58 170 86 L154 166 C149 189 105 189 100 166 Z" fill="#170f1f"/>
-    <path d="M99 166 L72 231 L101 231 L122 176 Z" fill="#170f1f"/>
-    <path d="M151 166 L177 231 L206 231 L166 176 Z" fill="#170f1f"/>
-    <path d="M97 95 L47 125 L61 145 L112 115 Z" fill="#170f1f"/>
-    <path d="M164 94 L203 63 L217 82 L178 116 Z" fill="#170f1f"/>
+    <ellipse cx="130" cy="43" rx="25" ry="28" fill="#170f1f"/>
+    <path d="M90 82 C101 57 158 56 171 85 L157 165 C151 190 106 191 98 166 Z" fill="#170f1f"/>
+    <path d="M99 165 L70 231 L101 231 L123 176 Z" fill="#170f1f"/>
+    <path d="M153 165 L178 231 L210 231 L167 176 Z" fill="#170f1f"/>
+    <path d="M96 94 L44 125 L60 148 L114 116 Z" fill="#170f1f"/>
+    <path d="M165 92 L204 60 L219 82 L179 117 Z" fill="#170f1f"/>
   </g>
-  <path d="M201 62 L234 29" stroke="#fff6b0" stroke-width="13" stroke-linecap="round"/>
-  <path d="M235 29 L246 18" stroke="#fff6b0" stroke-width="8" stroke-linecap="round" stroke-dasharray="9 8"/>
-  <path d="M190 78 L212 57" stroke="#d6a4ff" stroke-width="8" stroke-linecap="round"/>
-  <path d="M82 232 H212" stroke="#ffd166" stroke-width="18" stroke-linecap="round"/>
-  <path d="M82 232 H212" stroke="#170f1f" stroke-width="10" stroke-linecap="round"/>
-  <path d="M104 79 C119 92 143 91 158 78" stroke="#d6a4ff" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.95"/>
+
+  <!-- เกราะแตกและเส้นพลังม่วง บอกว่าเป็น Broken Master -->
+  <path d="M104 78 C119 93 144 93 160 77" stroke="#d6a4ff" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.95"/>
+  <path d="M116 91 L107 126 L126 112 L119 151" stroke="#d6a4ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.82"/>
+  <path d="M145 91 L157 128 L139 117 L148 159" stroke="#8b5cf6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.72"/>
+  <path d="M119 43 L126 51 L136 39 L145 51" stroke="#fff6b0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85"/>
+
+  <!-- ดาบหักของบอส ให้ silhouette อ่านท่าฟันชัดขึ้น -->
+  <path d="M200 63 L235 28" stroke="#fff6b0" stroke-width="14" stroke-linecap="round"/>
+  <path d="M235 28 L246 17" stroke="#fff6b0" stroke-width="8" stroke-linecap="round" stroke-dasharray="9 8"/>
+  <path d="M189 80 L213 56" stroke="#d6a4ff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M198 66 L231 33" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ชายผ้าขาดและเส้นขอบล่าง เพิ่มความรู้สึกเคลื่อนไหว -->
+  <path d="M97 164 C91 190 83 208 77 232 L103 232 C111 211 119 191 126 171 Z" fill="#21112a" opacity="0.88"/>
+  <path d="M156 164 C169 190 187 211 208 232 L178 232 C165 210 155 190 149 171 Z" fill="#21112a" opacity="0.78"/>
+  <path d="M79 233 H214" stroke="#ffd166" stroke-width="18" stroke-linecap="round"/>
+  <path d="M82 233 H211" stroke="#170f1f" stroke-width="10" stroke-linecap="round"/>
 </svg>
