@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
 [ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="5_7w3th"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
+[ext_resource type="Script" path="res://combat_decay_manager.gd" id="7_decay"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -46,6 +47,9 @@ shape = SubResource("RectangleShape2D_32k8f")
 
 [node name="BossBrokenMaster" parent="." unique_id=951068463 instance=ExtResource("4_tedvd")]
 position = Vector2(780, 324)
+
+[node name="CombatDecayManager" type="Node" parent="."]
+script = ExtResource("7_decay")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=613196371]
 script = ExtResource("5_7w3th")
