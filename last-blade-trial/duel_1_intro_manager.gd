@@ -26,16 +26,16 @@ extends CanvasLayer
 @export var active_response_window: float = 0.90
 
 # ระยะห่างของ beat ระหว่างช่วงเตรียมจังหวะ ช้าลงเพื่อให้อ่านทัน
-@export var rhythm_beat_interval: float = 0.45
+@export var rhythm_beat_interval: float = 0.8
 
 # เวลาค้างข้อความหลังทำ step สำเร็จ ก่อนเปลี่ยนไป step ถัดไป
-@export var step_success_message_time: float = 1.20
+@export var step_success_message_time: float = 2
 
 # เวลาหน่วงสั้น ๆ หลังทำสำเร็จทั้งหมด ก่อนปล่อยบอส
-@export var success_hold_time: float = 1.00
+@export var success_hold_time: float = 3
 
 # เวลาค้างข้อความ feedback ตอนกดเร็วไป/ช้าไป
-@export var retry_feedback_time: float = 1.10
+@export var retry_feedback_time: float = 2
 
 # ข้อความหัวข้อหลัก
 @export var intro_title: String = "Duel 1: อ่านจังหวะ"
