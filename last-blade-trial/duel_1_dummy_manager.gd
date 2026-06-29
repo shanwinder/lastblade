@@ -4,6 +4,7 @@ extends CanvasLayer
 # Duel1DummyManager.gd
 # จัดลำดับ Phase 9 หลัง Training Coach
 # ให้ผู้เล่นตีหุ่น Duel 1 ให้ตายก่อน แล้วค่อยเปิด Duel Practice / Boss ต่อ
+# เวอร์ชันนี้เพิ่มปุ่ม Skip สำหรับผู้เล่นที่อยากไปต่อทันที
 # =========================
 
 const Duel1DummyTargetScript = preload("res://duel_1_dummy_target.gd")
@@ -19,6 +20,12 @@ const Duel1DummyTargetScript = preload("res://duel_1_dummy_target.gd")
 
 # แสดงแค่ครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
+
+# เปิด/ปิดปุ่ม Skip สำหรับข้ามหุ่น Duel 1
+@export var skip_button_enabled: bool = true
+
+# ข้อความบนปุ่ม Skip
+@export var skip_button_text: String = "SKIP"
 
 # ตำแหน่ง spawn หุ่น Duel 1
 @export var dummy_spawn_position: Vector2 = Vector2(720.0, 324.0)
@@ -49,6 +56,7 @@ var panel: PanelContainer = null
 var title_label: Label = null
 var body_label: Label = null
 var hp_bar: ProgressBar = null
+var skip_button: Button = null
 
 var dummy_target: Node = null
 var has_started_dummy: bool = false
@@ -103,9 +111,9 @@ func create_ui() -> void:
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(420.0, 112.0)
+	panel.custom_minimum_size = Vector2(420.0, 154.0)
 	panel.position = Vector2(366.0, 24.0)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(panel)
 
 	var style := StyleBoxFlat.new()
@@ -140,6 +148,14 @@ func create_ui() -> void:
 	hp_bar.value = 100.0
 	hp_bar.show_percentage = false
 	layout.add_child(hp_bar)
+
+	skip_button = Button.new()
+	skip_button.custom_minimum_size = Vector2(130.0, 36.0)
+	skip_button.focus_mode = Control.FOCUS_NONE
+	skip_button.text = skip_button_text
+	skip_button.add_theme_font_size_override("font_size", 16)
+	skip_button.pressed.connect(on_skip_button_pressed)
+	layout.add_child(skip_button)
 
 	root_control.visible = false
 
@@ -203,6 +219,7 @@ func start_dummy_duel() -> void:
 	spawn_dummy_target()
 
 	root_control.visible = true
+	set_skip_button_visible(skip_button_enabled)
 	title_label.text = "Duel 1: ทดลองตีเป้าหมาย"
 	body_label.text = "ตีหุ่นให้แตก ก่อนฝึกอ่านจังหวะจริง"
 	update_hp_bar(dummy_max_hp, dummy_max_hp)
@@ -253,15 +270,32 @@ func on_dummy_defeated() -> void:
 	if is_dummy_completed:
 		return
 
+	finish_dummy_duel(false)
+
+
+func finish_dummy_duel(was_skipped: bool) -> void:
+	# จบ Duel 1 Dummy ไม่ว่าจะตีหุ่นตายหรือกด Skip
+	if is_dummy_completed:
+		return
+
 	is_dummy_active = false
 	is_dummy_completed = true
 	has_completed_dummy_this_session = true
-	root_control.visible = true
-	title_label.text = "ผ่าน Duel 1"
-	body_label.text = "ต่อไปจะฝึกอ่านสัญญาณ PARRY! / DASH!"
-	update_hp_bar(0, dummy_max_hp)
+	set_skip_button_visible(false)
 
-	print("Duel 1 Dummy completed")
+	if dummy_target != null and is_instance_valid(dummy_target):
+		dummy_target.queue_free()
+
+	root_control.visible = true
+	if was_skipped:
+		title_label.text = "ข้าม Duel 1"
+		body_label.text = "ไปฝึกอ่านสัญญาณ PARRY! / DASH! ต่อ"
+	else:
+		title_label.text = "ผ่าน Duel 1"
+		body_label.text = "ต่อไปจะฝึกอ่านสัญญาณ PARRY! / DASH!"
+
+	update_hp_bar(0, dummy_max_hp)
+	print("Duel 1 Dummy completed. Skipped =", was_skipped)
 
 	await get_tree().create_timer(dummy_clear_message_time).timeout
 
@@ -269,6 +303,14 @@ func on_dummy_defeated() -> void:
 	set_boss_hold(true)
 	show_boss_if_needed()
 	enable_duel_intro_if_available()
+
+
+func on_skip_button_pressed() -> void:
+	# ข้ามหุ่น Duel 1 เพื่อไปยัง Duel Practice ทันที
+	if is_dummy_completed:
+		return
+
+	finish_dummy_duel(true)
 
 
 func set_boss_hold(should_hold: bool) -> void:
@@ -308,3 +350,12 @@ func enable_duel_intro_if_available() -> void:
 	# เปิด DuelIntro หลังผ่านหุ่น Duel 1 แล้ว
 	if is_instance_valid(duel_intro_manager):
 		duel_intro_manager.set("duel_intro_enabled", true)
+
+
+func set_skip_button_visible(is_visible: bool) -> void:
+	# ซ่อน/แสดงปุ่ม Skip ของกล่อง Duel 1 Dummy
+	if skip_button == null:
+		return
+
+	skip_button.visible = is_visible
+	skip_button.disabled = not is_visible
