@@ -16,8 +16,8 @@ extends Node2D
 # ขนาดพื้นที่วาดฉากหลัง เผื่อขอบจอและกล้องสั่น
 @export var arena_visual_size: Vector2 = Vector2(1500.0, 820.0)
 
-# ระดับพื้นสนามที่ Player และ Boss ยืนอยู่
-@export var ground_y: float = 392.0
+# ระดับพื้นสนามใกล้เท้าบอส/ผู้เล่นในฉากหลักปัจจุบัน
+@export var ground_y: float = 356.0
 
 # จำนวนเถ้าถ่านลอยในฉาก ใช้ไม่เยอะเพื่อให้มือถือยังเบา
 @export var ember_count: int = 22
