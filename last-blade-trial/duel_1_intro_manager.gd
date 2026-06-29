@@ -3,7 +3,7 @@ extends CanvasLayer
 # =========================
 # Duel1IntroManager.gd
 # ขั้นกลางของ Phase 9 ก่อนทำศัตรู Duel 1 เต็มตัว
-# เวอร์ชันนี้ให้ผู้เล่นฝึกตอบสนองจริง: PARRY! แล้ว DASH!
+# เวอร์ชันนี้ให้ผู้เล่นฝึกตอบสนองตามเวลา: PARRY! แล้ว DASH!
 # =========================
 
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
@@ -16,6 +16,12 @@ extends CanvasLayer
 # แสดงเฉพาะครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
 
+# เวลาที่ให้ตอบสนองตอนเห็น PARRY!
+@export var parry_response_window: float = 1.20
+
+# เวลาที่ให้ตอบสนองตอนเห็น DASH!
+@export var dash_response_window: float = 1.20
+
 # เวลาหน่วงสั้น ๆ หลังทำสำเร็จ ก่อนปล่อยบอส
 @export var success_hold_time: float = 0.65
 
@@ -23,7 +29,7 @@ extends CanvasLayer
 @export var intro_title: String = "Duel 1: อ่านสัญญาณ"
 
 # ข้อความอธิบายก่อนฝึก
-@export var intro_body: String = "ฝึกอ่านสัญญาณก่อนเข้าบอสจริง\nทำตามข้อความที่ขึ้นบนจอ"
+@export var intro_body: String = "ฝึกอ่านสัญญาณก่อนเข้าบอสจริง\nกดให้ทันก่อนเวลาหมด"
 
 # ข้อความตอนฝึก Parry
 @export var parry_practice_text: String = "PARRY!"
@@ -43,6 +49,8 @@ var body_label: Label = null
 var has_started_intro: bool = false
 var has_completed_intro: bool = false
 var current_step: String = "intro"
+var step_elapsed_time: float = 0.0
+var miss_count: int = 0
 
 static var has_completed_intro_this_session: bool = false
 
@@ -54,7 +62,7 @@ func _ready() -> void:
 	setup_references.call_deferred()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not duel_intro_enabled:
 		return
 
@@ -78,7 +86,7 @@ func _physics_process(_delta: float) -> void:
 		start_intro()
 		return
 
-	update_practice_step()
+	update_practice_step(delta)
 
 
 func create_ui() -> void:
@@ -170,31 +178,69 @@ func start_intro() -> void:
 	# เริ่ม practice gate และหยุดบอสไว้ก่อน
 	has_started_intro = true
 	current_step = "parry"
+	step_elapsed_time = 0.0
+	miss_count = 0
 	set_boss_hold(true)
 
 	title_label.text = intro_title
-	body_label.text = intro_body + "\n\n" + parry_practice_text + " = กด PARRY"
 	root_control.visible = true
+	update_practice_text()
 
-	print("Duel 1 practice started")
+	print("Duel 1 timed practice started")
 
 
-func update_practice_step() -> void:
-	# ตรวจ input ของผู้เล่นตามสัญญาณที่กำลังฝึก
+func update_practice_step(delta: float) -> void:
+	# ตรวจ input ของผู้เล่นตามสัญญาณที่กำลังฝึก พร้อมจับเวลา
+	step_elapsed_time += delta
+	update_practice_text()
+
 	if current_step == "parry":
 		if Input.is_action_just_pressed("parry"):
 			show_dash_step()
+			return
+
+		if step_elapsed_time > parry_response_window:
+			retry_current_step("ช้าไป ลอง Parry ใหม่")
 		return
 
 	if current_step == "dash":
 		if Input.is_action_just_pressed("dash"):
 			complete_intro()
+			return
+
+		if step_elapsed_time > dash_response_window:
+			retry_current_step("ช้าไป ลอง Dash ใหม่")
 		return
+
+
+func update_practice_text() -> void:
+	# อัปเดตข้อความและเวลาที่เหลือใน step ปัจจุบัน
+	if current_step == "parry":
+		var time_left: float = max(parry_response_window - step_elapsed_time, 0.0)
+		title_label.text = parry_practice_text
+		body_label.text = "กด PARRY ให้ทัน\nเวลาที่เหลือ: %.1f" % time_left
+		return
+
+	if current_step == "dash":
+		var time_left: float = max(dash_response_window - step_elapsed_time, 0.0)
+		title_label.text = dash_practice_text
+		body_label.text = "กด DASH ให้ทัน\nท่าหนักห้าม Parry\nเวลาที่เหลือ: %.1f" % time_left
+		return
+
+
+func retry_current_step(message: String) -> void:
+	# ถ้ากดไม่ทัน ให้ทำ step เดิมซ้ำแบบไม่ลงโทษหนัก
+	miss_count += 1
+	step_elapsed_time = 0.0
+	title_label.text = message
+	body_label.text = "ไม่เป็นไร ฝึกอ่านจังหวะอีกครั้ง\nพลาดแล้ว: %d ครั้ง" % miss_count
+	print("Duel 1 practice retry:", message, "miss count =", miss_count)
 
 
 func show_dash_step() -> void:
 	# ผู้เล่นกด Parry ถูกแล้ว ต่อไปฝึก Dash
 	current_step = "dash"
+	step_elapsed_time = 0.0
 	title_label.text = "ดีมาก"
 	body_label.text = dash_practice_text + " = กด DASH\nท่าหนักห้าม Parry ต้อง Dash หลบ"
 	print("Duel 1 practice: parry step completed")
