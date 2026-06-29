@@ -4,6 +4,7 @@ extends CanvasLayer
 # Duel1IntroManager.gd
 # ขั้นกลางของ Phase 9 ก่อนทำศัตรู Duel 1 เต็มตัว
 # เวอร์ชันนี้เน้นอ่านทัน: อ่านเอง -> กดต่อไป -> เตรียมจังหวะ -> สัญญาณใหญ่ -> กดให้ทัน
+# เพิ่มปุ่ม Skip สำหรับผู้เล่นที่อยากเรียนรู้เอง หรือใช้ตอนทดสอบเร็ว
 # =========================
 
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
@@ -43,6 +44,12 @@ extends CanvasLayer
 # ข้อความปุ่มต่อไป
 @export var continue_button_text: String = "เข้าใจแล้ว / ต่อไป"
 
+# เปิด/ปิดปุ่ม Skip
+@export var skip_button_enabled: bool = true
+
+# ข้อความบนปุ่ม Skip
+@export var skip_button_text: String = "SKIP"
+
 # ข้อความหัวข้อหลัก
 @export var intro_title: String = "Duel 1: อ่านจังหวะ"
 
@@ -74,6 +81,7 @@ var title_label: Label = null
 var body_label: Label = null
 var progress_bar: ProgressBar = null
 var continue_button: Button = null
+var skip_button: Button = null
 
 # Style ปกติของกล่องข้อความ
 var normal_panel_style: StyleBoxFlat = null
@@ -167,8 +175,8 @@ func create_ui() -> void:
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(600.0, 305.0)
-	panel.position = Vector2(276.0, 100.0)
+	panel.custom_minimum_size = Vector2(600.0, 365.0)
+	panel.position = Vector2(276.0, 82.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(panel)
 
@@ -227,8 +235,17 @@ func create_ui() -> void:
 	continue_button.pressed.connect(on_continue_button_pressed)
 	layout.add_child(continue_button)
 
+	skip_button = Button.new()
+	skip_button.custom_minimum_size = Vector2(160.0, 42.0)
+	skip_button.focus_mode = Control.FOCUS_NONE
+	skip_button.text = skip_button_text
+	skip_button.add_theme_font_size_override("font_size", 17)
+	skip_button.pressed.connect(on_skip_button_pressed)
+	layout.add_child(skip_button)
+
 	root_control.visible = false
 	continue_button.visible = false
+	skip_button.visible = false
 
 
 func setup_references() -> void:
@@ -280,6 +297,7 @@ func start_intro() -> void:
 	miss_count = 0
 	set_boss_hold(true)
 	root_control.visible = true
+	set_skip_button_visible(skip_button_enabled)
 
 	start_step("parry")
 	print("Duel 1 interactive rhythm practice started")
@@ -415,6 +433,11 @@ func complete_current_step() -> void:
 		pulse_title(1.12)
 		print("Duel 1 practice: parry rhythm completed")
 		await get_tree().create_timer(step_success_message_time).timeout
+
+		# ถ้ากด Skip ระหว่าง feedback ให้ไม่เริ่ม step ใหม่ซ้ำ
+		if has_completed_intro:
+			return
+
 		is_showing_feedback = false
 		start_step("dash")
 		return
@@ -522,6 +545,10 @@ func retry_current_step(message: String) -> void:
 
 	await get_tree().create_timer(retry_feedback_time).timeout
 
+	# ถ้ากด Skip ระหว่างข้อความ retry ให้ไม่เริ่ม step ใหม่ซ้ำ
+	if has_completed_intro:
+		return
+
 	is_showing_feedback = false
 	start_step(current_step)
 
@@ -535,6 +562,7 @@ func complete_intro() -> void:
 	current_phase = "feedback"
 	set_active_signal_visual(false)
 	set_continue_button_visible(false)
+	set_skip_button_visible(false)
 	set_progress_percent(1.0)
 	show_feedback_text(
 		"พร้อมเข้าบอส",
@@ -546,7 +574,29 @@ func complete_intro() -> void:
 
 	await get_tree().create_timer(success_hold_time).timeout
 
-	root_control.visible = false
+	if is_instance_valid(root_control):
+		root_control.visible = false
+	set_boss_hold(false)
+
+
+func on_skip_button_pressed() -> void:
+	# ข้าม Duel Practice แล้วปล่อยบอสเริ่มสู้ทันที
+	if has_completed_intro:
+		return
+
+	print("Duel 1 practice skipped")
+	has_completed_intro = true
+	has_completed_intro_this_session = true
+	current_phase = "feedback"
+	is_showing_feedback = false
+	set_active_signal_visual(false)
+	set_continue_button_visible(false)
+	set_skip_button_visible(false)
+	set_progress_percent(1.0)
+
+	if is_instance_valid(root_control):
+		root_control.visible = false
+
 	set_boss_hold(false)
 
 
@@ -565,6 +615,15 @@ func set_continue_button_visible(is_visible: bool) -> void:
 
 	continue_button.visible = is_visible
 	continue_button.disabled = not is_visible
+
+
+func set_skip_button_visible(is_visible: bool) -> void:
+	# ปุ่ม Skip ใช้ข้าม Duel Practice ทั้งชุด
+	if skip_button == null:
+		return
+
+	skip_button.visible = is_visible
+	skip_button.disabled = not is_visible
 
 
 func on_continue_button_pressed() -> void:
