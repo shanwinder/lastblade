@@ -15,6 +15,7 @@
 [ext_resource type="Script" uid="uid://c1m0u7ckyk1go" path="res://duel_1_intro_manager.gd" id="13_duel_intro"]
 [ext_resource type="Script" uid="uid://jaxi5rv4eayk" path="res://boss_weight_manager.gd" id="14_boss_weight"]
 [ext_resource type="Script" uid="uid://bi30j8tod7u0s" path="res://duel_1_dummy_manager.gd" id="15_duel_dummy"]
+[ext_resource type="Script" path="res://boss_fight_hint_cleanup_manager.gd" id="16_hint_cleanup"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -145,6 +146,9 @@ script = ExtResource("13_duel_intro")
 [node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465]
 layer = 40
 script = ExtResource("10_loop")
+
+[node name="BossFightHintCleanupManager" type="Node" parent="."]
+script = ExtResource("16_hint_cleanup")
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=2003199488]
 position = Vector2(576, 324)
