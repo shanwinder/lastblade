@@ -45,14 +45,15 @@ extends CanvasLayer
 # หลอด Posture ของศัตรู
 @onready var enemy_posture_bar: ProgressBar = $Control/VBoxContainer/EnemyPostureBar
 
-# ข้อความผลลัพธ์ตอนจบเกม เช่น Game Over หรือ Victory
+# ข้อความผลลัพธ์ตอนจบเกม ใช้เป็น fallback เท่านั้น
+# Flow หลักตอนนี้ให้ GameLoopManager แสดงหน้า Start / Victory / Defeated / Upgrade
 @onready var game_result_label: Label = $Control/GameResultLabel
 
 # Label สำหรับแสดงคำเตือนท่าศัตรู เช่น PARRY! หรือ DASH!
 # สร้างด้วยโค้ดใน _ready() เพื่อไม่ต้องแก้ Main.tscn ตอนนี้
 var attack_hint_label: Label
 
-# ใช้เช็กว่าเกมจบแล้วหรือยัง
+# ใช้เช็กว่าเกมจบแล้วหรือยัง สำหรับ fallback display เท่านั้น
 var is_game_finished: bool = false
 
 # ชื่อเป้าหมายที่ HUD จะใช้แสดงบนจอ
@@ -158,7 +159,7 @@ func _ready() -> void:
 	# เชื่อม signal เมื่อศัตรูตาย
 	enemy.enemy_died.connect(show_victory)
 
-	# ซ่อนข้อความผลลัพธ์ตอนเริ่มเกม
+	# ซ่อนข้อความผลลัพธ์ตอนเริ่มเกม เพราะ GameLoopManager เป็นคนแสดง overlay หลัก
 	game_result_label.text = ""
 	
 	# สร้าง Label สำหรับคำเตือนท่าศัตรู
@@ -236,13 +237,9 @@ func update_enemy_stats(current_hp: int, max_hp: int, current_posture: float, ma
 	enemy_posture_bar.value = current_posture
 
 func _process(_delta: float) -> void:
-	# ถ้าเกมยังไม่จบ ไม่ต้องตรวจปุ่ม Restart
-	if not is_game_finished:
-		return
-
-	# เมื่อเกมจบแล้ว กด R เพื่อเริ่มฉากใหม่
-	if Input.is_key_pressed(KEY_R):
-		get_tree().reload_current_scene()
+	# Restart flow ย้ายไปให้ GameLoopManager คุมทั้งหมดแล้ว
+	# HUD จึงไม่ reload scene ด้วยปุ่ม R อีก เพื่อไม่ให้ข้ามหน้าเลือก Upgrade หลังชนะ
+	return
 
 func show_game_over() -> void:
 	# ถ้าเกมจบไปแล้ว ไม่ต้องแสดงซ้ำ
@@ -251,8 +248,8 @@ func show_game_over() -> void:
 
 	is_game_finished = true
 
-	# แสดงข้อความ Game Over
-	game_result_label.text = "GAME OVER\nPress R to Restart"
+	# ไม่แสดงข้อความใหญ่ที่ HUD แล้ว ให้ GameLoopManager แสดง overlay หลักแทน
+	game_result_label.text = ""
 
 	print("GAME OVER")
 
@@ -264,7 +261,7 @@ func show_victory() -> void:
 
 	is_game_finished = true
 
-	# แสดงข้อความ Victory
-	game_result_label.text = "VICTORY!\nPress R to Restart"
+	# ไม่แสดงข้อความใหญ่ที่ HUD แล้ว ให้ GameLoopManager แสดง overlay หลักแทน
+	game_result_label.text = ""
 
 	print("VICTORY")
