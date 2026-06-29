@@ -4,6 +4,7 @@ extends CanvasLayer
 # TouchControls.gd
 # ปุ่มควบคุมมือถือแบบ prototype สำหรับ Phase 6.6
 # สร้างด้วยโค้ดทั้งหมด เพื่อยังไม่ต้องใช้ asset ปุ่มจริง
+# เวอร์ชันนี้เพิ่ม responsive layout เพื่อเตรียมทดสอบบน Android หลายขนาดจอ
 # =========================
 
 # เปิด/ปิด touch controls ทั้งชุด
@@ -11,6 +12,9 @@ extends CanvasLayer
 
 # เปิดให้ใช้ mouse click ทดสอบบน Mac/PC ได้
 @export var allow_mouse_test: bool = true
+
+# เปิด/ปิดการจัดตำแหน่งปุ่มใหม่เมื่อขนาดจอเปลี่ยน
+@export var responsive_layout_enabled: bool = true
 
 # ความโปร่งใสของปุ่มปกติ
 @export var button_alpha: float = 0.52
@@ -30,6 +34,15 @@ extends CanvasLayer
 # ระยะห่างจากขอบจอ
 @export var screen_margin: float = 28.0
 
+# ระยะห่างระหว่างปุ่มเดินซ้าย/ขวา
+@export var move_button_gap: float = 16.0
+
+# ระยะห่างระหว่างปุ่ม action ฝั่งขวา
+@export var action_button_gap: float = 18.0
+
+# ระยะเผื่อด้านล่างสำหรับมือถือที่มีแถบนำทางหรือขอบจอหนา
+@export var mobile_bottom_safe_margin: float = 0.0
+
 # ขนาดตัวอักษรบนปุ่ม
 @export var button_font_size: int = 20
 
@@ -48,6 +61,16 @@ extends CanvasLayer
 # Root control ที่คลุมทั้งจอ
 var root_control: Control = null
 
+# ปุ่มควบคุมจริง เก็บไว้เพื่อจัดตำแหน่งใหม่เมื่อขนาดจอเปลี่ยน
+var left_move_button: Button = null
+var right_move_button: Button = null
+var attack_touch_button: Button = null
+var dash_touch_button: Button = null
+var parry_touch_button: Button = null
+
+# จำขนาดจอล่าสุด เพื่อรู้ว่าควรจัด layout ใหม่หรือไม่
+var last_screen_size: Vector2 = Vector2.ZERO
+
 # รายชื่อ action ที่กดค้างอยู่ เพื่อปล่อยตอนปิด scene กัน input ค้าง
 var held_actions: Array[String] = []
 
@@ -61,6 +84,19 @@ func _ready() -> void:
 	create_touch_ui.call_deferred()
 
 
+func _process(_delta: float) -> void:
+	# ถ้าเปิด responsive layout ให้ตรวจขนาดจอ และจัดปุ่มใหม่เมื่อ viewport เปลี่ยน
+	if not responsive_layout_enabled:
+		return
+
+	if root_control == null:
+		return
+
+	var screen_size: Vector2 = get_viewport().get_visible_rect().size
+	if screen_size.distance_squared_to(last_screen_size) > 1.0:
+		layout_touch_buttons()
+
+
 func create_touch_ui() -> void:
 	# สร้าง root control สำหรับวางปุ่มทั้งหมด
 	root_control = Control.new()
@@ -69,39 +105,103 @@ func create_touch_ui() -> void:
 	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
-	# อ่านขนาดจอปัจจุบัน ใช้ได้ทั้ง editor และมือถือ
-	var screen_size: Vector2 = get_viewport().get_visible_rect().size
-
 	# ปุ่มเดินฝั่งซ้าย
-	var left_button := create_touch_button("◀", move_button_size)
-	left_button.position = Vector2(screen_margin, screen_size.y - screen_margin - move_button_size.y)
-	root_control.add_child(left_button)
-	connect_hold_button(left_button, "ui_left")
+	left_move_button = create_touch_button("◀", move_button_size)
+	root_control.add_child(left_move_button)
+	connect_hold_button(left_move_button, "ui_left")
 
-	var right_button := create_touch_button("▶", move_button_size)
-	right_button.position = Vector2(screen_margin + move_button_size.x + 16.0, screen_size.y - screen_margin - move_button_size.y)
-	root_control.add_child(right_button)
-	connect_hold_button(right_button, "ui_right")
+	right_move_button = create_touch_button("▶", move_button_size)
+	root_control.add_child(right_move_button)
+	connect_hold_button(right_move_button, "ui_right")
 
 	# ปุ่ม Attack ฝั่งขวา ใหญ่ที่สุดและอยู่ตำแหน่งนิ้วโป้งกดง่าย
-	var attack_button := create_touch_button("ATTACK", attack_button_size)
-	attack_button.position = Vector2(screen_size.x - screen_margin - attack_button_size.x, screen_size.y - screen_margin - attack_button_size.y)
-	root_control.add_child(attack_button)
-	connect_tap_button(attack_button, "attack")
+	attack_touch_button = create_touch_button("ATTACK", attack_button_size)
+	root_control.add_child(attack_touch_button)
+	connect_tap_button(attack_touch_button, "attack")
 
 	# ปุ่ม Dash วางเหนือซ้ายของ Attack เพื่อไม่ชิด Parry เกินไป
-	var dash_button := create_touch_button("DASH", action_button_size)
-	dash_button.position = Vector2(screen_size.x - screen_margin - attack_button_size.x - action_button_size.x - 18.0, screen_size.y - screen_margin - action_button_size.y)
-	root_control.add_child(dash_button)
-	connect_tap_button(dash_button, "dash")
+	dash_touch_button = create_touch_button("DASH", action_button_size)
+	root_control.add_child(dash_touch_button)
+	connect_tap_button(dash_touch_button, "dash")
 
 	# ปุ่ม Parry วางเหนือ Attack เพื่อให้กดตอบสนองเร็ว แต่ไม่บัง Boss hint กลางจอ
-	var parry_button := create_touch_button("PARRY", action_button_size)
-	parry_button.position = Vector2(screen_size.x - screen_margin - action_button_size.x, screen_size.y - screen_margin - attack_button_size.y - action_button_size.y - 18.0)
-	root_control.add_child(parry_button)
-	connect_tap_button(parry_button, "parry")
+	parry_touch_button = create_touch_button("PARRY", action_button_size)
+	root_control.add_child(parry_touch_button)
+	connect_tap_button(parry_touch_button, "parry")
 
-	print("TouchControls ready. Mouse test =", allow_mouse_test)
+	layout_touch_buttons()
+	print("TouchControls ready. Mouse test =", allow_mouse_test, "Responsive =", responsive_layout_enabled)
+
+
+func layout_touch_buttons() -> void:
+	# จัดตำแหน่งปุ่มตามขนาด viewport ปัจจุบัน ใช้ได้ทั้ง editor และ Android
+	var screen_size: Vector2 = get_viewport().get_visible_rect().size
+	last_screen_size = screen_size
+
+	if root_control != null:
+		root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var bottom_margin: float = screen_margin + mobile_bottom_safe_margin
+
+	# ปุ่มเดินซ้าย/ขวาอยู่มุมซ้ายล่าง
+	set_button_rect(
+		left_move_button,
+		Vector2(screen_margin, screen_size.y - bottom_margin - move_button_size.y),
+		move_button_size,
+		screen_size
+	)
+
+	set_button_rect(
+		right_move_button,
+		Vector2(screen_margin + move_button_size.x + move_button_gap, screen_size.y - bottom_margin - move_button_size.y),
+		move_button_size,
+		screen_size
+	)
+
+	# ปุ่ม Attack อยู่มุมขวาล่าง และใหญ่สุด
+	set_button_rect(
+		attack_touch_button,
+		Vector2(screen_size.x - screen_margin - attack_button_size.x, screen_size.y - bottom_margin - attack_button_size.y),
+		attack_button_size,
+		screen_size
+	)
+
+	# ปุ่ม Dash อยู่ซ้ายของ Attack เพื่อให้แยกจาก Parry ชัดเจน
+	set_button_rect(
+		dash_touch_button,
+		Vector2(screen_size.x - screen_margin - attack_button_size.x - action_button_size.x - action_button_gap, screen_size.y - bottom_margin - action_button_size.y),
+		action_button_size,
+		screen_size
+	)
+
+	# ปุ่ม Parry อยู่เหนือ Attack เพื่อให้กดสวนจังหวะบอสได้เร็ว
+	set_button_rect(
+		parry_touch_button,
+		Vector2(screen_size.x - screen_margin - action_button_size.x, screen_size.y - bottom_margin - attack_button_size.y - action_button_size.y - action_button_gap),
+		action_button_size,
+		screen_size
+	)
+
+
+func set_button_rect(button: Button, desired_position: Vector2, button_size: Vector2, screen_size: Vector2) -> void:
+	# ตั้งขนาดและตำแหน่งปุ่ม พร้อม clamp ไม่ให้หลุดออกนอกจอในเครื่องที่ viewport เล็ก
+	if button == null:
+		return
+
+	button.custom_minimum_size = button_size
+	button.size = button_size
+	button.position = clamp_button_position(desired_position, button_size, screen_size)
+
+
+func clamp_button_position(desired_position: Vector2, button_size: Vector2, screen_size: Vector2) -> Vector2:
+	# กันปุ่มหลุดขอบจอ โดยยังรักษา margin ให้มากที่สุดเท่าที่ทำได้
+	var max_x: float = max(screen_margin, screen_size.x - screen_margin - button_size.x)
+	var max_y: float = max(screen_margin, screen_size.y - screen_margin - button_size.y)
+
+	return Vector2(
+		clamp(desired_position.x, screen_margin, max_x),
+		clamp(desired_position.y, screen_margin, max_y)
+	)
 
 
 func create_touch_button(label_text: String, button_size: Vector2) -> Button:
