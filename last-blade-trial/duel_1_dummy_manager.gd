@@ -3,8 +3,10 @@ extends CanvasLayer
 # =========================
 # Duel1DummyManager.gd
 # ชื่อไฟล์เดิมยังคงไว้เพื่อไม่ต้องรื้อ scene หลัก
-# แต่พฤติกรรมใหม่คือใช้ BossBrokenMaster ตัวจริงเป็นหุ่นฝึก
-# ระหว่างฝึกจะจำกัด pattern ของบอสไว้ก่อน แล้วค่อยปล่อยบอสเต็มรูปแบบหลังฝึกเสร็จ
+# พฤติกรรมจริงตอนนี้คือ Duel 1 Guided Training กับ BossBrokenMaster ตัวจริง
+# ระหว่าง Duel 1 บอสจะสู้แบบจำกัด pattern
+# เมื่อบอสกำลัง wind-up จะหยุดก่อน hitbox เปิด แล้วกล่องจะบอกให้ผู้เล่นกด Parry หรือ Dash
+# เมื่อฝึกครบแล้วจึงรีเซ็ตและปล่อยบอสสู้จริงเต็มรูปแบบ
 # =========================
 
 @export var player_path: NodePath = NodePath("../Player")
@@ -13,7 +15,7 @@ extends CanvasLayer
 @export var training_coach_manager_path: NodePath = NodePath("../TrainingCoachManager")
 @export var duel_intro_manager_path: NodePath = NodePath("../Duel1IntroManager")
 
-# เปิด/ปิดระบบฝึกกับบอสจริงก่อนเข้า Duel Practice
+# เปิด/ปิดระบบ Duel 1 ฝึกกับบอสจริง
 @export var boss_training_enabled: bool = true
 
 # แสดงแค่ครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
@@ -25,7 +27,10 @@ extends CanvasLayer
 # ข้อความบนปุ่ม Skip
 @export var skip_button_text: String = "SKIP"
 
-# ระหว่างฝึกจะบังคับให้บอสใช้ pattern ง่ายก่อน
+# ถ้า true จะสลับท่าฝึกระหว่าง normal_slash กับ heavy_slash เพื่อสอนทั้ง Parry และ Dash ใน Duel 1
+@export var rotate_parry_dash_training_patterns: bool = true
+
+# ถ้าไม่สลับ pattern จะใช้ท่านี้ตลอด Duel 1
 @export_enum("normal_slash", "quick_slash", "delayed_slash", "heavy_slash") var training_forced_boss_pattern: String = "normal_slash"
 
 # ผู้เล่นต้องทำดาเมจใส่บอสจริงเท่านี้ จึงถือว่าผ่านช่วงฝึก
@@ -34,7 +39,23 @@ extends CanvasLayer
 # ถ้า true หลังฝึกเสร็จจะรีเซ็ต HP/Posture ของบอสก่อนเข้าของจริง
 @export var reset_boss_after_training: bool = true
 
-# เวลาค้างข้อความหลังผ่านหรือ skip ก่อนเปิด Duel Practice ต่อ
+# ถ้า true หลังจบ Duel 1 จะข้าม Duel1IntroManager และปล่อยบอสจริงเลย
+# เพราะคำสอน Parry/Dash ถูกย้ายเข้ามาอยู่ใน Duel 1 แล้ว
+@export var start_real_boss_after_duel_1: bool = true
+
+# เปิด/ปิดระบบหยุดบอสกลาง wind-up เพื่อขึ้นกล่องเตือน Parry/Dash
+@export var freeze_prompt_enabled: bool = true
+
+# เวลาที่ให้ผู้เล่นตอบสนองตอนบอสถูกหยุดไว้ก่อน hitbox เปิด
+@export var freeze_prompt_response_time: float = 3.0
+
+# เวลาค้าง feedback หลังผู้เล่นกดถูก/ผิดใน freeze prompt
+@export var freeze_prompt_feedback_time: float = 0.85
+
+# ถ้า true เมื่อ Parry ถูกใน Duel 1 จะเรียก on_successful_parry() เพื่อให้ได้ feedback/focus เดิม
+@export var reward_parry_success_during_duel_1: bool = true
+
+# เวลาค้างข้อความหลังผ่านหรือ skip ก่อนปล่อยบอสจริง
 @export var training_clear_message_time: float = 1.20
 
 # ขนาดตัวอักษรหัวข้อ
@@ -68,6 +89,16 @@ var has_saved_original_boss_debug: bool = false
 var original_debug_force_attack_pattern_enabled: bool = false
 var original_debug_forced_attack_pattern: String = "random"
 
+# ใช้สลับท่า Duel 1 ระหว่าง Parry/Dash
+var current_training_pattern_index: int = 0
+
+# สถานะ freeze prompt ระหว่าง Duel 1
+var is_freeze_prompt_active: bool = false
+var is_freeze_feedback_active: bool = false
+var freeze_prompt_elapsed_time: float = 0.0
+var freeze_prompt_pattern_name: String = "normal_slash"
+var last_frozen_attack_sequence_id: int = -1
+
 static var has_completed_training_boss_this_session: bool = false
 
 
@@ -78,24 +109,34 @@ func _ready() -> void:
 	setup_references.call_deferred()
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not boss_training_enabled:
-		enable_duel_intro_if_available()
+		finish_without_boss_training_if_needed()
 		return
 
 	if show_only_once_per_session and has_completed_training_boss_this_session:
-		enable_duel_intro_if_available()
+		finish_without_boss_training_if_needed()
 		return
 
 	if not are_references_ready():
 		setup_references()
 		return
 
-	# ปิด DuelIntro ไว้ก่อนจนกว่าช่วงฝึกกับบอสจริงจะจบ
-	if not is_training_boss_completed:
+	# ปิด DuelIntro ไว้ เพราะคำสอน Parry/Dash อยู่ใน Duel 1 แล้ว
+	if start_real_boss_after_duel_1:
+		disable_duel_intro_if_available()
+	elif not is_training_boss_completed:
 		disable_duel_intro_if_available()
 
+	if is_freeze_prompt_active:
+		update_freeze_prompt(delta)
+		return
+
+	if is_freeze_feedback_active:
+		return
+
 	if is_training_boss_active:
+		watch_boss_windup_for_freeze_prompt()
 		update_training_boss_progress()
 		return
 
@@ -120,14 +161,14 @@ func create_ui() -> void:
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(460.0, 162.0)
-	panel.position = Vector2(346.0, 24.0)
+	panel.custom_minimum_size = Vector2(500.0, 174.0)
+	panel.position = Vector2(326.0, 24.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(panel)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.02, 0.025, 0.035, 0.84)
-	style.border_color = Color(0.95, 0.75, 0.25, 0.90)
+	style.bg_color = Color(0.02, 0.025, 0.035, 0.88)
+	style.border_color = Color(0.95, 0.75, 0.25, 0.92)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(14)
 	style.content_margin_left = 16.0
@@ -152,7 +193,7 @@ func create_ui() -> void:
 	layout.add_child(body_label)
 
 	progress_bar = ProgressBar.new()
-	progress_bar.custom_minimum_size = Vector2(360.0, 14.0)
+	progress_bar.custom_minimum_size = Vector2(390.0, 14.0)
 	progress_bar.min_value = 0.0
 	progress_bar.max_value = 100.0
 	progress_bar.value = 0.0
@@ -221,21 +262,27 @@ func is_training_ready() -> bool:
 
 
 func start_training_boss() -> void:
-	# เริ่มฝึกกับบอสจริงหลัง Training Coach จบ
+	# เริ่ม Duel 1 หลัง Training Coach จบ
 	has_started_training_boss = true
 	is_training_boss_active = true
 	is_training_boss_completed = false
+	is_freeze_prompt_active = false
+	is_freeze_feedback_active = false
+	freeze_prompt_elapsed_time = 0.0
+	last_frozen_attack_sequence_id = -1
+	current_training_pattern_index = 0
 
 	root_control.visible = true
 	set_skip_button_visible(skip_button_enabled)
 
 	prepare_boss_for_limited_training()
+	apply_current_training_pattern_to_boss()
 
 	title_label.text = "Duel 1: ฝึกกับบอสจริง"
-	body_label.text = "บอสจะใช้ท่าง่ายก่อน\nตีบอสให้ครบ %d ดาเมจ แล้วค่อยเข้าจริง" % required_training_damage
+	body_label.text = "บอสจะโจมตีแบบจำกัด\nเมื่อบอสกำลังจะตี เกมจะหยุดและบอก Parry/Dash"
 	set_progress_percent(0.0)
 
-	print("Duel 1 Boss Training started")
+	print("Duel 1 guided boss training started")
 
 
 func prepare_boss_for_limited_training() -> void:
@@ -246,14 +293,7 @@ func prepare_boss_for_limited_training() -> void:
 	boss.visible = true
 	save_original_boss_debug_settings()
 	reset_boss_combat_state_for_training()
-
 	training_start_boss_hp = get_int_value(boss, "current_hp", get_int_value(boss, "max_hp", 300))
-
-	# ใช้ debug pattern เดิมของบอสเป็นตัวบังคับท่าแบบปลอดภัย ไม่ต้องแก้ BossBrokenMaster.gd เพิ่ม
-	boss.set("debug_force_attack_pattern_enabled", true)
-	boss.set("debug_forced_attack_pattern", training_forced_boss_pattern)
-
-	# เปิด physics ของบอส เพื่อให้บอสเดิน/โจมตีแบบจำกัดได้จริง
 	boss.set_physics_process(true)
 	boss.set("can_attack", true)
 
@@ -301,7 +341,247 @@ func reset_boss_combat_state_for_training() -> void:
 		sprite.modulate = Color.WHITE
 
 	if boss.has_method("clear_attack_hint"):
-		boss.clear_attack_hint()
+		boss.call("clear_attack_hint")
+
+
+func apply_current_training_pattern_to_boss() -> void:
+	# ตั้ง pattern ที่บอสจะใช้ในการโจมตีครั้งต่อไปของ Duel 1
+	if not is_instance_valid(boss):
+		return
+
+	var pattern_name: String = get_current_training_pattern_name()
+	boss.set("debug_force_attack_pattern_enabled", true)
+	boss.set("debug_forced_attack_pattern", pattern_name)
+
+
+func get_current_training_pattern_name() -> String:
+	# สลับ normal_slash เพื่อสอน Parry และ heavy_slash เพื่อสอน Dash
+	if rotate_parry_dash_training_patterns:
+		if current_training_pattern_index % 2 == 1:
+			return "heavy_slash"
+		return "normal_slash"
+
+	return training_forced_boss_pattern
+
+
+func watch_boss_windup_for_freeze_prompt() -> void:
+	# จุดสำคัญของ Duel 1: ถ้าบอสกำลัง wind-up ให้หยุดก่อน hitbox เปิด แล้วขึ้นกล่องเตือน
+	if not freeze_prompt_enabled:
+		return
+
+	if not is_instance_valid(boss):
+		return
+
+	var is_winding_up: bool = get_bool_value(boss, "is_winding_up")
+	var is_attacking: bool = get_bool_value(boss, "is_attacking")
+	if not is_winding_up or is_attacking:
+		return
+
+	var attack_id: int = get_int_value(boss, "attack_sequence_id", -1)
+	if attack_id == last_frozen_attack_sequence_id:
+		return
+
+	start_freeze_prompt_for_current_attack(attack_id)
+
+
+func start_freeze_prompt_for_current_attack(attack_id: int) -> void:
+	# หยุดบอสในจังหวะก่อน hitbox เปิด แล้วให้ผู้เล่นเลือก Parry หรือ Dash
+	last_frozen_attack_sequence_id = attack_id
+	is_freeze_prompt_active = true
+	freeze_prompt_elapsed_time = 0.0
+	freeze_prompt_pattern_name = get_current_boss_attack_name()
+
+	freeze_boss_before_training_hitbox()
+	show_freeze_prompt_for_pattern(freeze_prompt_pattern_name)
+
+	print("Duel 1 freeze prompt:", freeze_prompt_pattern_name)
+
+
+func get_current_boss_attack_name() -> String:
+	# อ่านชื่อท่าปัจจุบันจากบอส ถ้าอ่านไม่ได้ให้ fallback จาก pattern ที่เราบังคับไว้
+	var current_attack = boss.get("current_attack_name")
+	if current_attack != null:
+		var current_attack_text: String = str(current_attack)
+		if current_attack_text != "":
+			return current_attack_text
+
+	return get_current_training_pattern_name()
+
+
+func freeze_boss_before_training_hitbox() -> void:
+	# ยกเลิก coroutine attack() ก่อน active hitbox แล้วหยุดบอสไว้ตรง wind-up
+	if not is_instance_valid(boss):
+		return
+
+	var attack_id = boss.get("attack_sequence_id")
+	if attack_id != null:
+		boss.set("attack_sequence_id", int(attack_id) + 1)
+
+	boss.set_physics_process(false)
+	boss.set("is_winding_up", true)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("can_attack", false)
+	boss.set("velocity", Vector2.ZERO)
+	boss.set("knockback_velocity", Vector2.ZERO)
+
+	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
+	if attack_shape != null:
+		attack_shape.set_deferred("disabled", true)
+
+
+func show_freeze_prompt_for_pattern(pattern_name: String) -> void:
+	# กล่องและ hint เหนือหัวบอสตอนหยุดกลาง wind-up
+	root_control.visible = true
+	set_skip_button_visible(skip_button_enabled)
+
+	if pattern_requires_dash(pattern_name):
+		title_label.text = "⏸ DASH!"
+		body_label.text = "บอสกำลังใช้ท่าหนัก\nเกมหยุดก่อนโดนตี: กด DASH ตอนนี้"
+		show_boss_cue("DASH!", Color(1.0, 0.35, 0.0, 1.0))
+		set_boss_sprite_color(Color(1.0, 0.35, 0.0, 1.0))
+	else:
+		title_label.text = "⏸ PARRY!"
+		body_label.text = "บอสกำลังฟันใส่คุณ\nเกมหยุดก่อนโดนตี: กด PARRY ตอนนี้"
+		show_boss_cue("PARRY!", Color(0.35, 0.95, 1.0, 1.0))
+		set_boss_sprite_color(Color(0.35, 0.95, 1.0, 1.0))
+
+	set_progress_percent(1.0)
+
+
+func update_freeze_prompt(delta: float) -> void:
+	# รับ input ตอนบอสหยุดอยู่ก่อน hitbox เปิด
+	freeze_prompt_elapsed_time += delta
+	set_progress_percent(1.0 - clamp(freeze_prompt_elapsed_time / max(freeze_prompt_response_time, 0.01), 0.0, 1.0))
+
+	if expected_action_for_pattern_just_pressed(freeze_prompt_pattern_name):
+		finish_freeze_prompt(true, "")
+		return
+
+	if wrong_action_for_pattern_just_pressed(freeze_prompt_pattern_name):
+		finish_freeze_prompt(false, get_wrong_action_message_for_pattern(freeze_prompt_pattern_name))
+		return
+
+	if freeze_prompt_elapsed_time >= freeze_prompt_response_time:
+		finish_freeze_prompt(false, "ไม่ได้กดตอบสนอง")
+
+
+func expected_action_for_pattern_just_pressed(pattern_name: String) -> bool:
+	# ท่าหนักต้อง Dash / ท่าที่ Parry ได้ให้ Parry
+	if pattern_requires_dash(pattern_name):
+		return Input.is_action_just_pressed("dash")
+
+	return Input.is_action_just_pressed("parry")
+
+
+func wrong_action_for_pattern_just_pressed(pattern_name: String) -> bool:
+	# ใช้ตรวจว่าผู้เล่นกดปุ่มต่อสู้อื่นผิดจังหวะหรือผิดประเภท
+	if pattern_requires_dash(pattern_name):
+		return Input.is_action_just_pressed("parry") or Input.is_action_just_pressed("attack")
+
+	return Input.is_action_just_pressed("dash") or Input.is_action_just_pressed("attack")
+
+
+func get_wrong_action_message_for_pattern(pattern_name: String) -> String:
+	if pattern_requires_dash(pattern_name):
+		return "ท่านี้ต้อง Dash ห้าม Parry/Attack"
+
+	return "ท่านี้ควร Parry ไม่ใช่ Dash/Attack"
+
+
+func pattern_requires_dash(pattern_name: String) -> bool:
+	# ตอนนี้ heavy_slash คือท่าหนักที่ต้อง Dash
+	return pattern_name == "heavy_slash"
+
+
+func finish_freeze_prompt(was_successful: bool, fail_message: String) -> void:
+	# จบ freeze prompt แล้วให้ Duel 1 เดินต่อ ไม่ใช่ไป DuelIntroManager
+	if not is_freeze_prompt_active:
+		return
+
+	is_freeze_prompt_active = false
+	is_freeze_feedback_active = true
+	clear_boss_cue()
+	play_controlled_attack_visual()
+	stop_boss_after_freeze_prompt()
+
+	if was_successful:
+		show_freeze_prompt_success_feedback()
+	else:
+		show_freeze_prompt_fail_feedback(fail_message)
+
+	await get_tree().create_timer(freeze_prompt_feedback_time).timeout
+
+	if is_training_boss_completed:
+		return
+
+	is_freeze_feedback_active = false
+	advance_training_pattern_after_prompt()
+	resume_boss_after_freeze_prompt()
+	update_training_boss_progress()
+
+
+func show_freeze_prompt_success_feedback() -> void:
+	# แสดง feedback เมื่อกดถูกใน Duel 1
+	if pattern_requires_dash(freeze_prompt_pattern_name):
+		title_label.text = "หลบทัน"
+		body_label.text = "Dash ถูกจังหวะ\nจำไว้: ท่าหนักที่ขึ้น DASH! ต้องหลบ"
+	else:
+		title_label.text = "Parry สำเร็จ"
+		body_label.text = "Parry ถูกจังหวะ\nจำไว้: ท่าที่ขึ้น PARRY! ให้ Parry"
+
+		if reward_parry_success_during_duel_1 and is_instance_valid(player) and player.has_method("on_successful_parry"):
+			player.call("on_successful_parry")
+
+	set_progress_percent(1.0)
+
+
+func show_freeze_prompt_fail_feedback(fail_message: String) -> void:
+	# แสดง feedback เมื่อกดผิดหรือไม่กด แต่ยังให้ Duel 1 ดำเนินต่อ
+	if fail_message == "":
+		fail_message = "ลองจำสัญญาณนี้ไว้สำหรับรอบจริง"
+
+	title_label.text = "ยังไม่ถูก"
+	body_label.text = "%s\nไม่เป็นไร Duel 1 จะดำเนินต่อ" % fail_message
+	set_progress_percent(0.0)
+
+
+func stop_boss_after_freeze_prompt() -> void:
+	# หยุดบอสหลังจบ prompt เพื่อไม่ให้ coroutine หรือ hitbox เดิมหลุดมาตีผู้เล่น
+	if not is_instance_valid(boss):
+		return
+
+	boss.set_physics_process(false)
+	boss.set("is_winding_up", false)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("can_attack", false)
+	boss.set("velocity", Vector2.ZERO)
+	boss.set("knockback_velocity", Vector2.ZERO)
+
+	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
+	if attack_shape != null:
+		attack_shape.set_deferred("disabled", true)
+
+
+func advance_training_pattern_after_prompt() -> void:
+	# หลังสอนหนึ่งจังหวะแล้ว ให้สลับไปท่าถัดไป เพื่อให้ Duel 1 ได้ฝึกทั้ง Parry และ Dash
+	if rotate_parry_dash_training_patterns:
+		current_training_pattern_index += 1
+
+	apply_current_training_pattern_to_boss()
+
+
+func resume_boss_after_freeze_prompt() -> void:
+	# ปล่อยบอสให้ Duel 1 สู้ต่อแบบจำกัด pattern
+	if not is_instance_valid(boss):
+		return
+
+	boss.set_physics_process(true)
+	boss.set("can_attack", true)
+	set_boss_sprite_color(Color.WHITE)
 
 
 func update_training_boss_progress() -> void:
@@ -315,19 +595,22 @@ func update_training_boss_progress() -> void:
 	var ratio: float = clamp(float(damage_dealt) / float(required_damage), 0.0, 1.0)
 	set_progress_percent(ratio)
 
-	body_label.text = "บอสใช้ท่า %s แบบจำกัด\nดาเมจฝึก: %d / %d" % [training_forced_boss_pattern, damage_dealt, required_damage]
+	if not is_freeze_prompt_active and not is_freeze_feedback_active:
+		body_label.text = "Duel 1: บอสใช้ pattern จำกัด\nดาเมจฝึก: %d / %d" % [damage_dealt, required_damage]
 
 	if damage_dealt >= required_damage:
 		finish_training_boss(false)
 
 
 func finish_training_boss(was_skipped: bool) -> void:
-	# จบช่วงฝึกกับบอสจริง ไม่ว่าจะตีครบหรือกด Skip
+	# จบช่วง Duel 1 ไม่ว่าจะตีครบหรือกด Skip
 	if is_training_boss_completed:
 		return
 
 	is_training_boss_active = false
 	is_training_boss_completed = true
+	is_freeze_prompt_active = false
+	is_freeze_feedback_active = false
 	has_completed_training_boss_this_session = true
 	set_skip_button_visible(false)
 	set_boss_hold(true)
@@ -338,20 +621,25 @@ func finish_training_boss(was_skipped: bool) -> void:
 
 	root_control.visible = true
 	if was_skipped:
-		title_label.text = "ข้ามการฝึกบอส"
-		body_label.text = "ต่อไปจะฝึกอ่านสัญญาณ PARRY! / DASH!"
+		title_label.text = "ข้าม Duel 1"
+		body_label.text = "รีเซ็ตบอสแล้ว เริ่มสู้จริงได้เลย"
 	else:
-		title_label.text = "ผ่านการฝึกกับบอส"
-		body_label.text = "รีเซ็ตบอสแล้ว ต่อไปจะฝึกอ่านสัญญาณ"
+		title_label.text = "ผ่าน Duel 1"
+		body_label.text = "รีเซ็ตบอสแล้ว ต่อไปคือบอสจริงเต็มรูปแบบ"
 
 	set_progress_percent(1.0)
-	print("Duel 1 Boss Training completed. Skipped =", was_skipped)
+	print("Duel 1 guided boss training completed. Skipped =", was_skipped)
 
 	await get_tree().create_timer(training_clear_message_time).timeout
 
 	root_control.visible = false
 	show_boss_if_needed()
-	enable_duel_intro_if_available()
+
+	if start_real_boss_after_duel_1:
+		disable_duel_intro_if_available()
+		set_boss_hold(false)
+	else:
+		enable_duel_intro_if_available()
 
 
 func reset_boss_for_real_fight() -> void:
@@ -368,7 +656,7 @@ func reset_boss_for_real_fight() -> void:
 	boss.set("can_attack", false)
 
 	if boss.has_method("emit_enemy_stats"):
-		boss.emit_enemy_stats()
+		boss.call("emit_enemy_stats")
 
 
 func restore_boss_full_pattern() -> void:
@@ -381,7 +669,7 @@ func restore_boss_full_pattern() -> void:
 
 
 func on_skip_button_pressed() -> void:
-	# ข้ามช่วงฝึกกับบอสจริง เพื่อไปยัง Duel Practice ทันที
+	# ข้าม Duel 1 แล้วเริ่มบอสจริงทันที
 	if is_training_boss_completed:
 		return
 
@@ -421,14 +709,22 @@ func show_boss_if_needed() -> void:
 		boss.visible = true
 
 
+func finish_without_boss_training_if_needed() -> void:
+	# กรณี Duel 1 ถูกปิด หรือ session นี้ผ่านไปแล้ว ให้จัด flow ให้ไม่ติด DuelIntro ซ้ำ
+	if start_real_boss_after_duel_1:
+		disable_duel_intro_if_available()
+	else:
+		enable_duel_intro_if_available()
+
+
 func disable_duel_intro_if_available() -> void:
-	# ปิด DuelIntro ไว้ก่อนจนกว่าช่วงฝึกกับบอสจริงจะจบ
+	# ปิด DuelIntro เพราะตอนนี้ Parry/Dash prompt อยู่ใน Duel 1 แล้ว
 	if is_instance_valid(duel_intro_manager):
 		duel_intro_manager.set("duel_intro_enabled", false)
 
 
 func enable_duel_intro_if_available() -> void:
-	# เปิด DuelIntro หลังผ่านการฝึกกับบอสจริงแล้ว
+	# เปิด DuelIntro เฉพาะกรณีตั้งใจใช้ flow เก่า
 	if is_instance_valid(duel_intro_manager):
 		duel_intro_manager.set("duel_intro_enabled", true)
 
@@ -443,11 +739,50 @@ func set_skip_button_visible(is_visible: bool) -> void:
 
 
 func set_progress_percent(percent: float) -> void:
-	# Progress bar แสดงดาเมจที่ทำได้ในช่วงฝึกกับบอสจริง
+	# Progress bar แสดงดาเมจหรือเวลาตอบสนองใน Duel 1
 	if progress_bar == null:
 		return
 
 	progress_bar.value = clamp(percent, 0.0, 1.0) * 100.0
+
+
+func show_boss_cue(text: String, color: Color) -> void:
+	# ใช้ระบบ hint เหนือหัวบอสเดิม
+	if is_instance_valid(boss) and boss.has_method("update_boss_hint_label"):
+		boss.call("update_boss_hint_label", text, color)
+
+
+func clear_boss_cue() -> void:
+	# ล้าง hint เหนือหัวบอส
+	if is_instance_valid(boss) and boss.has_method("clear_attack_hint"):
+		boss.call("clear_attack_hint")
+
+	set_boss_sprite_color(Color.WHITE)
+
+
+func set_boss_sprite_color(new_color: Color) -> void:
+	# เปลี่ยนสีบอสจริงชั่วคราวเพื่อช่วยอ่านประเภทท่า
+	if not is_instance_valid(boss):
+		return
+
+	var sprite = boss.get_node_or_null("Sprite2D")
+	if sprite != null:
+		sprite.modulate = new_color
+
+
+func play_controlled_attack_visual() -> void:
+	# เล่น slash placeholder หลังผู้เล่นตอบ prompt เพื่อให้รู้สึกว่าท่าถูกปล่อยออกแล้ว
+	if is_instance_valid(boss) and boss.has_method("show_boss_slash_effect"):
+		boss.call("show_boss_slash_effect")
+
+
+func get_bool_value(target: Node, property_name: String) -> bool:
+	# อ่านค่า bool จาก node แบบปลอดภัย
+	var value = target.get(property_name)
+	if value == null:
+		return false
+
+	return value == true
 
 
 func get_int_value(target: Node, property_name: String, fallback: int) -> int:
