@@ -4,6 +4,7 @@ extends CanvasLayer
 # TrainingCoachManager.gd
 # ระบบสอนผู้เล่นใหม่แบบสั้นสำหรับ Phase 9 Vertical Slice
 # สอนเดิน / Attack / Dash / Parry ก่อนปล่อยให้บอสเริ่มสู้จริง
+# เวอร์ชันนี้เพิ่ม progress bar และข้อความสำเร็จระหว่าง step
 # =========================
 
 # อ้างอิง Player ในฉากหลัก
@@ -25,16 +26,19 @@ extends CanvasLayer
 @export var show_only_once_per_session: bool = true
 
 # ตำแหน่งกล่องข้อความบนจอ
-@export var coach_panel_position: Vector2 = Vector2(320.0, 22.0)
+@export var coach_panel_position: Vector2 = Vector2(296.0, 18.0)
 
 # ขนาดกล่องข้อความ
-@export var coach_panel_size: Vector2 = Vector2(520.0, 96.0)
+@export var coach_panel_size: Vector2 = Vector2(560.0, 132.0)
 
 # ขนาดตัวอักษรหัวข้อ
-@export var title_font_size: int = 22
+@export var title_font_size: int = 23
 
 # ขนาดตัวอักษรรายละเอียด
-@export var body_font_size: int = 16
+@export var body_font_size: int = 17
+
+# ระยะเวลาที่ข้อความสำเร็จของแต่ละ step ค้างไว้ก่อนเปลี่ยนไป step ถัดไป
+@export var step_success_message_time: float = 0.55
 
 # ระยะเวลาที่ข้อความจบ tutorial ค้างไว้ก่อนซ่อน
 @export var completion_message_time: float = 1.25
@@ -49,12 +53,16 @@ var root_control: Control = null
 var coach_panel: PanelContainer = null
 var title_label: Label = null
 var body_label: Label = null
+var progress_bar: ProgressBar = null
 
 # สถานะ tutorial
 var is_training_active: bool = false
 var is_training_completed: bool = false
 var has_started_training_this_scene: bool = false
 var current_step_index: int = 0
+
+# กันไม่ให้ step เด้งข้ามหลายขั้นในเฟรมติดกัน
+var is_advancing_step: bool = false
 
 # จำว่าเคยสอนครบแล้วใน session นี้หรือยัง
 static var has_completed_training_this_session: bool = false
@@ -64,22 +72,26 @@ var training_steps: Array[Dictionary] = [
 	{
 		"id": "move",
 		"title": "1/4 เดินซ้าย-ขวา",
-		"body": "กด ◀ / ▶ หรือปุ่มซ้าย-ขวา เพื่อขยับตัว"
+		"body": "กด ◀ / ▶ หรือปุ่มซ้าย-ขวา เพื่อขยับตัว",
+		"success": "ขยับตัวได้แล้ว"
 	},
 	{
 		"id": "attack",
 		"title": "2/4 Attack",
-		"body": "กด ATTACK เพื่อดูระยะฟันของ Player"
+		"body": "กด ATTACK เพื่อดูระยะฟันของ Player",
+		"success": "เห็นระยะโจมตีแล้ว"
 	},
 	{
 		"id": "dash",
 		"title": "3/4 Dash",
-		"body": "กด DASH เพื่อพุ่งหลบท่าหนักของบอส"
+		"body": "กด DASH เพื่อพุ่งหลบท่าหนักของบอส",
+		"success": "Dash ใช้หลบท่าหนัก"
 	},
 	{
 		"id": "parry",
 		"title": "4/4 Parry",
-		"body": "กด PARRY เมื่อเห็น PARRY! เหนือหัวบอส"
+		"body": "กด PARRY เมื่อเห็น PARRY! เหนือหัวบอส",
+		"success": "พร้อมฝึกจังหวะ Parry/Dash"
 	}
 ]
 
@@ -136,8 +148,8 @@ func create_coach_ui() -> void:
 	root_control.add_child(coach_panel)
 
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.02, 0.025, 0.035, 0.78)
-	panel_style.border_color = Color(0.75, 0.95, 1.0, 0.80)
+	panel_style.bg_color = Color(0.02, 0.025, 0.035, 0.82)
+	panel_style.border_color = Color(0.75, 0.95, 1.0, 0.82)
 	panel_style.set_border_width_all(2)
 	panel_style.set_corner_radius_all(14)
 	panel_style.content_margin_left = 18.0
@@ -147,7 +159,7 @@ func create_coach_ui() -> void:
 	coach_panel.add_theme_stylebox_override("panel", panel_style)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 4)
+	layout.add_theme_constant_override("separation", 6)
 	coach_panel.add_child(layout)
 
 	title_label = Label.new()
@@ -160,6 +172,14 @@ func create_coach_ui() -> void:
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body_label.add_theme_font_size_override("font_size", body_font_size)
 	layout.add_child(body_label)
+
+	progress_bar = ProgressBar.new()
+	progress_bar.custom_minimum_size = Vector2(460.0, 14.0)
+	progress_bar.min_value = 0.0
+	progress_bar.max_value = 100.0
+	progress_bar.value = 0.0
+	progress_bar.show_percentage = false
+	layout.add_child(progress_bar)
 
 	root_control.visible = false
 
@@ -200,6 +220,7 @@ func start_training() -> void:
 	has_started_training_this_scene = true
 	is_training_active = true
 	is_training_completed = false
+	is_advancing_step = false
 	current_step_index = 0
 
 	# หยุดบอสไว้ก่อน เพื่อให้ผู้เล่นเรียนปุ่มพื้นฐานโดยไม่โดนกดดันทันที
@@ -207,11 +228,16 @@ func start_training() -> void:
 
 	root_control.visible = true
 	show_current_step_text()
+	update_progress_bar()
 
 	print("Training Coach started")
 
 
 func update_current_training_step() -> void:
+	# ถ้ากำลังค้างข้อความสำเร็จอยู่ ไม่ต้องตรวจ input ซ้ำ
+	if is_advancing_step:
+		return
+
 	# ถ้าทำครบทุก step แล้ว ให้จบ tutorial
 	if current_step_index >= training_steps.size():
 		complete_training()
@@ -221,12 +247,33 @@ func update_current_training_step() -> void:
 	var step_id: String = str(current_step.get("id", ""))
 
 	if is_step_completed(step_id):
-		current_step_index += 1
+		advance_to_next_step()
 
-		if current_step_index >= training_steps.size():
-			complete_training()
-		else:
-			show_current_step_text()
+
+func advance_to_next_step() -> void:
+	# แสดง feedback สำเร็จก่อนเปลี่ยนไป step ถัดไป เพื่อไม่ให้กล่องกระโดดเร็วเกินไป
+	if is_advancing_step:
+		return
+
+	is_advancing_step = true
+
+	var current_step := training_steps[current_step_index]
+	var success_text: String = str(current_step.get("success", "สำเร็จ"))
+
+	title_label.text = "สำเร็จ"
+	body_label.text = success_text
+
+	current_step_index += 1
+	update_progress_bar()
+
+	await get_tree().create_timer(step_success_message_time).timeout
+
+	if current_step_index >= training_steps.size():
+		is_advancing_step = false
+		complete_training()
+	else:
+		show_current_step_text()
+		is_advancing_step = false
 
 
 func is_step_completed(step_id: String) -> bool:
@@ -252,19 +299,32 @@ func show_current_step_text() -> void:
 	var current_step := training_steps[current_step_index]
 	title_label.text = str(current_step.get("title", "Training"))
 	body_label.text = str(current_step.get("body", ""))
+	update_progress_bar()
+
+
+func update_progress_bar() -> void:
+	# Progress bar แสดงว่าผู้เล่นผ่าน tutorial พื้นฐานไปแล้วกี่ขั้น
+	if progress_bar == null:
+		return
+
+	var total_steps: float = max(float(training_steps.size()), 1.0)
+	var progress_ratio: float = clamp(float(current_step_index) / total_steps, 0.0, 1.0)
+	progress_bar.value = progress_ratio * 100.0
 
 
 func complete_training() -> void:
-	# จบ tutorial แล้วปล่อยให้บอสเริ่มสู้จริง
+	# จบ tutorial แล้วปล่อยให้ Duel Practice / Boss ทำงานต่อ
 	if is_training_completed:
 		return
 
 	is_training_active = false
 	is_training_completed = true
 	has_completed_training_this_session = true
+	current_step_index = training_steps.size()
+	update_progress_bar()
 
 	title_label.text = "พร้อมสู้"
-	body_label.text = "อ่านข้อความเหนือหัวบอส: PARRY! ให้ Parry / DASH! ให้ Dash"
+	body_label.text = "ต่อไปจะฝึกอ่านจังหวะ PARRY! และ DASH!"
 
 	set_boss_training_hold(false)
 
