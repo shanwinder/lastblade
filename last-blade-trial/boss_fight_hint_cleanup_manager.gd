@@ -109,7 +109,7 @@ func has_duel_1_finished_and_real_boss_started() -> bool:
 func is_boss_fight_hint_showing() -> bool:
 	# อ่าน Label hint จากตัวแปรของ BossBrokenMaster โดยตรง
 	var hint_label = boss.get("boss_hint_label")
-	if not hint_label is Label:
+	if not (hint_label is Label):
 		return false
 
 	var label := hint_label as Label
