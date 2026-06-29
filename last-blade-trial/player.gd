@@ -18,10 +18,10 @@ signal player_died
 # =========================
 
 # ความเร็วในการเดินปกติ
-@export var speed: float = 300.0
+@export var speed: float = 200.0
 
 # ความเร็วตอน Dash
-@export var dash_speed: float = 850.0
+@export var dash_speed: float = 650.0
 
 # ระยะเวลาที่ Dash มีผล
 @export var dash_time: float = 0.18
@@ -43,7 +43,7 @@ signal player_died
 @export var max_focus: float = 100.0
 
 # ความเร็วในการฟื้น Stamina ต่อวินาที
-@export var stamina_regen_rate: float = 30.0
+@export var stamina_regen_rate: float = 20.0
 
 # Stamina ที่ใช้เมื่อโจมตีหนึ่งครั้ง
 @export var attack_stamina_cost: float = 18.0
@@ -55,7 +55,7 @@ signal player_died
 @export var parry_stamina_cost: float = 20.0
 
 # จำนวน Focus ที่ได้รับเมื่อ Parry สำเร็จ
-@export var focus_gain_on_successful_parry: float = 20.0
+@export var focus_gain_on_successful_parry: float = 15.0
 
 # Focus ที่ต้องใช้เพื่อทำ Finisher
 @export var focus_finisher_cost: float = 100.0
@@ -75,7 +75,7 @@ signal player_died
 @export var attack_active_time: float = 0.18
 
 # เวลาหน่วงหลังโจมตี ก่อนจะขยับหรือโจมตีใหม่ได้
-@export var attack_recovery_time: float = 0.12
+@export var attack_recovery_time: float = 0.3
 
 # ความแรงกล้องสั่นเมื่อ Player โดนโจมตี
 @export var player_hit_camera_shake_strength: float = 7.0

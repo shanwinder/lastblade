@@ -14,7 +14,7 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # =========================
 
 # เลือดสูงสุดของบอส
-@export var max_hp: int = 150
+@export var max_hp: int = 300
 
 # ชื่อที่ HUD ใช้แสดงบนหน้าจอ
 @export var combat_display_name: String = "Boss"
