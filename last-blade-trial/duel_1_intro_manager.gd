@@ -2,44 +2,40 @@ extends CanvasLayer
 
 # =========================
 # Duel1IntroManager.gd
-# ขั้นกลางของ Phase 9 ก่อนทำศัตรู Duel 1 เต็มตัว
-# เวอร์ชันนี้เน้นอ่านทัน: อ่านเอง -> กดต่อไป -> เตรียมจังหวะ -> สัญญาณใหญ่ -> กดให้ทัน
-# เพิ่มปุ่ม Skip สำหรับผู้เล่นที่อยากเรียนรู้เอง หรือใช้ตอนทดสอบเร็ว
+# ขั้นกลางของ Phase 9 ก่อนปล่อยบอสสู้จริง
+# เวอร์ชันนี้เปลี่ยนจากกล่องสอนลอย ๆ เป็นการฝึกกับหุ่น/บอสจริงแบบควบคุม
+# บอสจะหยุดนิ่ง แสดงสัญญาณโจมตี แล้วกล่องจะบอกผู้เล่นว่าควร Parry หรือ Dash
+# ผู้เล่นกดถูกหรือผิด ระบบจะให้ feedback แล้วดำเนินไปขั้นถัดไป ไม่วนบังคับซ้ำ
 # =========================
 
+@export var player_path: NodePath = NodePath("../Player")
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
 @export var game_loop_manager_path: NodePath = NodePath("../GameLoopManager")
 @export var training_coach_manager_path: NodePath = NodePath("../TrainingCoachManager")
 
-# เปิด/ปิด Duel 1 practice gate
+# เปิด/ปิด Duel 1 controlled practice gate
 @export var duel_intro_enabled: bool = true
 
 # แสดงเฉพาะครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
 
 # เวลาให้อ่านคำอธิบายขั้นต่ำ ก่อนปุ่มต่อไปเปิดให้กด
-@export var instruction_read_time: float = 5.0
+@export var instruction_read_time: float = 3.00
 
 # ถ้า true ช่วงอ่านคำอธิบายต้องกดปุ่มต่อไปเอง ไม่เปลี่ยนอัตโนมัติทันที
 @export var require_continue_for_briefing: bool = true
 
-# เวลาก่อนขึ้น PARRY! หรือ DASH! ใช้เป็นช่วงอ่าน wind-up
-@export var cue_windup_time: float = 1.25
+# เวลาที่ให้ผู้เล่นตอบสนองหลังหุ่นขึ้นสัญญาณโจมตี
+@export var active_response_window: float = 3.00
 
-# เวลาที่ให้กดหลังสัญญาณใหญ่ขึ้นจริง ยาวพอสำหรับผู้เล่นใหม่
-@export var active_response_window: float = 0.90
+# เวลาค้างข้อความ feedback หลังผู้เล่นกดถูก/ผิด
+@export var step_feedback_time: float = 1.25
 
-# ระยะห่างของ beat ระหว่างช่วงเตรียมจังหวะ ช้าลงเพื่อให้อ่านทัน
-@export var rhythm_beat_interval: float = 0.8
+# เวลาหน่วงสั้น ๆ หลังฝึกครบ ก่อนปล่อยบอสจริง
+@export var success_hold_time: float = 1.25
 
-# เวลาค้างข้อความหลังทำ step สำเร็จ ก่อนเปลี่ยนไป step ถัดไป
-@export var step_success_message_time: float = 2.0
-
-# เวลาหน่วงสั้น ๆ หลังทำสำเร็จทั้งหมด ก่อนปล่อยบอส
-@export var success_hold_time: float = 3.0
-
-# เวลาค้างข้อความ feedback ตอนกดเร็วไป/ช้าไป
-@export var retry_feedback_time: float = 2.0
+# ถ้า true เมื่อ Parry ถูกในช่วงฝึก จะเรียก on_successful_parry() เพื่อให้ผู้เล่นเห็น feedback/focus เดิม
+@export var reward_training_parry_success: bool = true
 
 # ข้อความปุ่มต่อไป
 @export var continue_button_text: String = "เข้าใจแล้ว / ต่อไป"
@@ -51,7 +47,7 @@ extends CanvasLayer
 @export var skip_button_text: String = "SKIP"
 
 # ข้อความหัวข้อหลัก
-@export var intro_title: String = "Duel 1: อ่านจังหวะ"
+@export var intro_title: String = "Duel 1: ฝึกอ่านท่าบอส"
 
 # ข้อความตอนฝึก Parry
 @export var parry_practice_text: String = "PARRY!"
@@ -63,14 +59,15 @@ extends CanvasLayer
 @export var normal_title_font_size: int = 34
 
 # ขนาดตัวอักษรหัวข้อช่วงสัญญาณจริง ให้เด่นกว่ากล่องอื่นมาก
-@export var active_signal_title_font_size: int = 62
+@export var active_signal_title_font_size: int = 58
 
 # ขนาดตัวอักษรคำอธิบายปกติ
 @export var normal_body_font_size: int = 21
 
 # ขนาดตัวอักษรคำอธิบายตอนต้องกดจริง
-@export var active_signal_body_font_size: int = 26
+@export var active_signal_body_font_size: int = 25
 
+var player: Node = null
 var boss: Node = null
 var game_loop_manager: Node = null
 var training_coach_manager: Node = null
@@ -95,19 +92,13 @@ var has_completed_intro: bool = false
 # current_step มีค่า parry หรือ dash
 var current_step: String = "intro"
 
-# current_phase มีค่า briefing, windup, active หรือ feedback
+# current_phase มีค่า briefing, dummy_attack หรือ feedback
 var current_phase: String = "briefing"
 
 # เวลาที่ผ่านไปใน phase ปัจจุบัน
 var phase_elapsed_time: float = 0.0
 
-# เวลาที่ผ่านไปของ beat ปัจจุบัน
-var beat_elapsed_time: float = 0.0
-
-# จำนวน beat ที่เกิดแล้วในช่วงเตรียมจังหวะ
-var beat_count: int = 0
-
-# จำนวนครั้งที่ผู้เล่นพลาดใน practice gate นี้
+# จำนวนครั้งที่ผู้เล่นกดผิดหรือไม่ตอบสนองใน practice gate นี้
 var miss_count: int = 0
 
 # กันไม่ให้ข้อความ feedback ถูก phase update เขียนทับทันที
@@ -249,6 +240,10 @@ func create_ui() -> void:
 
 
 func setup_references() -> void:
+	player = get_node_or_null(player_path)
+	if player == null and get_parent() != null:
+		player = get_parent().get_node_or_null("Player")
+
 	boss = get_node_or_null(boss_path)
 	if boss == null and get_parent() != null:
 		boss = get_parent().get_node_or_null("BossBrokenMaster")
@@ -263,7 +258,7 @@ func setup_references() -> void:
 
 
 func are_references_ready() -> bool:
-	return is_instance_valid(boss) and is_instance_valid(game_loop_manager)
+	return is_instance_valid(player) and is_instance_valid(boss) and is_instance_valid(game_loop_manager)
 
 
 func is_game_playing() -> bool:
@@ -292,26 +287,35 @@ func is_training_ready() -> bool:
 
 
 func start_intro() -> void:
-	# เริ่ม practice gate และหยุดบอสไว้ก่อน
+	# เริ่ม controlled practice และแปลงบอสเป็นหุ่นฝึกชั่วคราว
 	has_started_intro = true
 	miss_count = 0
-	set_boss_hold(true)
+	prepare_boss_as_training_dummy()
 	root_control.visible = true
 	set_skip_button_visible(skip_button_enabled)
 
 	start_step("parry")
-	print("Duel 1 interactive rhythm practice started")
+	print("Duel 1 controlled boss practice started")
+
+
+func prepare_boss_as_training_dummy() -> void:
+	# หยุด AI บอสไว้ก่อน ให้ทำหน้าที่เป็นหุ่นฝึกแบบควบคุมโดย manager นี้
+	if not is_instance_valid(boss):
+		return
+
+	boss.visible = true
+	set_boss_hold(true)
+	clear_boss_cue()
 
 
 func start_step(step_name: String) -> void:
-	# เริ่ม step ใหม่จากช่วง briefing เพื่อให้ผู้เล่นอ่านทันก่อนฝึกจริง
+	# เริ่ม step ใหม่จากช่วง briefing เพื่อให้ผู้เล่นเข้าใจว่าจะตอบสนองแบบไหน
 	current_step = step_name
 	current_phase = "briefing"
 	phase_elapsed_time = 0.0
-	beat_elapsed_time = 0.0
-	beat_count = 0
 	can_continue_briefing = false
 	set_active_signal_visual(false)
+	clear_boss_cue()
 	show_briefing_text()
 	set_continue_button_visible(false)
 	set_progress_percent(0.0)
@@ -321,18 +325,13 @@ func start_step(step_name: String) -> void:
 func update_practice_step(delta: float) -> void:
 	# ตรวจจังหวะของ step ปัจจุบัน
 	phase_elapsed_time += delta
-	beat_elapsed_time += delta
 
 	if current_phase == "briefing":
 		update_briefing_phase()
 		return
 
-	if current_phase == "windup":
-		update_windup_phase()
-		return
-
-	if current_phase == "active":
-		update_active_phase()
+	if current_phase == "dummy_attack":
+		update_dummy_attack_phase()
 		return
 
 
@@ -348,62 +347,36 @@ func update_briefing_phase() -> void:
 	set_continue_button_visible(true)
 
 	if not require_continue_for_briefing:
-		enter_windup_phase()
+		enter_dummy_attack_phase()
 
 
-func enter_windup_phase() -> void:
-	# เข้าช่วงเตรียมจังหวะ คล้ายเห็นบอสยกดาบก่อนฟัน
-	current_phase = "windup"
+func enter_dummy_attack_phase() -> void:
+	# หุ่น/บอสจริงหยุดนิ่งและขึ้นสัญญาณโจมตี ผู้เล่นต้องลองตอบสนองด้วยปุ่มที่ถูกต้อง
+	current_phase = "dummy_attack"
 	phase_elapsed_time = 0.0
-	beat_elapsed_time = 0.0
-	beat_count = 0
 	can_continue_briefing = false
-	set_active_signal_visual(false)
 	set_continue_button_visible(false)
-	set_progress_percent(0.0)
-	show_windup_text()
-	pulse_title(1.06)
+	set_active_signal_visual(true)
+	set_progress_percent(1.0)
+	show_dummy_attack_text()
+	show_boss_cue_for_current_step()
+	pulse_title(1.28)
 
 
-func update_windup_phase() -> void:
-	# ช่วงเตรียมจังหวะ: ให้เห็น beat แต่ยังไม่ควรกด
-	set_progress_percent(clamp(phase_elapsed_time / max(cue_windup_time, 0.01), 0.0, 1.0))
-
-	if expected_action_just_pressed():
-		retry_current_step("เร็วไป รอสัญญาณใหญ่ก่อน")
-		return
-
-	if beat_elapsed_time >= rhythm_beat_interval:
-		beat_elapsed_time = 0.0
-		beat_count += 1
-		show_windup_text()
-		pulse_title(1.08)
-
-	if phase_elapsed_time >= cue_windup_time:
-		enter_active_phase()
-
-
-func update_active_phase() -> void:
-	# ช่วงสัญญาณจริง: ต้องกดให้ทันใน active_response_window
+func update_dummy_attack_phase() -> void:
+	# ระหว่างหุ่นขึ้นสัญญาณ ให้รับทั้งคำตอบที่ถูกและผิด แล้วค่อยไปต่อ
 	set_progress_percent(1.0 - clamp(phase_elapsed_time / max(active_response_window, 0.01), 0.0, 1.0))
 
 	if expected_action_just_pressed():
-		complete_current_step()
+		finish_current_step(true, "")
+		return
+
+	if wrong_action_just_pressed():
+		finish_current_step(false, get_wrong_action_message())
 		return
 
 	if phase_elapsed_time >= active_response_window:
-		retry_current_step("ช้าไป ลองอ่านจังหวะใหม่")
-
-
-func enter_active_phase() -> void:
-	# เข้าช่วงกดจริง คล้ายจังหวะ hitbox เปิดของบอส
-	current_phase = "active"
-	phase_elapsed_time = 0.0
-	beat_elapsed_time = 0.0
-	set_progress_percent(1.0)
-	set_active_signal_visual(true)
-	show_active_text()
-	pulse_title(1.34)
+		finish_current_step(false, "ไม่ได้กดตอบสนอง")
 
 
 func expected_action_just_pressed() -> bool:
@@ -417,8 +390,30 @@ func expected_action_just_pressed() -> bool:
 	return false
 
 
-func complete_current_step() -> void:
-	# สำคัญ: เปลี่ยนเป็น feedback ทันที เพื่อไม่ให้ active timer ยิงซ้ำจนขึ้นว่า "ช้าไป" หลังทำสำเร็จ
+func wrong_action_just_pressed() -> bool:
+	# ถ้ากดปุ่มต่อสู้อื่นที่ไม่ใช่คำตอบที่ถูก ให้ถือว่าผิด แต่ยังไปต่อเพื่อให้ผู้เล่นเรียนรู้จากผลลัพธ์
+	if current_step == "parry":
+		return Input.is_action_just_pressed("dash") or Input.is_action_just_pressed("attack")
+
+	if current_step == "dash":
+		return Input.is_action_just_pressed("parry") or Input.is_action_just_pressed("attack")
+
+	return false
+
+
+func get_wrong_action_message() -> String:
+	# ข้อความสั้น ๆ ตาม step ที่กดผิด
+	if current_step == "parry":
+		return "ท่านี้ควร Parry ไม่ใช่ Dash/Attack"
+
+	if current_step == "dash":
+		return "ท่านี้ควร Dash ไม่ใช่ Parry/Attack"
+
+	return "กดผิดปุ่ม"
+
+
+func finish_current_step(was_successful: bool, fail_message: String) -> void:
+	# เมื่อผู้เล่นกดถูกหรือผิด ให้แสดงผล แล้วไป step ถัดไป ไม่บังคับวนซ้ำ
 	if is_showing_feedback:
 		return
 
@@ -426,76 +421,140 @@ func complete_current_step() -> void:
 	is_showing_feedback = true
 	set_active_signal_visual(false)
 	set_continue_button_visible(false)
-	set_progress_percent(1.0)
+	set_progress_percent(1.0 if was_successful else 0.0)
+	clear_boss_cue()
+	play_controlled_attack_visual()
+
+	if was_successful:
+		show_success_feedback()
+	else:
+		miss_count += 1
+		show_fail_feedback(fail_message)
+
+	pulse_title(1.10)
+
+	await get_tree().create_timer(step_feedback_time).timeout
+
+	if has_completed_intro:
+		return
+
+	is_showing_feedback = false
 
 	if current_step == "parry":
-		show_feedback_text("ดีมาก", "นี่คือจังหวะ Parry ที่ถูกต้อง\nต่อไปจะฝึก Dash สำหรับท่าหนัก")
-		pulse_title(1.12)
-		print("Duel 1 practice: parry rhythm completed")
-		await get_tree().create_timer(step_success_message_time).timeout
-
-		# ถ้ากด Skip ระหว่าง feedback ให้ไม่เริ่ม step ใหม่ซ้ำ
-		if has_completed_intro:
-			return
-
-		is_showing_feedback = false
 		start_step("dash")
 		return
 
 	if current_step == "dash":
-		is_showing_feedback = false
 		complete_intro()
 
 
+func show_success_feedback() -> void:
+	# แสดงผลเมื่อผู้เล่นตอบสนองถูก
+	if current_step == "parry":
+		set_practice_text(
+			"สำเร็จ",
+			"Parry ถูกจังหวะ\nนี่คือวิธีรับมือท่าที่ขึ้น PARRY!"
+		)
+
+		# ให้ feedback/focus เดิมของ Player เพื่อให้รู้สึกว่า Parry สำเร็จจริง
+		if reward_training_parry_success and is_instance_valid(player) and player.has_method("on_successful_parry"):
+			player.on_successful_parry()
+		return
+
+	if current_step == "dash":
+		set_practice_text(
+			"สำเร็จ",
+			"Dash ถูกจังหวะ\nท่าหนักที่ขึ้น DASH! ต้องหลบ ไม่ใช่ Parry"
+		)
+		return
+
+
+func show_fail_feedback(fail_message: String) -> void:
+	# แสดงผลเมื่อผู้เล่นกดผิดหรือไม่ตอบสนอง แต่ยังให้เกมดำเนินต่อ
+	if fail_message == "":
+		fail_message = "ลองจำสัญญาณนี้ไว้สำหรับรอบจริง"
+
+	set_practice_text(
+		"ยังไม่ถูก",
+		"%s\nไม่เป็นไร เกมจะไปต่อ เพื่อให้เรียนรู้จากการเล่นจริง\nพลาดแล้ว: %d ครั้ง" % [fail_message, miss_count]
+	)
+
+
 func show_briefing_text() -> void:
-	# แสดงคำอธิบายให้อ่านก่อนเข้าจังหวะจริง
+	# แสดงคำอธิบายให้อ่านก่อนให้หุ่นโจมตีจำลอง
 	if current_step == "parry":
 		set_practice_text(
-			"ฝึก Parry",
-			"เมื่อเห็น PARRY! ให้กด Parry\nอ่านให้เข้าใจก่อน แล้วกด ต่อไป"
+			"ฝึก Parry กับหุ่น",
+			"บอสจะหยุดนิ่งและทำท่าที่ Parry ได้\nเมื่อเห็น PARRY! ให้กด Parry"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
-			"ฝึก Dash",
-			"เมื่อเห็น DASH! ให้กด Dash\nท่าหนักห้าม Parry ต้องหลบด้วย Dash"
+			"ฝึก Dash กับหุ่น",
+			"บอสจะหยุดนิ่งและทำท่าหนัก\nเมื่อเห็น DASH! ให้กด Dash ห้าม Parry"
 		)
 		return
 
 
-func show_windup_text() -> void:
-	# แสดงช่วงเตรียมจังหวะ ไม่เปลี่ยนทุกเฟรม เปลี่ยนเฉพาะตอน beat เพิ่ม
-	if current_step == "parry":
-		set_practice_text(
-			"เตรียม Parry",
-			"ดูจังหวะบอสยกดาบ\n%s\nอย่าเพิ่งกด รอคำว่า PARRY!" % get_beat_text()
-		)
-		return
-
-	if current_step == "dash":
-		set_practice_text(
-			"เตรียม Dash",
-			"ท่าหนักกำลังมา\n%s\nอย่าเพิ่งกด รอคำว่า DASH!" % get_beat_text()
-		)
-		return
-
-
-func show_active_text() -> void:
-	# แสดงสัญญาณใหญ่ตอนที่กดได้จริง ต้องเด่นที่สุดใน flow
+func show_dummy_attack_text() -> void:
+	# กล่องสอนตอนหุ่น/บอสขึ้นท่าโจมตีจริงแบบควบคุม
 	if current_step == "parry":
 		set_practice_text(
 			"⚡  %s  ⚡" % parry_practice_text,
-			"กด PARRY ตอนนี้!\nตอนนี้เท่านั้น"
+			"หุ่นกำลังโจมตีแบบ Parry ได้\nกด PARRY หรือกดผิดเพื่อดูผลลัพธ์"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
 			"⚡  %s  ⚡" % dash_practice_text,
-			"กด DASH ตอนนี้!\nท่าหนักห้าม Parry"
+			"หุ่นกำลังทำท่าหนัก\nกด DASH หรือกดผิดเพื่อดูผลลัพธ์"
 		)
 		return
+
+
+func show_boss_cue_for_current_step() -> void:
+	# ใช้ label เหนือหัวบอสจริง เพื่อให้ผู้เล่นเชื่อมสัญญาณกับตัวศัตรู ไม่ใช่แค่กล่อง UI
+	if current_step == "parry":
+		show_boss_cue(parry_practice_text, Color(0.35, 0.95, 1.0, 1.0))
+		set_boss_sprite_color(Color(0.35, 0.95, 1.0, 1.0))
+		return
+
+	if current_step == "dash":
+		show_boss_cue(dash_practice_text, Color(1.0, 0.35, 0.0, 1.0))
+		set_boss_sprite_color(Color(1.0, 0.35, 0.0, 1.0))
+		return
+
+
+func show_boss_cue(text: String, color: Color) -> void:
+	# เรียกใช้ระบบ hint เหนือหัวบอสเดิม ถ้ามี
+	if is_instance_valid(boss) and boss.has_method("update_boss_hint_label"):
+		boss.update_boss_hint_label(text, color)
+
+
+func clear_boss_cue() -> void:
+	# ล้าง hint และคืนสีบอสหลังจบ step
+	if is_instance_valid(boss) and boss.has_method("clear_attack_hint"):
+		boss.clear_attack_hint()
+
+	set_boss_sprite_color(Color.WHITE)
+
+
+func set_boss_sprite_color(new_color: Color) -> void:
+	# เปลี่ยนสีบอสจริงชั่วคราวเพื่อบอกประเภทท่า
+	if not is_instance_valid(boss):
+		return
+
+	var sprite = boss.get_node_or_null("Sprite2D")
+	if sprite != null:
+		sprite.modulate = new_color
+
+
+func play_controlled_attack_visual() -> void:
+	# เล่น slash placeholder ของบอสตอนผู้เล่นตอบสนอง เพื่อให้รู้สึกว่าหุ่นโจมตีจริง
+	if is_instance_valid(boss) and boss.has_method("show_boss_slash_effect"):
+		boss.show_boss_slash_effect()
 
 
 func set_practice_text(new_title: String, new_body: String) -> void:
@@ -509,50 +568,6 @@ func set_practice_text(new_title: String, new_body: String) -> void:
 		last_body_text = new_body
 
 
-func show_feedback_text(new_title: String, new_body: String) -> void:
-	# แสดง feedback แบบค้างให้อ่านทัน
-	set_practice_text(new_title, new_body)
-
-
-func get_beat_text() -> String:
-	# ทำ beat แบบตัวอักษรให้เห็นจังหวะก่อนสัญญาณจริง
-	var beat_dots := ""
-	var visible_beats: int = clamp(beat_count + 1, 1, 4)
-
-	for i in range(visible_beats):
-		beat_dots += "● "
-
-	return beat_dots.strip_edges()
-
-
-func retry_current_step(message: String) -> void:
-	# ถ้ากดเร็วไปหรือช้าไป ให้ค้างข้อความก่อนเริ่ม step เดิมใหม่
-	if is_showing_feedback:
-		return
-
-	current_phase = "feedback"
-	miss_count += 1
-	is_showing_feedback = true
-	set_active_signal_visual(false)
-	set_continue_button_visible(false)
-	set_progress_percent(0.0)
-	show_feedback_text(
-		message,
-		"ไม่เป็นไร อ่านจังหวะแล้วลองอีกครั้ง\nพลาดแล้ว: %d ครั้ง" % miss_count
-	)
-	pulse_title(1.10)
-	print("Duel 1 practice retry:", message, "miss count =", miss_count)
-
-	await get_tree().create_timer(retry_feedback_time).timeout
-
-	# ถ้ากด Skip ระหว่างข้อความ retry ให้ไม่เริ่ม step ใหม่ซ้ำ
-	if has_completed_intro:
-		return
-
-	is_showing_feedback = false
-	start_step(current_step)
-
-
 func complete_intro() -> void:
 	if has_completed_intro:
 		return
@@ -560,17 +575,19 @@ func complete_intro() -> void:
 	has_completed_intro = true
 	has_completed_intro_this_session = true
 	current_phase = "feedback"
+	is_showing_feedback = true
 	set_active_signal_visual(false)
 	set_continue_button_visible(false)
 	set_skip_button_visible(false)
 	set_progress_percent(1.0)
-	show_feedback_text(
-		"พร้อมเข้าบอส",
-		"จำไว้: อ่านจังหวะก่อน\nPARRY! = Parry / DASH! = Dash"
+	clear_boss_cue()
+	set_practice_text(
+		"พร้อมเข้าบอสจริง",
+		"จากนี้บอสจะไม่หยุดเป็นหุ่นฝึกแล้ว\nอ่านสัญญาณบนตัวบอส แล้วตอบสนองให้ทัน"
 	)
 	pulse_title(1.16)
 
-	print("Duel 1 interactive rhythm practice completed")
+	print("Duel 1 controlled boss practice completed")
 
 	await get_tree().create_timer(success_hold_time).timeout
 
@@ -584,7 +601,7 @@ func on_skip_button_pressed() -> void:
 	if has_completed_intro:
 		return
 
-	print("Duel 1 practice skipped")
+	print("Duel 1 controlled boss practice skipped")
 	has_completed_intro = true
 	has_completed_intro_this_session = true
 	current_phase = "feedback"
@@ -593,6 +610,7 @@ func on_skip_button_pressed() -> void:
 	set_continue_button_visible(false)
 	set_skip_button_visible(false)
 	set_progress_percent(1.0)
+	clear_boss_cue()
 
 	if is_instance_valid(root_control):
 		root_control.visible = false
@@ -601,7 +619,7 @@ func on_skip_button_pressed() -> void:
 
 
 func set_progress_percent(percent: float) -> void:
-	# Progress bar อยู่ในกล่องเดียวกัน ใช้บอกระยะอ่าน/เตรียม/หน้าต่างกด
+	# Progress bar อยู่ในกล่องเดียวกัน ใช้บอกระยะอ่าน/ระยะตอบสนอง
 	if progress_bar == null:
 		return
 
@@ -634,7 +652,7 @@ func on_continue_button_pressed() -> void:
 	if not can_continue_briefing:
 		return
 
-	enter_windup_phase()
+	enter_dummy_attack_phase()
 
 
 func set_active_signal_visual(is_active: bool) -> void:
@@ -672,17 +690,28 @@ func pulse_title(target_scale: float) -> void:
 
 
 func set_boss_hold(should_hold: bool) -> void:
-	# หยุดหรือปล่อยบอส เพื่อให้ผู้เล่นฝึกก่อน
+	# หยุดหรือปล่อยบอส เพื่อให้ช่วงฝึกกับหุ่นควบคุมได้จริง
 	if not is_instance_valid(boss):
 		return
 
 	boss.set_physics_process(not should_hold)
+
+	var attack_id = boss.get("attack_sequence_id")
+	if attack_id != null:
+		boss.set("attack_sequence_id", int(attack_id) + 1)
+
+	boss.set("can_attack", not should_hold)
+	boss.set("is_winding_up", false)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("knockback_velocity", Vector2.ZERO)
+	boss.set("velocity", Vector2.ZERO)
 
 	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
 	if attack_shape != null:
 		attack_shape.set_deferred("disabled", true)
 
 	if not should_hold:
+		boss.visible = true
 		boss.set("can_attack", true)
-		boss.set("is_winding_up", false)
-		boss.set("is_attacking", false)
