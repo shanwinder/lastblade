@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://43w58vdgm2xd" path="res://player_attack_vfx_manager.gd" id="9_player_vfx"]
 [ext_resource type="Script" uid="uid://cb36722w2nj1" path="res://game_loop_manager.gd" id="10_loop"]
 [ext_resource type="Script" uid="uid://b26knylfkh4bd" path="res://boss_difficulty_curve_manager.gd" id="11_curve"]
+[ext_resource type="Script" path="res://training_coach_manager.gd" id="12_training"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -122,6 +123,10 @@ offset_bottom = 253.0
 [node name="TouchControls" type="CanvasLayer" parent="." unique_id=248781972]
 layer = 20
 script = ExtResource("8_touch")
+
+[node name="TrainingCoachManager" type="CanvasLayer" parent="."]
+layer = 35
+script = ExtResource("12_training")
 
 [node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465]
 layer = 40
