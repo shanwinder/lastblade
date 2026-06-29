@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://touch_controls.gd" id="8_touch"]
 [ext_resource type="Script" path="res://player_attack_vfx_manager.gd" id="9_player_vfx"]
 [ext_resource type="Script" path="res://game_loop_manager.gd" id="10_loop"]
+[ext_resource type="Script" path="res://boss_difficulty_curve_manager.gd" id="11_curve"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -56,6 +57,9 @@ script = ExtResource("7_decay")
 
 [node name="PlayerAttackVFXManager" type="Node" parent="."]
 script = ExtResource("9_player_vfx")
+
+[node name="BossDifficultyCurveManager" type="Node" parent="."]
+script = ExtResource("11_curve")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=613196371]
 script = ExtResource("5_7w3th")
