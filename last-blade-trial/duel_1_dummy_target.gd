@@ -318,7 +318,10 @@ func show_damage_popup(amount: int) -> void:
 	popup.global_position = global_position + Vector2(-20.0, -95.0)
 
 	var target_position: Vector2 = popup.global_position + Vector2(0.0, -34.0)
-	var tween := create_tween()
+
+	# สำคัญ: ใช้ popup.create_tween() เพื่อให้ tween ผูกกับเลขดาเมจเอง
+	# ถ้าใช้ create_tween() ของหุ่น แล้วหุ่นตายก่อน เลข 10 จะค้างบนจอ
+	var tween := popup.create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(popup, "global_position", target_position, 0.38)
 	tween.tween_property(popup, "modulate:a", 0.0, 0.38)
