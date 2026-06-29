@@ -1,16 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <!-- Player silhouette prototype ปรับ contrast: เพิ่ม rim light สีฟ้าอ่อนเพื่อไม่ให้กลืนกับฉากหลัง -->
+  <!-- Player silhouette upgraded: นักดาบไร้นาม อ่านทรงชัดขึ้น แต่ยังคงเป็น limited silhouette สำหรับมือถือ -->
   <rect width="128" height="128" fill="none"/>
-  <g stroke="#d9f7ff" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="62" cy="27" rx="13" ry="14" fill="#101820"/>
-    <path d="M48 45 C49 36 76 36 80 46 L74 82 C72 91 55 91 52 82 Z" fill="#101820"/>
-    <path d="M51 82 L40 114 L52 114 L62 89 Z" fill="#101820"/>
-    <path d="M72 82 L82 114 L94 114 L82 88 Z" fill="#101820"/>
-    <path d="M50 51 L29 72 L36 80 L57 61 Z" fill="#101820"/>
-    <path d="M76 51 L96 39 L101 48 L82 63 Z" fill="#101820"/>
+
+  <!-- เงาหลังเท้า ช่วยให้ตัวละครยืนบนพื้นชัดขึ้น -->
+  <ellipse cx="66" cy="116" rx="37" ry="7" fill="#061016" opacity="0.75"/>
+
+  <!-- ขอบแสงฟ้าเย็น แยก Player ออกจากฉากหลังมืด -->
+  <g stroke="#d9f7ff" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M50 41 C52 31 75 30 80 43 L75 78 C73 91 55 91 52 79 Z" fill="#0b141b"/>
+    <ellipse cx="64" cy="26" rx="12" ry="13" fill="#0b141b"/>
+    <path d="M50 78 L39 115 L52 115 L62 87 Z" fill="#0b141b"/>
+    <path d="M74 78 L86 115 L99 115 L82 87 Z" fill="#0b141b"/>
+    <path d="M52 50 L30 70 L37 81 L58 61 Z" fill="#0b141b"/>
+    <path d="M77 49 L96 39 L102 49 L84 63 Z" fill="#0b141b"/>
   </g>
-  <path d="M86 39 L112 17" stroke="#fff6b0" stroke-width="7" stroke-linecap="round"/>
-  <path d="M81 44 L91 34" stroke="#5bc0eb" stroke-width="5" stroke-linecap="round"/>
-  <path d="M43 116 H96" stroke="#d9f7ff" stroke-width="9" stroke-linecap="round"/>
-  <path d="M43 116 H96" stroke="#101820" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- ผ้าคลุม/เศษผ้าด้านหลัง เพิ่มคาแรกเตอร์แบบดาร์กแฟนตาซี -->
+  <path d="M50 45 C39 56 39 82 45 103 C53 91 56 69 55 48 Z" fill="#102530" opacity="0.92"/>
+  <path d="M76 45 C88 58 90 82 84 101 C76 88 72 68 72 48 Z" fill="#102530" opacity="0.72"/>
+
+  <!-- เส้นพับเสื้อและ rim light ภายในตัว -->
+  <path d="M58 43 L53 79" stroke="#5bc0eb" stroke-width="2.4" stroke-linecap="round" opacity="0.82"/>
+  <path d="M72 43 L75 76" stroke="#5bc0eb" stroke-width="2.1" stroke-linecap="round" opacity="0.54"/>
+  <path d="M55 91 L48 113" stroke="#5bc0eb" stroke-width="2.2" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ดาบหลัก ใช้สีทองอ่อนเพื่อให้เห็นทิศการโจมตีง่าย -->
+  <path d="M85 41 L114 13" stroke="#fff6b0" stroke-width="7" stroke-linecap="round"/>
+  <path d="M113 13 L119 7" stroke="#fff6b0" stroke-width="4" stroke-linecap="round" opacity="0.78"/>
+  <path d="M78 48 L91 35" stroke="#5bc0eb" stroke-width="5" stroke-linecap="round"/>
+  <path d="M74 52 L84 42" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- เส้นฐานเท้าแบบคมขึ้น -->
+  <path d="M39 116 H101" stroke="#d9f7ff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M40 116 H100" stroke="#0b141b" stroke-width="5" stroke-linecap="round"/>
 </svg>
