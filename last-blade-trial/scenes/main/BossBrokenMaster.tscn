@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://combat_decay_manager.gd" id="7_decay"]
 [ext_resource type="Script" path="res://touch_controls.gd" id="8_touch"]
 [ext_resource type="Script" path="res://player_attack_vfx_manager.gd" id="9_player_vfx"]
+[ext_resource type="Script" path="res://game_loop_manager.gd" id="10_loop"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -117,6 +118,10 @@ offset_bottom = 253.0
 [node name="TouchControls" type="CanvasLayer" parent="."]
 layer = 20
 script = ExtResource("8_touch")
+
+[node name="GameLoopManager" type="CanvasLayer" parent="."]
+layer = 40
+script = ExtResource("10_loop")
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=2003199488]
 position = Vector2(576, 324)
