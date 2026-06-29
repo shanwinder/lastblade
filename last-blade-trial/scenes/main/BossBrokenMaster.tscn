@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="5_7w3th"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
 [ext_resource type="Script" path="res://combat_decay_manager.gd" id="7_decay"]
+[ext_resource type="Script" path="res://touch_controls.gd" id="8_touch"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -108,6 +109,10 @@ offset_left = 360.0
 offset_top = 230.0
 offset_right = 400.0
 offset_bottom = 253.0
+
+[node name="TouchControls" type="CanvasLayer" parent="."]
+layer = 20
+script = ExtResource("8_touch")
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=2003199488]
 position = Vector2(576, 324)
