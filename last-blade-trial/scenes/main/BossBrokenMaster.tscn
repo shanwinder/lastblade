@@ -11,8 +11,8 @@
 [ext_resource type="Script" uid="uid://43w58vdgm2xd" path="res://player_attack_vfx_manager.gd" id="9_player_vfx"]
 [ext_resource type="Script" uid="uid://cb36722w2nj1" path="res://game_loop_manager.gd" id="10_loop"]
 [ext_resource type="Script" uid="uid://b26knylfkh4bd" path="res://boss_difficulty_curve_manager.gd" id="11_curve"]
-[ext_resource type="Script" path="res://training_coach_manager.gd" id="12_training"]
-[ext_resource type="Script" path="res://duel_1_intro_manager.gd" id="13_duel_intro"]
+[ext_resource type="Script" uid="uid://ds5hmdbr5yu0w" path="res://training_coach_manager.gd" id="12_training"]
+[ext_resource type="Script" uid="uid://c1m0u7ckyk1go" path="res://duel_1_intro_manager.gd" id="13_duel_intro"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -125,11 +125,11 @@ offset_bottom = 253.0
 layer = 20
 script = ExtResource("8_touch")
 
-[node name="TrainingCoachManager" type="CanvasLayer" parent="."]
+[node name="TrainingCoachManager" type="CanvasLayer" parent="." unique_id=2052263084]
 layer = 35
 script = ExtResource("12_training")
 
-[node name="Duel1IntroManager" type="CanvasLayer" parent="."]
+[node name="Duel1IntroManager" type="CanvasLayer" parent="." unique_id=2036130960]
 layer = 36
 script = ExtResource("13_duel_intro")
 
