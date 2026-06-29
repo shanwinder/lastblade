@@ -3,9 +3,11 @@ extends CanvasLayer
 # =========================
 # Duel1IntroManager.gd
 # ขั้นกลางของ Phase 9 ก่อนปล่อยบอสสู้จริง
-# เวอร์ชันนี้เปลี่ยนจากกล่องสอนลอย ๆ เป็นการฝึกกับหุ่น/บอสจริงแบบควบคุม
-# บอสจะหยุดนิ่ง แสดงสัญญาณโจมตี แล้วกล่องจะบอกผู้เล่นว่าควร Parry หรือ Dash
-# ผู้เล่นกดถูกหรือผิด ระบบจะให้ feedback แล้วดำเนินไปขั้นถัดไป ไม่วนบังคับซ้ำ
+# เวอร์ชันนี้ฝึกแบบ Freeze Frame Prompt:
+# 1) อ่านคำอธิบาย
+# 2) บอสเข้าสู่ท่ากำลังจะโจมตีแบบสั้น ๆ
+# 3) หยุดจังหวะนั้นไว้ แล้วมีกล่องบอกให้กด Parry หรือ Dash
+# 4) ผู้เล่นกดถูกหรือผิด ระบบให้ feedback แล้วไปต่อ
 # =========================
 
 @export var player_path: NodePath = NodePath("../Player")
@@ -25,7 +27,10 @@ extends CanvasLayer
 # ถ้า true ช่วงอ่านคำอธิบายต้องกดปุ่มต่อไปเอง ไม่เปลี่ยนอัตโนมัติทันที
 @export var require_continue_for_briefing: bool = true
 
-# เวลาที่ให้ผู้เล่นตอบสนองหลังหุ่นขึ้นสัญญาณโจมตี
+# เวลาสั้น ๆ ที่ให้เห็นว่าบอสกำลังจะโจมตี ก่อนหยุดภาพเพื่อสอน
+@export var attack_preview_time: float = 0.85
+
+# เวลาที่ให้ผู้เล่นตอบสนองหลังเกมหยุดจังหวะโจมตีไว้และขึ้นกล่องเตือน
 @export var active_response_window: float = 3.00
 
 # เวลาค้างข้อความ feedback หลังผู้เล่นกดถูก/ผิด
@@ -92,7 +97,7 @@ var has_completed_intro: bool = false
 # current_step มีค่า parry หรือ dash
 var current_step: String = "intro"
 
-# current_phase มีค่า briefing, dummy_attack หรือ feedback
+# current_phase มีค่า briefing, attack_preview, frozen_prompt หรือ feedback
 var current_phase: String = "briefing"
 
 # เวลาที่ผ่านไปใน phase ปัจจุบัน
@@ -295,7 +300,7 @@ func start_intro() -> void:
 	set_skip_button_visible(skip_button_enabled)
 
 	start_step("parry")
-	print("Duel 1 controlled boss practice started")
+	print("Duel 1 freeze-frame boss practice started")
 
 
 func prepare_boss_as_training_dummy() -> void:
@@ -330,8 +335,12 @@ func update_practice_step(delta: float) -> void:
 		update_briefing_phase()
 		return
 
-	if current_phase == "dummy_attack":
-		update_dummy_attack_phase()
+	if current_phase == "attack_preview":
+		update_attack_preview_phase()
+		return
+
+	if current_phase == "frozen_prompt":
+		update_frozen_prompt_phase()
 		return
 
 
@@ -347,24 +356,45 @@ func update_briefing_phase() -> void:
 	set_continue_button_visible(true)
 
 	if not require_continue_for_briefing:
-		enter_dummy_attack_phase()
+		enter_attack_preview_phase()
 
 
-func enter_dummy_attack_phase() -> void:
-	# หุ่น/บอสจริงหยุดนิ่งและขึ้นสัญญาณโจมตี ผู้เล่นต้องลองตอบสนองด้วยปุ่มที่ถูกต้อง
-	current_phase = "dummy_attack"
+func enter_attack_preview_phase() -> void:
+	# บอสเข้าสู่ท่ากำลังจะโจมตี แต่ยังไม่ขึ้นคำตอบทันที
+	# จุดประสงค์คือให้ผู้เล่นเห็นว่า "ตอนนี้บอสกำลังจะตี" ก่อนเกมหยุดเตือน
+	current_phase = "attack_preview"
 	phase_elapsed_time = 0.0
 	can_continue_briefing = false
 	set_continue_button_visible(false)
+	set_active_signal_visual(false)
+	set_progress_percent(0.0)
+	show_attack_preview_text()
+	show_boss_windup_preview()
+	pulse_title(1.08)
+
+
+func update_attack_preview_phase() -> void:
+	# ช่วงเห็นท่าบอสกำลังจะโจมตี ก่อน freeze frame prompt
+	var progress_percent: float = clamp(phase_elapsed_time / max(attack_preview_time, 0.01), 0.0, 1.0)
+	set_progress_percent(progress_percent)
+
+	if phase_elapsed_time >= attack_preview_time:
+		enter_frozen_prompt_phase()
+
+
+func enter_frozen_prompt_phase() -> void:
+	# นี่คือจังหวะ freeze frame: บอสหยุดนิ่งตอนกำลังจะโจมตี แล้วกล่องเตือนให้กด Parry/Dash
+	current_phase = "frozen_prompt"
+	phase_elapsed_time = 0.0
 	set_active_signal_visual(true)
 	set_progress_percent(1.0)
-	show_dummy_attack_text()
+	show_frozen_prompt_text()
 	show_boss_cue_for_current_step()
 	pulse_title(1.28)
 
 
-func update_dummy_attack_phase() -> void:
-	# ระหว่างหุ่นขึ้นสัญญาณ ให้รับทั้งคำตอบที่ถูกและผิด แล้วค่อยไปต่อ
+func update_frozen_prompt_phase() -> void:
+	# ระหว่างหยุดจังหวะโจมตี ให้รับทั้งคำตอบที่ถูกและผิด แล้วค่อยไปต่อ
 	set_progress_percent(1.0 - clamp(phase_elapsed_time / max(active_response_window, 0.01), 0.0, 1.0))
 
 	if expected_action_just_pressed():
@@ -422,8 +452,8 @@ func finish_current_step(was_successful: bool, fail_message: String) -> void:
 	set_active_signal_visual(false)
 	set_continue_button_visible(false)
 	set_progress_percent(1.0 if was_successful else 0.0)
-	clear_boss_cue()
 	play_controlled_attack_visual()
+	clear_boss_cue()
 
 	if was_successful:
 		show_success_feedback()
@@ -453,7 +483,7 @@ func show_success_feedback() -> void:
 	if current_step == "parry":
 		set_practice_text(
 			"สำเร็จ",
-			"Parry ถูกจังหวะ\nนี่คือวิธีรับมือท่าที่ขึ้น PARRY!"
+			"Parry ถูกจังหวะ\nตอนบอสหยุดเตือนด้วย PARRY! ให้กด Parry"
 		)
 
 		# ให้ feedback/focus เดิมของ Player เพื่อให้รู้สึกว่า Parry สำเร็จจริง
@@ -464,7 +494,7 @@ func show_success_feedback() -> void:
 	if current_step == "dash":
 		set_practice_text(
 			"สำเร็จ",
-			"Dash ถูกจังหวะ\nท่าหนักที่ขึ้น DASH! ต้องหลบ ไม่ใช่ Parry"
+			"Dash ถูกจังหวะ\nตอนบอสหยุดเตือนด้วย DASH! ให้ Dash ออก"
 		)
 		return
 
@@ -476,46 +506,76 @@ func show_fail_feedback(fail_message: String) -> void:
 
 	set_practice_text(
 		"ยังไม่ถูก",
-		"%s\nไม่เป็นไร เกมจะไปต่อ เพื่อให้เรียนรู้จากการเล่นจริง\nพลาดแล้ว: %d ครั้ง" % [fail_message, miss_count]
+		"%s\nจังหวะนี้เกมหยุดเตือนแล้ว ต้องเลือกปุ่มให้ถูก\nพลาดแล้ว: %d ครั้ง" % [fail_message, miss_count]
 	)
 
 
 func show_briefing_text() -> void:
-	# แสดงคำอธิบายให้อ่านก่อนให้หุ่นโจมตีจำลอง
+	# แสดงคำอธิบายก่อนเริ่ม sequence บอสกำลังจะโจมตี -> freeze prompt
 	if current_step == "parry":
 		set_practice_text(
-			"ฝึก Parry กับหุ่น",
-			"บอสจะหยุดนิ่งและทำท่าที่ Parry ได้\nเมื่อเห็น PARRY! ให้กด Parry"
+			"ฝึก Parry",
+			"ต่อไปบอสจะทำท่าจะโจมตี\nเกมจะหยุดจังหวะนั้นไว้ แล้วบอกให้กด Parry"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
-			"ฝึก Dash กับหุ่น",
-			"บอสจะหยุดนิ่งและทำท่าหนัก\nเมื่อเห็น DASH! ให้กด Dash ห้าม Parry"
+			"ฝึก Dash",
+			"ต่อไปบอสจะทำท่าหนัก\nเกมจะหยุดจังหวะนั้นไว้ แล้วบอกให้กด Dash"
 		)
 		return
 
 
-func show_dummy_attack_text() -> void:
-	# กล่องสอนตอนหุ่น/บอสขึ้นท่าโจมตีจริงแบบควบคุม
+func show_attack_preview_text() -> void:
+	# ข้อความตอนบอสเริ่มทำท่าก่อน freeze frame
 	if current_step == "parry":
 		set_practice_text(
-			"⚡  %s  ⚡" % parry_practice_text,
-			"หุ่นกำลังโจมตีแบบ Parry ได้\nกด PARRY หรือกดผิดเพื่อดูผลลัพธ์"
+			"บอสกำลังจะโจมตี",
+			"ดูท่าทางบอสก่อน\nอีกสักครู่เกมจะหยุดจังหวะสำคัญเพื่อบอกปุ่ม"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
-			"⚡  %s  ⚡" % dash_practice_text,
-			"หุ่นกำลังทำท่าหนัก\nกด DASH หรือกดผิดเพื่อดูผลลัพธ์"
+			"บอสกำลังจะใช้ท่าหนัก",
+			"ดูท่าทางบอสก่อน\nอีกสักครู่เกมจะหยุดจังหวะสำคัญเพื่อบอกปุ่ม"
 		)
+		return
+
+
+func show_frozen_prompt_text() -> void:
+	# กล่องสอนตอน freeze frame ที่ผู้เล่นต้องตอบสนอง
+	if current_step == "parry":
+		set_practice_text(
+			"⏸  %s  ⏸" % parry_practice_text,
+			"บอสถูกหยุดไว้ตรงจังหวะกำลังโจมตี\nกด PARRY ตอนนี้"
+		)
+		return
+
+	if current_step == "dash":
+		set_practice_text(
+			"⏸  %s  ⏸" % dash_practice_text,
+			"บอสถูกหยุดไว้ตรงจังหวะท่าหนัก\nกด DASH ตอนนี้ ห้าม Parry"
+		)
+		return
+
+
+func show_boss_windup_preview() -> void:
+	# ทำให้บอสเหมือนกำลัง wind-up ก่อน freeze prompt
+	if current_step == "parry":
+		show_boss_cue("...", Color.YELLOW)
+		set_boss_sprite_color(Color.YELLOW)
+		return
+
+	if current_step == "dash":
+		show_boss_cue("...", Color(1.0, 0.35, 0.0, 1.0))
+		set_boss_sprite_color(Color(1.0, 0.35, 0.0, 1.0))
 		return
 
 
 func show_boss_cue_for_current_step() -> void:
-	# ใช้ label เหนือหัวบอสจริง เพื่อให้ผู้เล่นเชื่อมสัญญาณกับตัวศัตรู ไม่ใช่แค่กล่อง UI
+	# ใช้ label เหนือหัวบอสจริงในจังหวะ freeze frame เพื่อเชื่อมสัญญาณกับตัวศัตรู
 	if current_step == "parry":
 		show_boss_cue(parry_practice_text, Color(0.35, 0.95, 1.0, 1.0))
 		set_boss_sprite_color(Color(0.35, 0.95, 1.0, 1.0))
@@ -552,7 +612,7 @@ func set_boss_sprite_color(new_color: Color) -> void:
 
 
 func play_controlled_attack_visual() -> void:
-	# เล่น slash placeholder ของบอสตอนผู้เล่นตอบสนอง เพื่อให้รู้สึกว่าหุ่นโจมตีจริง
+	# เล่น slash placeholder ของบอสตอนผู้เล่นตอบสนอง เพื่อให้รู้สึกว่าหลังตอบแล้วท่าถูกปล่อยออกจริง
 	if is_instance_valid(boss) and boss.has_method("show_boss_slash_effect"):
 		boss.show_boss_slash_effect()
 
@@ -583,11 +643,11 @@ func complete_intro() -> void:
 	clear_boss_cue()
 	set_practice_text(
 		"พร้อมเข้าบอสจริง",
-		"จากนี้บอสจะไม่หยุดเป็นหุ่นฝึกแล้ว\nอ่านสัญญาณบนตัวบอส แล้วตอบสนองให้ทัน"
+		"จากนี้บอสจะไม่หยุดเตือนแล้ว\nอ่านท่าก่อนโจมตี และตอบสนองให้ทันในเวลาจริง"
 	)
 	pulse_title(1.16)
 
-	print("Duel 1 controlled boss practice completed")
+	print("Duel 1 freeze-frame boss practice completed")
 
 	await get_tree().create_timer(success_hold_time).timeout
 
@@ -601,7 +661,7 @@ func on_skip_button_pressed() -> void:
 	if has_completed_intro:
 		return
 
-	print("Duel 1 controlled boss practice skipped")
+	print("Duel 1 freeze-frame boss practice skipped")
 	has_completed_intro = true
 	has_completed_intro_this_session = true
 	current_phase = "feedback"
@@ -652,7 +712,7 @@ func on_continue_button_pressed() -> void:
 	if not can_continue_briefing:
 		return
 
-	enter_dummy_attack_phase()
+	enter_attack_preview_phase()
 
 
 func set_active_signal_visual(is_active: bool) -> void:
