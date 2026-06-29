@@ -52,6 +52,18 @@ extends CanvasLayer
 # ข้อความตอนฝึก Dash
 @export var dash_practice_text: String = "DASH!"
 
+# ขนาดตัวอักษรหัวข้อปกติ
+@export var normal_title_font_size: int = 34
+
+# ขนาดตัวอักษรหัวข้อช่วงสัญญาณจริง ให้เด่นกว่ากล่องอื่นมาก
+@export var active_signal_title_font_size: int = 62
+
+# ขนาดตัวอักษรคำอธิบายปกติ
+@export var normal_body_font_size: int = 21
+
+# ขนาดตัวอักษรคำอธิบายตอนต้องกดจริง
+@export var active_signal_body_font_size: int = 26
+
 var boss: Node = null
 var game_loop_manager: Node = null
 var training_coach_manager: Node = null
@@ -62,6 +74,12 @@ var title_label: Label = null
 var body_label: Label = null
 var progress_bar: ProgressBar = null
 var continue_button: Button = null
+
+# Style ปกติของกล่องข้อความ
+var normal_panel_style: StyleBoxFlat = null
+
+# Style ตอนสัญญาณกดจริง ใช้กรอบ/พื้นหลังเด่นขึ้น
+var active_panel_style: StyleBoxFlat = null
 
 var has_started_intro: bool = false
 var has_completed_intro: bool = false
@@ -93,6 +111,9 @@ var can_continue_briefing: bool = false
 # จำข้อความล่าสุด เพื่อลดการ set text ซ้ำทุกเฟรมจนดูพรึ่บพรั่บ
 var last_title_text: String = ""
 var last_body_text: String = ""
+
+# จำว่า active visual เปิดอยู่หรือไม่ เพื่อลดการ set style ซ้ำ
+var is_active_signal_visual: bool = false
 
 # tween สำหรับ pulse ข้อความ
 var pulse_tween: Tween = null
@@ -151,16 +172,27 @@ func create_ui() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(panel)
 
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.02, 0.025, 0.035, 0.92)
-	style.border_color = Color(1.0, 0.78, 0.28, 0.94)
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(16)
-	style.content_margin_left = 24.0
-	style.content_margin_right = 24.0
-	style.content_margin_top = 20.0
-	style.content_margin_bottom = 20.0
-	panel.add_theme_stylebox_override("panel", style)
+	normal_panel_style = StyleBoxFlat.new()
+	normal_panel_style.bg_color = Color(0.02, 0.025, 0.035, 0.92)
+	normal_panel_style.border_color = Color(1.0, 0.78, 0.28, 0.94)
+	normal_panel_style.set_border_width_all(3)
+	normal_panel_style.set_corner_radius_all(16)
+	normal_panel_style.content_margin_left = 24.0
+	normal_panel_style.content_margin_right = 24.0
+	normal_panel_style.content_margin_top = 20.0
+	normal_panel_style.content_margin_bottom = 20.0
+
+	active_panel_style = StyleBoxFlat.new()
+	active_panel_style.bg_color = Color(0.10, 0.045, 0.015, 0.96)
+	active_panel_style.border_color = Color(1.0, 0.24, 0.10, 1.0)
+	active_panel_style.set_border_width_all(6)
+	active_panel_style.set_corner_radius_all(18)
+	active_panel_style.content_margin_left = 24.0
+	active_panel_style.content_margin_right = 24.0
+	active_panel_style.content_margin_top = 20.0
+	active_panel_style.content_margin_bottom = 20.0
+
+	panel.add_theme_stylebox_override("panel", normal_panel_style)
 
 	var layout := VBoxContainer.new()
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -169,14 +201,14 @@ func create_ui() -> void:
 
 	title_label = Label.new()
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 34)
+	title_label.add_theme_font_size_override("font_size", normal_title_font_size)
 	layout.add_child(title_label)
 
 	body_label = Label.new()
 	body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body_label.add_theme_font_size_override("font_size", 21)
+	body_label.add_theme_font_size_override("font_size", normal_body_font_size)
 	layout.add_child(body_label)
 
 	progress_bar = ProgressBar.new()
@@ -261,6 +293,7 @@ func start_step(step_name: String) -> void:
 	beat_elapsed_time = 0.0
 	beat_count = 0
 	can_continue_briefing = false
+	set_active_signal_visual(false)
 	show_briefing_text()
 	set_continue_button_visible(false)
 	set_progress_percent(0.0)
@@ -307,6 +340,7 @@ func enter_windup_phase() -> void:
 	beat_elapsed_time = 0.0
 	beat_count = 0
 	can_continue_briefing = false
+	set_active_signal_visual(false)
 	set_continue_button_visible(false)
 	set_progress_percent(0.0)
 	show_windup_text()
@@ -349,8 +383,9 @@ func enter_active_phase() -> void:
 	phase_elapsed_time = 0.0
 	beat_elapsed_time = 0.0
 	set_progress_percent(1.0)
+	set_active_signal_visual(true)
 	show_active_text()
-	pulse_title(1.24)
+	pulse_title(1.34)
 
 
 func expected_action_just_pressed() -> bool:
@@ -371,6 +406,7 @@ func complete_current_step() -> void:
 
 	current_phase = "feedback"
 	is_showing_feedback = true
+	set_active_signal_visual(false)
 	set_continue_button_visible(false)
 	set_progress_percent(1.0)
 
@@ -423,13 +459,19 @@ func show_windup_text() -> void:
 
 
 func show_active_text() -> void:
-	# แสดงสัญญาณใหญ่ตอนที่กดได้จริง ข้อความสั้นและชัด
+	# แสดงสัญญาณใหญ่ตอนที่กดได้จริง ต้องเด่นที่สุดใน flow
 	if current_step == "parry":
-		set_practice_text(parry_practice_text, "กด PARRY ตอนนี้!")
+		set_practice_text(
+			"⚡  %s  ⚡" % parry_practice_text,
+			"กด PARRY ตอนนี้!\nตอนนี้เท่านั้น"
+		)
 		return
 
 	if current_step == "dash":
-		set_practice_text(dash_practice_text, "กด DASH ตอนนี้!\nท่าหนักห้าม Parry")
+		set_practice_text(
+			"⚡  %s  ⚡" % dash_practice_text,
+			"กด DASH ตอนนี้!\nท่าหนักห้าม Parry"
+		)
 		return
 
 
@@ -468,6 +510,7 @@ func retry_current_step(message: String) -> void:
 	current_phase = "feedback"
 	miss_count += 1
 	is_showing_feedback = true
+	set_active_signal_visual(false)
 	set_continue_button_visible(false)
 	set_progress_percent(0.0)
 	show_feedback_text(
@@ -490,6 +533,7 @@ func complete_intro() -> void:
 	has_completed_intro = true
 	has_completed_intro_this_session = true
 	current_phase = "feedback"
+	set_active_signal_visual(false)
 	set_continue_button_visible(false)
 	set_progress_percent(1.0)
 	show_feedback_text(
@@ -532,6 +576,26 @@ func on_continue_button_pressed() -> void:
 		return
 
 	enter_windup_phase()
+
+
+func set_active_signal_visual(is_active: bool) -> void:
+	# ปรับภาพรวมของกล่องให้สัญญาณ PARRY!/DASH! เด่นกว่าช่วงอื่น
+	if panel == null or title_label == null or body_label == null:
+		return
+
+	if is_active_signal_visual == is_active:
+		return
+
+	is_active_signal_visual = is_active
+
+	if is_active:
+		panel.add_theme_stylebox_override("panel", active_panel_style)
+		title_label.add_theme_font_size_override("font_size", active_signal_title_font_size)
+		body_label.add_theme_font_size_override("font_size", active_signal_body_font_size)
+	else:
+		panel.add_theme_stylebox_override("panel", normal_panel_style)
+		title_label.add_theme_font_size_override("font_size", normal_title_font_size)
+		body_label.add_theme_font_size_override("font_size", normal_body_font_size)
 
 
 func pulse_title(target_scale: float) -> void:
