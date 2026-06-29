@@ -6,7 +6,7 @@ extends CanvasLayer
 # พฤติกรรมจริงตอนนี้คือ Duel 1 Guided Training กับ BossBrokenMaster ตัวจริง
 # ระหว่าง Duel 1 บอสจะสู้แบบจำกัด pattern
 # เมื่อบอสกำลัง wind-up จะหยุดก่อน hitbox เปิด แล้วกล่องจะบอกให้ผู้เล่นกด Parry หรือ Dash
-# เมื่อฝึกครบแล้วจึงรีเซ็ตและปล่อยบอสสู้จริงเต็มรูปแบบ
+# เมื่อฝึกครบแล้วจะจัดตำแหน่งใหม่เหมือนเริ่มซีนบอสจริง แล้วค่อยปล่อยบอสเต็มรูปแบบ
 # =========================
 
 @export var player_path: NodePath = NodePath("../Player")
@@ -55,8 +55,26 @@ extends CanvasLayer
 # ถ้า true เมื่อ Parry ถูกใน Duel 1 จะเรียก on_successful_parry() เพื่อให้ได้ feedback/focus เดิม
 @export var reward_parry_success_during_duel_1: bool = true
 
-# เวลาค้างข้อความหลังผ่านหรือ skip ก่อนปล่อยบอสจริง
-@export var training_clear_message_time: float = 1.20
+# เวลาค้างข้อความหลังผ่านหรือ skip ก่อนจัดตำแหน่งเข้าบอสจริง
+@export var training_clear_message_time: float = 0.85
+
+# ถ้า true หลัง Duel 1 จะย้าย Player/Boss กลับจุดเริ่มต้นของไฟต์จริง
+@export var reset_positions_after_duel_1: bool = true
+
+# ตำแหน่งเริ่มต้น Player ตอนเข้าไฟต์บอสจริง อ้างอิงตำแหน่งเดิมใน main scene
+@export var player_real_fight_start_position: Vector2 = Vector2(576.0, 324.0)
+
+# ตำแหน่งเริ่มต้น Boss ตอนเข้าไฟต์บอสจริง อ้างอิงตำแหน่งเดิมใน main scene
+@export var boss_real_fight_start_position: Vector2 = Vector2(780.0, 324.0)
+
+# เวลาค้างสัญญาณก่อนปล่อยบอสจริง
+@export var real_boss_start_signal_time: float = 1.35
+
+# ข้อความหัวข้อก่อนเริ่มบอสจริง
+@export var real_boss_start_title: String = "BOSS FIGHT"
+
+# ข้อความรายละเอียดก่อนเริ่มบอสจริง
+@export var real_boss_start_body: String = "เริ่มสู้กับบอสจริง"
 
 # ขนาดตัวอักษรหัวข้อ
 @export var title_font_size: int = 24
@@ -619,18 +637,25 @@ func finish_training_boss(was_skipped: bool) -> void:
 	if reset_boss_after_training:
 		reset_boss_for_real_fight()
 
+	if reset_positions_after_duel_1:
+		reset_actor_positions_for_real_fight()
+
 	root_control.visible = true
 	if was_skipped:
 		title_label.text = "ข้าม Duel 1"
-		body_label.text = "รีเซ็ตบอสแล้ว เริ่มสู้จริงได้เลย"
+		body_label.text = "กำลังจัดตำแหน่งใหม่เพื่อเริ่มบอสจริง"
 	else:
 		title_label.text = "ผ่าน Duel 1"
-		body_label.text = "รีเซ็ตบอสแล้ว ต่อไปคือบอสจริงเต็มรูปแบบ"
+		body_label.text = "กำลังจัดตำแหน่งใหม่เพื่อเริ่มบอสจริง"
 
 	set_progress_percent(1.0)
 	print("Duel 1 guided boss training completed. Skipped =", was_skipped)
 
 	await get_tree().create_timer(training_clear_message_time).timeout
+
+	if is_training_boss_completed:
+		show_real_boss_start_signal()
+		await get_tree().create_timer(real_boss_start_signal_time).timeout
 
 	root_control.visible = false
 	show_boss_if_needed()
@@ -640,6 +665,32 @@ func finish_training_boss(was_skipped: bool) -> void:
 		set_boss_hold(false)
 	else:
 		enable_duel_intro_if_available()
+
+
+func reset_actor_positions_for_real_fight() -> void:
+	# จัดตำแหน่งเหมือนเริ่มซีนบอสจริงใหม่ หลังจากผ่าน Duel 1
+	if is_instance_valid(player) and player is Node2D:
+		var player_node := player as Node2D
+		player_node.global_position = player_real_fight_start_position
+		player.set("velocity", Vector2.ZERO)
+
+	if is_instance_valid(boss) and boss is Node2D:
+		var boss_node := boss as Node2D
+		boss_node.global_position = boss_real_fight_start_position
+		boss.set("velocity", Vector2.ZERO)
+		boss.set("knockback_velocity", Vector2.ZERO)
+
+
+func show_real_boss_start_signal() -> void:
+	# สัญญาณบอกผู้เล่นว่าหมดช่วงฝึกแล้ว และกำลังเข้าบอสจริง
+	root_control.visible = true
+	title_label.text = real_boss_start_title
+	body_label.text = real_boss_start_body
+	set_progress_percent(1.0)
+	set_skip_button_visible(false)
+
+	if is_instance_valid(boss):
+		show_boss_cue("BOSS FIGHT", Color(1.0, 0.15, 0.10, 1.0))
 
 
 func reset_boss_for_real_fight() -> void:
