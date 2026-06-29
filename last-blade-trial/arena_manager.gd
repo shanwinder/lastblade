@@ -36,8 +36,9 @@ func _ready() -> void:
 	# เพิ่มตัวเองเข้า group เพื่อให้ node อื่นหา ArenaManager ได้ง่าย
 	add_to_group("arena_manager")
 
-	# สร้างฉากหลัง prototype ง่าย ๆ เพื่อให้มองเวทีต่อสู้ชัดขึ้น
-	create_arena_background_if_needed()
+	# เรียกแบบ deferred เพื่อรอให้ Main scene สร้าง child ทั้งหมดเสร็จก่อน
+	# ถ้า add_child ระหว่าง parent กำลัง setup children จะเกิด error data.blocked ใน Godot
+	create_arena_background_if_needed.call_deferred()
 
 	print("ArenaManager ready. Bounds =", arena_min_x, "to", arena_max_x)
 
@@ -61,7 +62,8 @@ func create_arena_background_if_needed() -> void:
 	background_root.name = "ArenaBackground"
 	background_root.z_index = arena_background_z_index
 	parent_node.add_child(background_root)
-	parent_node.move_child(background_root, 0)
+
+	# ไม่จำเป็นต้อง move_child เพราะใช้ z_index ติดลบควบคุมให้ฉากหลังอยู่ด้านหลังแล้ว
 
 	# ชั้นหลังสุด เป็นสีมืดไล่บรรยากาศแบบ arena ร้าง
 	var back_wall := create_background_rect(
