@@ -3,7 +3,7 @@ extends CanvasLayer
 # =========================
 # Duel1IntroManager.gd
 # ขั้นกลางของ Phase 9 ก่อนทำศัตรู Duel 1 เต็มตัว
-# เวอร์ชันนี้ให้ผู้เล่นฝึกตอบสนองตามเวลา: PARRY! แล้ว DASH!
+# เวอร์ชันนี้ฝึกจังหวะแบบมีสัญญาณ: เตรียมตัว -> สัญญาณใหญ่ -> กดให้ทัน
 # =========================
 
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
@@ -16,20 +16,26 @@ extends CanvasLayer
 # แสดงเฉพาะครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
 
-# เวลาที่ให้ตอบสนองตอนเห็น PARRY!
-@export var parry_response_window: float = 1.20
+# เวลาก่อนขึ้น PARRY! หรือ DASH! ใช้เป็นช่วงอ่าน wind-up
+@export var cue_windup_time: float = 0.85
 
-# เวลาที่ให้ตอบสนองตอนเห็น DASH!
-@export var dash_response_window: float = 1.20
+# เวลาที่ให้กดหลังสัญญาณใหญ่ขึ้นจริง
+@export var active_response_window: float = 0.55
+
+# ระยะห่างของ beat ระหว่างช่วงเตรียมจังหวะ
+@export var rhythm_beat_interval: float = 0.28
 
 # เวลาหน่วงสั้น ๆ หลังทำสำเร็จ ก่อนปล่อยบอส
 @export var success_hold_time: float = 0.65
 
+# เวลาค้างข้อความ feedback ตอนกดเร็วไป/ช้าไป
+@export var retry_feedback_time: float = 0.55
+
 # ข้อความหัวข้อหลัก
-@export var intro_title: String = "Duel 1: อ่านสัญญาณ"
+@export var intro_title: String = "Duel 1: อ่านจังหวะ"
 
 # ข้อความอธิบายก่อนฝึก
-@export var intro_body: String = "ฝึกอ่านสัญญาณก่อนเข้าบอสจริง\nกดให้ทันก่อนเวลาหมด"
+@export var intro_body: String = "ดูจังหวะเตรียมตัว แล้วกดตอนสัญญาณใหญ่ขึ้น"
 
 # ข้อความตอนฝึก Parry
 @export var parry_practice_text: String = "PARRY!"
@@ -48,9 +54,30 @@ var body_label: Label = null
 
 var has_started_intro: bool = false
 var has_completed_intro: bool = false
+
+# current_step มีค่า parry หรือ dash
 var current_step: String = "intro"
-var step_elapsed_time: float = 0.0
+
+# current_phase มีค่า windup หรือ active
+var current_phase: String = "windup"
+
+# เวลาที่ผ่านไปใน phase ปัจจุบัน
+var phase_elapsed_time: float = 0.0
+
+# เวลาที่ผ่านไปของ beat ปัจจุบัน
+var beat_elapsed_time: float = 0.0
+
+# จำนวน beat ที่เกิดแล้วในช่วงเตรียมจังหวะ
+var beat_count: int = 0
+
+# จำนวนครั้งที่ผู้เล่นพลาดใน practice gate นี้
 var miss_count: int = 0
+
+# กันไม่ให้ข้อความ feedback ถูก update_practice_text เขียนทับทันที
+var is_showing_feedback: bool = false
+
+# tween สำหรับ pulse ข้อความ
+var pulse_tween: Tween = null
 
 static var has_completed_intro_this_session: bool = false
 
@@ -76,6 +103,9 @@ func _physics_process(delta: float) -> void:
 	if has_completed_intro:
 		return
 
+	if is_showing_feedback:
+		return
+
 	if not is_game_playing():
 		return
 
@@ -98,12 +128,12 @@ func create_ui() -> void:
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(500.0, 190.0)
-	panel.position = Vector2(326.0, 145.0)
+	panel.custom_minimum_size = Vector2(520.0, 210.0)
+	panel.position = Vector2(316.0, 138.0)
 	root_control.add_child(panel)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.02, 0.025, 0.035, 0.86)
+	style.bg_color = Color(0.02, 0.025, 0.035, 0.88)
 	style.border_color = Color(1.0, 0.78, 0.28, 0.94)
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(16)
@@ -120,7 +150,7 @@ func create_ui() -> void:
 
 	title_label = Label.new()
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 30)
+	title_label.add_theme_font_size_override("font_size", 34)
 	layout.add_child(title_label)
 
 	body_label = Label.new()
@@ -177,73 +207,147 @@ func is_training_ready() -> bool:
 func start_intro() -> void:
 	# เริ่ม practice gate และหยุดบอสไว้ก่อน
 	has_started_intro = true
-	current_step = "parry"
-	step_elapsed_time = 0.0
 	miss_count = 0
 	set_boss_hold(true)
-
-	title_label.text = intro_title
 	root_control.visible = true
-	update_practice_text()
 
-	print("Duel 1 timed practice started")
+	start_step("parry")
+	print("Duel 1 rhythmic practice started")
+
+
+func start_step(step_name: String) -> void:
+	# เริ่ม step ใหม่ โดยเริ่มจากช่วง wind-up เพื่อให้มีจังหวะก่อนกดจริง
+	current_step = step_name
+	current_phase = "windup"
+	phase_elapsed_time = 0.0
+	beat_elapsed_time = 0.0
+	beat_count = 0
+	update_practice_text()
+	pulse_title(1.05)
 
 
 func update_practice_step(delta: float) -> void:
-	# ตรวจ input ของผู้เล่นตามสัญญาณที่กำลังฝึก พร้อมจับเวลา
-	step_elapsed_time += delta
+	# ตรวจจังหวะของ step ปัจจุบัน
+	phase_elapsed_time += delta
+	beat_elapsed_time += delta
+
+	if current_phase == "windup":
+		update_windup_phase()
+		return
+
+	if current_phase == "active":
+		update_active_phase()
+		return
+
+
+func update_windup_phase() -> void:
+	# ช่วงเตรียมจังหวะ: ให้เห็น beat แต่ยังไม่ควรกด
+	if beat_elapsed_time >= rhythm_beat_interval:
+		beat_elapsed_time = 0.0
+		beat_count += 1
+		pulse_title(1.08)
+
 	update_practice_text()
 
-	if current_step == "parry":
-		if Input.is_action_just_pressed("parry"):
-			show_dash_step()
-			return
+	if expected_action_just_pressed():
+		retry_current_step("เร็วไป รอสัญญาณใหญ่ก่อน")
+		return
 
-		if step_elapsed_time > parry_response_window:
-			retry_current_step("ช้าไป ลอง Parry ใหม่")
+	if phase_elapsed_time >= cue_windup_time:
+		enter_active_phase()
+
+
+func update_active_phase() -> void:
+	# ช่วงสัญญาณจริง: ต้องกดให้ทันใน active_response_window
+	update_practice_text()
+
+	if expected_action_just_pressed():
+		complete_current_step()
+		return
+
+	if phase_elapsed_time >= active_response_window:
+		retry_current_step("ช้าไป ลองอ่านจังหวะใหม่")
+
+
+func enter_active_phase() -> void:
+	# เข้าช่วงกดจริง คล้ายจังหวะ hitbox เปิดของบอส
+	current_phase = "active"
+	phase_elapsed_time = 0.0
+	beat_elapsed_time = 0.0
+	pulse_title(1.22)
+	update_practice_text()
+
+
+func expected_action_just_pressed() -> bool:
+	# ตรวจปุ่มที่ถูกต้องตาม step ปัจจุบัน
+	if current_step == "parry":
+		return Input.is_action_just_pressed("parry")
+
+	if current_step == "dash":
+		return Input.is_action_just_pressed("dash")
+
+	return false
+
+
+func complete_current_step() -> void:
+	# เมื่อทำ step ปัจจุบันสำเร็จ ให้ไป step ถัดไปหรือจบ practice
+	if current_step == "parry":
+		title_label.text = "ดีมาก"
+		body_label.text = "ต่อไปดูจังหวะ DASH!\nท่าหนักต้อง Dash ไม่ใช่ Parry"
+		pulse_title(1.14)
+		start_step.call_deferred("dash")
+		print("Duel 1 practice: parry rhythm completed")
 		return
 
 	if current_step == "dash":
-		if Input.is_action_just_pressed("dash"):
-			complete_intro()
-			return
-
-		if step_elapsed_time > dash_response_window:
-			retry_current_step("ช้าไป ลอง Dash ใหม่")
-		return
+		complete_intro()
 
 
 func update_practice_text() -> void:
-	# อัปเดตข้อความและเวลาที่เหลือใน step ปัจจุบัน
+	# อัปเดตข้อความตาม step และ phase เพื่อให้มีจังหวะ ไม่ใช่แค่นับถอยหลัง
 	if current_step == "parry":
-		var time_left: float = max(parry_response_window - step_elapsed_time, 0.0)
-		title_label.text = parry_practice_text
-		body_label.text = "กด PARRY ให้ทัน\nเวลาที่เหลือ: %.1f" % time_left
+		if current_phase == "windup":
+			title_label.text = "เตรียม Parry"
+			body_label.text = "%s\nจังหวะ: %s\nอย่าเพิ่งกด" % [intro_body, get_beat_text()]
+		else:
+			title_label.text = parry_practice_text
+			body_label.text = "กด PARRY ตอนนี้!\nหน้าต่างกด: %.1f" % max(active_response_window - phase_elapsed_time, 0.0)
 		return
 
 	if current_step == "dash":
-		var time_left: float = max(dash_response_window - step_elapsed_time, 0.0)
-		title_label.text = dash_practice_text
-		body_label.text = "กด DASH ให้ทัน\nท่าหนักห้าม Parry\nเวลาที่เหลือ: %.1f" % time_left
+		if current_phase == "windup":
+			title_label.text = "เตรียม Dash"
+			body_label.text = "ท่าหนักกำลังมา\nจังหวะ: %s\nอย่าเพิ่งกด" % get_beat_text()
+		else:
+			title_label.text = dash_practice_text
+			body_label.text = "กด DASH ตอนนี้!\nท่าหนักห้าม Parry\nหน้าต่างกด: %.1f" % max(active_response_window - phase_elapsed_time, 0.0)
 		return
 
 
+func get_beat_text() -> String:
+	# ทำ beat แบบตัวอักษรให้เห็นจังหวะก่อนสัญญาณจริง
+	var beat_dots := ""
+	var visible_beats: int = clamp(beat_count + 1, 1, 4)
+
+	for i in range(visible_beats):
+		beat_dots += "●"
+
+	return beat_dots
+
+
 func retry_current_step(message: String) -> void:
-	# ถ้ากดไม่ทัน ให้ทำ step เดิมซ้ำแบบไม่ลงโทษหนัก
+	# ถ้ากดเร็วไปหรือช้าไป ให้ทำ step เดิมซ้ำแบบไม่ลงโทษหนัก
 	miss_count += 1
-	step_elapsed_time = 0.0
+	is_showing_feedback = true
 	title_label.text = message
-	body_label.text = "ไม่เป็นไร ฝึกอ่านจังหวะอีกครั้ง\nพลาดแล้ว: %d ครั้ง" % miss_count
+	body_label.text = "ไม่เป็นไร ดูจังหวะแล้วลองอีกครั้ง\nพลาดแล้ว: %d ครั้ง" % miss_count
+	pulse_title(1.10)
 	print("Duel 1 practice retry:", message, "miss count =", miss_count)
 
+	await get_tree().create_timer(retry_feedback_time).timeout
 
-func show_dash_step() -> void:
-	# ผู้เล่นกด Parry ถูกแล้ว ต่อไปฝึก Dash
-	current_step = "dash"
-	step_elapsed_time = 0.0
-	title_label.text = "ดีมาก"
-	body_label.text = dash_practice_text + " = กด DASH\nท่าหนักห้าม Parry ต้อง Dash หลบ"
-	print("Duel 1 practice: parry step completed")
+	is_showing_feedback = false
+	start_step(current_step)
 
 
 func complete_intro() -> void:
@@ -253,14 +357,29 @@ func complete_intro() -> void:
 	has_completed_intro = true
 	has_completed_intro_this_session = true
 	title_label.text = "พร้อมเข้าบอส"
-	body_label.text = "จำไว้: PARRY! = Parry / DASH! = Dash"
+	body_label.text = "จำไว้: อ่านจังหวะก่อน\nPARRY! = Parry / DASH! = Dash"
+	pulse_title(1.16)
 
-	print("Duel 1 practice completed")
+	print("Duel 1 rhythmic practice completed")
 
 	await get_tree().create_timer(success_hold_time).timeout
 
 	root_control.visible = false
 	set_boss_hold(false)
+
+
+func pulse_title(target_scale: float) -> void:
+	# pulse ข้อความหัวข้อให้รู้สึกเป็นจังหวะ แทนการนับเวลาลวก ๆ
+	if title_label == null:
+		return
+
+	if pulse_tween != null:
+		pulse_tween.kill()
+
+	title_label.pivot_offset = title_label.size * 0.5
+	title_label.scale = Vector2(target_scale, target_scale)
+	pulse_tween = create_tween()
+	pulse_tween.tween_property(title_label, "scale", Vector2.ONE, 0.16)
 
 
 func set_boss_hold(should_hold: bool) -> void:
