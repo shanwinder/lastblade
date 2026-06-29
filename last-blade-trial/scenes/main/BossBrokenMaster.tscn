@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://cb36722w2nj1" path="res://game_loop_manager.gd" id="10_loop"]
 [ext_resource type="Script" uid="uid://b26knylfkh4bd" path="res://boss_difficulty_curve_manager.gd" id="11_curve"]
 [ext_resource type="Script" path="res://training_coach_manager.gd" id="12_training"]
+[ext_resource type="Script" path="res://duel_1_intro_manager.gd" id="13_duel_intro"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -127,6 +128,10 @@ script = ExtResource("8_touch")
 [node name="TrainingCoachManager" type="CanvasLayer" parent="."]
 layer = 35
 script = ExtResource("12_training")
+
+[node name="Duel1IntroManager" type="CanvasLayer" parent="."]
+layer = 36
+script = ExtResource("13_duel_intro")
 
 [node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465]
 layer = 40
