@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://ds5hmdbr5yu0w" path="res://training_coach_manager.gd" id="12_training"]
 [ext_resource type="Script" uid="uid://c1m0u7ckyk1go" path="res://duel_1_intro_manager.gd" id="13_duel_intro"]
 [ext_resource type="Script" uid="uid://jaxi5rv4eayk" path="res://boss_weight_manager.gd" id="14_boss_weight"]
+[ext_resource type="Script" path="res://duel_1_dummy_manager.gd" id="15_duel_dummy"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -66,6 +67,10 @@ script = ExtResource("11_curve")
 
 [node name="BossWeightManager" type="Node" parent="." unique_id=1453202843]
 script = ExtResource("14_boss_weight")
+
+[node name="Duel1DummyManager" type="CanvasLayer" parent="."]
+layer = 34
+script = ExtResource("15_duel_dummy")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=613196371]
 script = ExtResource("5_7w3th")
