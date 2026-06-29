@@ -184,7 +184,7 @@ func is_player_in_parry_attack_range() -> bool:
 	if not is_instance_valid(player):
 		return false
 
-	if not player is Node2D:
+	if not (player is Node2D):
 		return false
 
 	var player_node := player as Node2D
@@ -263,6 +263,13 @@ func clear_attack_cue() -> void:
 		cue_label.visible = false
 
 
+func free_attack_cue() -> void:
+	# ลบ cue label เมื่อหุ่นตาย เพื่อไม่ให้ node ค้างใน scene
+	if cue_label != null and is_instance_valid(cue_label):
+		cue_label.queue_free()
+	cue_label = null
+
+
 func flash_windup_color() -> void:
 	# เปลี่ยนสีหุ่นสั้น ๆ ตอนกำลังเตรียมโจมตี
 	if body_polygon != null:
@@ -338,7 +345,7 @@ func defeat_dummy() -> void:
 		return
 
 	is_defeated = true
-	clear_attack_cue()
+	free_attack_cue()
 	print("Duel 1 Dummy defeated")
 	dummy_defeated.emit()
 
