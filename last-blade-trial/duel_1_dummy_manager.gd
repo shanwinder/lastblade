@@ -2,12 +2,10 @@ extends CanvasLayer
 
 # =========================
 # Duel1DummyManager.gd
-# จัดลำดับ Phase 9 หลัง Training Coach
-# ให้ผู้เล่นตีหุ่น Duel 1 ให้ตายก่อน แล้วค่อยเปิด Duel Practice / Boss ต่อ
-# เวอร์ชันนี้เพิ่มปุ่ม Skip สำหรับผู้เล่นที่อยากไปต่อทันที
+# ชื่อไฟล์เดิมยังคงไว้เพื่อไม่ต้องรื้อ scene หลัก
+# แต่พฤติกรรมใหม่คือใช้ BossBrokenMaster ตัวจริงเป็นหุ่นฝึก
+# ระหว่างฝึกจะจำกัด pattern ของบอสไว้ก่อน แล้วค่อยปล่อยบอสเต็มรูปแบบหลังฝึกเสร็จ
 # =========================
-
-const Duel1DummyTargetScript = preload("res://duel_1_dummy_target.gd")
 
 @export var player_path: NodePath = NodePath("../Player")
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
@@ -15,29 +13,29 @@ const Duel1DummyTargetScript = preload("res://duel_1_dummy_target.gd")
 @export var training_coach_manager_path: NodePath = NodePath("../TrainingCoachManager")
 @export var duel_intro_manager_path: NodePath = NodePath("../Duel1IntroManager")
 
-# เปิด/ปิดระบบหุ่น Duel 1
-@export var duel_1_dummy_enabled: bool = true
+# เปิด/ปิดระบบฝึกกับบอสจริงก่อนเข้า Duel Practice
+@export var boss_training_enabled: bool = true
 
 # แสดงแค่ครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
 
-# เปิด/ปิดปุ่ม Skip สำหรับข้ามหุ่น Duel 1
+# เปิด/ปิดปุ่ม Skip สำหรับข้ามช่วงฝึกกับบอสจริง
 @export var skip_button_enabled: bool = true
 
 # ข้อความบนปุ่ม Skip
 @export var skip_button_text: String = "SKIP"
 
-# ตำแหน่ง spawn หุ่น Duel 1
-@export var dummy_spawn_position: Vector2 = Vector2(720.0, 324.0)
+# ระหว่างฝึกจะบังคับให้บอสใช้ pattern ง่ายก่อน
+@export_enum("normal_slash", "quick_slash", "delayed_slash", "heavy_slash") var training_forced_boss_pattern: String = "normal_slash"
 
-# HP หุ่น Duel 1 เวอร์ชันแรก ตั้งให้ตีไม่กี่ครั้งตาย
-@export var dummy_max_hp: int = 30
+# ผู้เล่นต้องทำดาเมจใส่บอสจริงเท่านี้ จึงถือว่าผ่านช่วงฝึก
+@export var required_training_damage: int = 30
 
-# ถ้า true จะซ่อนบอสระหว่างตีหุ่น เพื่อไม่ให้ผู้เล่นสับสนว่าเป้าหมายคือใคร
-@export var hide_boss_during_dummy: bool = true
+# ถ้า true หลังฝึกเสร็จจะรีเซ็ต HP/Posture ของบอสก่อนเข้าของจริง
+@export var reset_boss_after_training: bool = true
 
-# เวลาค้างข้อความหลังตีหุ่นตาย ก่อนเปิด Duel Practice ต่อ
-@export var dummy_clear_message_time: float = 1.20
+# เวลาค้างข้อความหลังผ่านหรือ skip ก่อนเปิด Duel Practice ต่อ
+@export var training_clear_message_time: float = 1.20
 
 # ขนาดตัวอักษรหัวข้อ
 @export var title_font_size: int = 24
@@ -55,15 +53,22 @@ var root_control: Control = null
 var panel: PanelContainer = null
 var title_label: Label = null
 var body_label: Label = null
-var hp_bar: ProgressBar = null
+var progress_bar: ProgressBar = null
 var skip_button: Button = null
 
-var dummy_target: Node = null
-var has_started_dummy: bool = false
-var is_dummy_active: bool = false
-var is_dummy_completed: bool = false
+var has_started_training_boss: bool = false
+var is_training_boss_active: bool = false
+var is_training_boss_completed: bool = false
 
-static var has_completed_dummy_this_session: bool = false
+# HP บอสตอนเริ่มฝึก ใช้คำนวณว่าผู้เล่นทำดาเมจไปเท่าไร
+var training_start_boss_hp: int = 0
+
+# เก็บค่า debug pattern เดิมของบอสไว้ เพื่อคืนค่าหลังฝึกเสร็จ
+var has_saved_original_boss_debug: bool = false
+var original_debug_force_attack_pattern_enabled: bool = false
+var original_debug_forced_attack_pattern: String = "random"
+
+static var has_completed_training_boss_this_session: bool = false
 
 
 func _ready() -> void:
@@ -74,11 +79,11 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if not duel_1_dummy_enabled:
+	if not boss_training_enabled:
 		enable_duel_intro_if_available()
 		return
 
-	if show_only_once_per_session and has_completed_dummy_this_session:
+	if show_only_once_per_session and has_completed_training_boss_this_session:
 		enable_duel_intro_if_available()
 		return
 
@@ -86,11 +91,15 @@ func _physics_process(_delta: float) -> void:
 		setup_references()
 		return
 
-	# ปิด DuelIntro ไว้ก่อนจนกว่าหุ่นจะถูกทำลาย
-	if not is_dummy_completed:
+	# ปิด DuelIntro ไว้ก่อนจนกว่าช่วงฝึกกับบอสจริงจะจบ
+	if not is_training_boss_completed:
 		disable_duel_intro_if_available()
 
-	if has_started_dummy or is_dummy_completed:
+	if is_training_boss_active:
+		update_training_boss_progress()
+		return
+
+	if has_started_training_boss or is_training_boss_completed:
 		return
 
 	if not is_game_playing():
@@ -99,20 +108,20 @@ func _physics_process(_delta: float) -> void:
 	if not is_training_ready():
 		return
 
-	start_dummy_duel()
+	start_training_boss()
 
 
 func create_ui() -> void:
 	# สร้างกล่องสถานะ Duel 1 แบบเล็ก ไม่รบกวนการเล่น
 	root_control = Control.new()
-	root_control.name = "Duel1DummyRoot"
+	root_control.name = "Duel1BossTrainingRoot"
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(420.0, 154.0)
-	panel.position = Vector2(366.0, 24.0)
+	panel.custom_minimum_size = Vector2(460.0, 162.0)
+	panel.position = Vector2(346.0, 24.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(panel)
 
@@ -138,16 +147,17 @@ func create_ui() -> void:
 
 	body_label = Label.new()
 	body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body_label.add_theme_font_size_override("font_size", body_font_size)
 	layout.add_child(body_label)
 
-	hp_bar = ProgressBar.new()
-	hp_bar.custom_minimum_size = Vector2(340.0, 14.0)
-	hp_bar.min_value = 0.0
-	hp_bar.max_value = 100.0
-	hp_bar.value = 100.0
-	hp_bar.show_percentage = false
-	layout.add_child(hp_bar)
+	progress_bar = ProgressBar.new()
+	progress_bar.custom_minimum_size = Vector2(360.0, 14.0)
+	progress_bar.min_value = 0.0
+	progress_bar.max_value = 100.0
+	progress_bar.value = 0.0
+	progress_bar.show_percentage = false
+	layout.add_child(progress_bar)
 
 	skip_button = Button.new()
 	skip_button.custom_minimum_size = Vector2(130.0, 36.0)
@@ -210,152 +220,249 @@ func is_training_ready() -> bool:
 	return completed == true
 
 
-func start_dummy_duel() -> void:
-	# เริ่ม Duel 1 Dummy หลัง Training Coach จบ
-	has_started_dummy = true
-	is_dummy_active = true
-	set_boss_hold(true)
-	disable_duel_intro_if_available()
-	spawn_dummy_target()
+func start_training_boss() -> void:
+	# เริ่มฝึกกับบอสจริงหลัง Training Coach จบ
+	has_started_training_boss = true
+	is_training_boss_active = true
+	is_training_boss_completed = false
 
 	root_control.visible = true
 	set_skip_button_visible(skip_button_enabled)
-	title_label.text = "Duel 1: ทดลองตีเป้าหมาย"
-	body_label.text = "ตีหุ่นให้แตก ก่อนฝึกอ่านจังหวะจริง"
-	update_hp_bar(dummy_max_hp, dummy_max_hp)
 
-	print("Duel 1 Dummy started")
+	prepare_boss_for_limited_training()
 
+	title_label.text = "Duel 1: ฝึกกับบอสจริง"
+	body_label.text = "บอสจะใช้ท่าง่ายก่อน\nตีบอสให้ครบ %d ดาเมจ แล้วค่อยเข้าจริง" % required_training_damage
+	set_progress_percent(0.0)
 
-func spawn_dummy_target() -> void:
-	# สร้างหุ่นเป้าหมายแบบ dynamic เพื่อลดการแก้ scene หลายไฟล์
-	if dummy_target != null and is_instance_valid(dummy_target):
-		dummy_target.queue_free()
-
-	dummy_target = Duel1DummyTargetScript.new()
-	dummy_target.name = "Duel1DummyTarget"
-	dummy_target.set("max_hp", dummy_max_hp)
-	get_parent().add_child(dummy_target)
-
-	if dummy_target is Node2D:
-		var dummy_node := dummy_target as Node2D
-		dummy_node.global_position = dummy_spawn_position
-
-	if dummy_target.has_signal("hp_changed"):
-		dummy_target.hp_changed.connect(on_dummy_hp_changed)
-
-	if dummy_target.has_signal("dummy_defeated"):
-		dummy_target.dummy_defeated.connect(on_dummy_defeated)
+	print("Duel 1 Boss Training started")
 
 
-func on_dummy_hp_changed(current_hp: int, max_hp: int) -> void:
-	# อัปเดต HP bar ของหุ่น Duel 1
-	update_hp_bar(current_hp, max_hp)
-	body_label.text = "HP หุ่น: %d / %d" % [current_hp, max_hp]
-
-
-func update_hp_bar(current_hp: int, max_hp: int) -> void:
-	if hp_bar == null:
-		return
-
-	var ratio: float = 0.0
-	if max_hp > 0:
-		ratio = clamp(float(current_hp) / float(max_hp), 0.0, 1.0)
-
-	hp_bar.value = ratio * 100.0
-
-
-func on_dummy_defeated() -> void:
-	# หุ่นตายแล้ว เปิดทางไป Duel Practice ต่อ
-	if is_dummy_completed:
-		return
-
-	finish_dummy_duel(false)
-
-
-func finish_dummy_duel(was_skipped: bool) -> void:
-	# จบ Duel 1 Dummy ไม่ว่าจะตีหุ่นตายหรือกด Skip
-	if is_dummy_completed:
-		return
-
-	is_dummy_active = false
-	is_dummy_completed = true
-	has_completed_dummy_this_session = true
-	set_skip_button_visible(false)
-
-	if dummy_target != null and is_instance_valid(dummy_target):
-		dummy_target.queue_free()
-
-	root_control.visible = true
-	if was_skipped:
-		title_label.text = "ข้าม Duel 1"
-		body_label.text = "ไปฝึกอ่านสัญญาณ PARRY! / DASH! ต่อ"
-	else:
-		title_label.text = "ผ่าน Duel 1"
-		body_label.text = "ต่อไปจะฝึกอ่านสัญญาณ PARRY! / DASH!"
-
-	update_hp_bar(0, dummy_max_hp)
-	print("Duel 1 Dummy completed. Skipped =", was_skipped)
-
-	await get_tree().create_timer(dummy_clear_message_time).timeout
-
-	root_control.visible = false
-	set_boss_hold(true)
-	show_boss_if_needed()
-	enable_duel_intro_if_available()
-
-
-func on_skip_button_pressed() -> void:
-	# ข้ามหุ่น Duel 1 เพื่อไปยัง Duel Practice ทันที
-	if is_dummy_completed:
-		return
-
-	finish_dummy_duel(true)
-
-
-func set_boss_hold(should_hold: bool) -> void:
-	# หยุดบอสไว้ระหว่าง Duel 1 Dummy เพื่อไม่ให้บอสจริงเข้ามาตี
+func prepare_boss_for_limited_training() -> void:
+	# ให้เห็นบอสตัวจริง และจำกัด pattern เอาไว้ก่อน
 	if not is_instance_valid(boss):
 		return
 
-	boss.set_physics_process(not should_hold)
+	boss.visible = true
+	save_original_boss_debug_settings()
+	reset_boss_combat_state_for_training()
+
+	training_start_boss_hp = get_int_value(boss, "current_hp", get_int_value(boss, "max_hp", 300))
+
+	# ใช้ debug pattern เดิมของบอสเป็นตัวบังคับท่าแบบปลอดภัย ไม่ต้องแก้ BossBrokenMaster.gd เพิ่ม
+	boss.set("debug_force_attack_pattern_enabled", true)
+	boss.set("debug_forced_attack_pattern", training_forced_boss_pattern)
+
+	# เปิด physics ของบอส เพื่อให้บอสเดิน/โจมตีแบบจำกัดได้จริง
+	boss.set_physics_process(true)
+	boss.set("can_attack", true)
+
+
+func save_original_boss_debug_settings() -> void:
+	# เก็บค่าเดิมครั้งเดียว เพื่อคืนค่าหลังจบการฝึก
+	if has_saved_original_boss_debug:
+		return
+
+	var original_force = boss.get("debug_force_attack_pattern_enabled")
+	if original_force != null:
+		original_debug_force_attack_pattern_enabled = bool(original_force)
+
+	var original_pattern = boss.get("debug_forced_attack_pattern")
+	if original_pattern != null:
+		original_debug_forced_attack_pattern = str(original_pattern)
+
+	has_saved_original_boss_debug = true
+
+
+func reset_boss_combat_state_for_training() -> void:
+	# ล้างสถานะโจมตีค้างก่อนเข้าโหมดฝึก เพื่อไม่ให้ hitbox หรือ coroutine เก่าค้าง
+	boss.set("is_dead", false)
+	boss.set("is_posture_broken", false)
+	boss.set("can_receive_critical", false)
+	boss.set("is_staggered", false)
+	boss.set("is_winding_up", false)
+	boss.set("is_attacking", false)
+	boss.set("is_knocked_back", false)
+	boss.set("knockback_velocity", Vector2.ZERO)
+	boss.set("velocity", Vector2.ZERO)
+	boss.set("has_hit_player", false)
+	boss.set("can_attack", true)
+
+	var attack_id = boss.get("attack_sequence_id")
+	if attack_id != null:
+		boss.set("attack_sequence_id", int(attack_id) + 1)
 
 	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
 	if attack_shape != null:
 		attack_shape.set_deferred("disabled", true)
 
-	if hide_boss_during_dummy and not is_dummy_completed:
-		boss.visible = false
+	var sprite = boss.get_node_or_null("Sprite2D")
+	if sprite != null:
+		sprite.modulate = Color.WHITE
+
+	if boss.has_method("clear_attack_hint"):
+		boss.clear_attack_hint()
+
+
+func update_training_boss_progress() -> void:
+	# คำนวณว่าผู้เล่นทำดาเมจใส่บอสจริงไปเท่าไรในช่วงฝึก
+	if not is_instance_valid(boss):
+		return
+
+	var current_hp: int = get_int_value(boss, "current_hp", training_start_boss_hp)
+	var damage_dealt: int = max(training_start_boss_hp - current_hp, 0)
+	var required_damage: int = max(required_training_damage, 1)
+	var ratio: float = clamp(float(damage_dealt) / float(required_damage), 0.0, 1.0)
+	set_progress_percent(ratio)
+
+	body_label.text = "บอสใช้ท่า %s แบบจำกัด\nดาเมจฝึก: %d / %d" % [training_forced_boss_pattern, damage_dealt, required_damage]
+
+	if damage_dealt >= required_damage:
+		finish_training_boss(false)
+
+
+func finish_training_boss(was_skipped: bool) -> void:
+	# จบช่วงฝึกกับบอสจริง ไม่ว่าจะตีครบหรือกด Skip
+	if is_training_boss_completed:
+		return
+
+	is_training_boss_active = false
+	is_training_boss_completed = true
+	has_completed_training_boss_this_session = true
+	set_skip_button_visible(false)
+	set_boss_hold(true)
+	restore_boss_full_pattern()
+
+	if reset_boss_after_training:
+		reset_boss_for_real_fight()
+
+	root_control.visible = true
+	if was_skipped:
+		title_label.text = "ข้ามการฝึกบอส"
+		body_label.text = "ต่อไปจะฝึกอ่านสัญญาณ PARRY! / DASH!"
+	else:
+		title_label.text = "ผ่านการฝึกกับบอส"
+		body_label.text = "รีเซ็ตบอสแล้ว ต่อไปจะฝึกอ่านสัญญาณ"
+
+	set_progress_percent(1.0)
+	print("Duel 1 Boss Training completed. Skipped =", was_skipped)
+
+	await get_tree().create_timer(training_clear_message_time).timeout
+
+	root_control.visible = false
+	show_boss_if_needed()
+	enable_duel_intro_if_available()
+
+
+func reset_boss_for_real_fight() -> void:
+	# รีเซ็ต HP/Posture และสถานะบอส เพื่อให้ไฟต์จริงเริ่มแบบยุติธรรม
+	if not is_instance_valid(boss):
+		return
+
+	var boss_max_hp: int = get_int_value(boss, "max_hp", 300)
+	var boss_max_posture: float = get_float_value(boss, "max_posture", 120.0)
+
+	boss.set("current_hp", boss_max_hp)
+	boss.set("current_posture", boss_max_posture)
+	reset_boss_combat_state_for_training()
+	boss.set("can_attack", false)
+
+	if boss.has_method("emit_enemy_stats"):
+		boss.emit_enemy_stats()
+
+
+func restore_boss_full_pattern() -> void:
+	# คืนค่า pattern ของบอสกลับเหมือนก่อนเข้าโหมดฝึก
+	if not is_instance_valid(boss):
+		return
+
+	boss.set("debug_force_attack_pattern_enabled", original_debug_force_attack_pattern_enabled)
+	boss.set("debug_forced_attack_pattern", original_debug_forced_attack_pattern)
+
+
+func on_skip_button_pressed() -> void:
+	# ข้ามช่วงฝึกกับบอสจริง เพื่อไปยัง Duel Practice ทันที
+	if is_training_boss_completed:
+		return
+
+	finish_training_boss(true)
+
+
+func set_boss_hold(should_hold: bool) -> void:
+	# หยุดบอสไว้ระหว่างเปลี่ยนช่วง เพื่อไม่ให้โจมตีค้าง
+	if not is_instance_valid(boss):
+		return
+
+	boss.set_physics_process(not should_hold)
+
+	var attack_id = boss.get("attack_sequence_id")
+	if attack_id != null:
+		boss.set("attack_sequence_id", int(attack_id) + 1)
+
+	boss.set("is_winding_up", false)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("knockback_velocity", Vector2.ZERO)
+	boss.set("velocity", Vector2.ZERO)
+
+	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
+	if attack_shape != null:
+		attack_shape.set_deferred("disabled", true)
 
 	if not should_hold:
 		boss.visible = true
 		boss.set("can_attack", true)
-		boss.set("is_winding_up", false)
-		boss.set("is_attacking", false)
 
 
 func show_boss_if_needed() -> void:
-	# แสดงบอสกลับมาก่อนเข้า Duel Practice
+	# ใช้บอสจริงตลอดช่วงฝึก จึงต้องแน่ใจว่าบอสยัง visible ก่อนเข้าช่วงต่อไป
 	if is_instance_valid(boss):
 		boss.visible = true
 
 
 func disable_duel_intro_if_available() -> void:
-	# ปิด DuelIntro ไว้ก่อนจนกว่าหุ่น Duel 1 จะถูกทำลาย
+	# ปิด DuelIntro ไว้ก่อนจนกว่าช่วงฝึกกับบอสจริงจะจบ
 	if is_instance_valid(duel_intro_manager):
 		duel_intro_manager.set("duel_intro_enabled", false)
 
 
 func enable_duel_intro_if_available() -> void:
-	# เปิด DuelIntro หลังผ่านหุ่น Duel 1 แล้ว
+	# เปิด DuelIntro หลังผ่านการฝึกกับบอสจริงแล้ว
 	if is_instance_valid(duel_intro_manager):
 		duel_intro_manager.set("duel_intro_enabled", true)
 
 
 func set_skip_button_visible(is_visible: bool) -> void:
-	# ซ่อน/แสดงปุ่ม Skip ของกล่อง Duel 1 Dummy
+	# ซ่อน/แสดงปุ่ม Skip ของกล่องฝึกกับบอสจริง
 	if skip_button == null:
 		return
 
 	skip_button.visible = is_visible
 	skip_button.disabled = not is_visible
+
+
+func set_progress_percent(percent: float) -> void:
+	# Progress bar แสดงดาเมจที่ทำได้ในช่วงฝึกกับบอสจริง
+	if progress_bar == null:
+		return
+
+	progress_bar.value = clamp(percent, 0.0, 1.0) * 100.0
+
+
+func get_int_value(target: Node, property_name: String, fallback: int) -> int:
+	# อ่านค่า int จาก node แบบปลอดภัย
+	var value = target.get(property_name)
+	if value == null:
+		return fallback
+
+	return int(value)
+
+
+func get_float_value(target: Node, property_name: String, fallback: float) -> float:
+	# อ่านค่า float จาก node แบบปลอดภัย
+	var value = target.get(property_name)
+	if value == null:
+		return fallback
+
+	return float(value)
