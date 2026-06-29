@@ -3,7 +3,7 @@ extends CanvasLayer
 # =========================
 # Duel1IntroManager.gd
 # ขั้นกลางของ Phase 9 ก่อนทำศัตรู Duel 1 เต็มตัว
-# เวอร์ชันนี้เน้นอ่านทัน: อธิบายก่อน -> เตรียมจังหวะ -> สัญญาณใหญ่ -> กดให้ทัน
+# เวอร์ชันนี้เน้นอ่านทัน: อ่านเอง -> กดต่อไป -> เตรียมจังหวะ -> สัญญาณใหญ่ -> กดให้ทัน
 # =========================
 
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
@@ -16,8 +16,11 @@ extends CanvasLayer
 # แสดงเฉพาะครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
 
-# เวลาให้อ่านคำอธิบายของแต่ละท่าก่อนเริ่มจับจังหวะจริง
-@export var instruction_read_time: float = 5
+# เวลาให้อ่านคำอธิบายขั้นต่ำ ก่อนปุ่มต่อไปเปิดให้กด
+@export var instruction_read_time: float = 5.0
+
+# ถ้า true ช่วงอ่านคำอธิบายต้องกดปุ่มต่อไปเอง ไม่เปลี่ยนอัตโนมัติทันที
+@export var require_continue_for_briefing: bool = true
 
 # เวลาก่อนขึ้น PARRY! หรือ DASH! ใช้เป็นช่วงอ่าน wind-up
 @export var cue_windup_time: float = 1.25
@@ -29,13 +32,16 @@ extends CanvasLayer
 @export var rhythm_beat_interval: float = 0.8
 
 # เวลาค้างข้อความหลังทำ step สำเร็จ ก่อนเปลี่ยนไป step ถัดไป
-@export var step_success_message_time: float = 2
+@export var step_success_message_time: float = 2.0
 
 # เวลาหน่วงสั้น ๆ หลังทำสำเร็จทั้งหมด ก่อนปล่อยบอส
-@export var success_hold_time: float = 3
+@export var success_hold_time: float = 3.0
 
 # เวลาค้างข้อความ feedback ตอนกดเร็วไป/ช้าไป
-@export var retry_feedback_time: float = 2
+@export var retry_feedback_time: float = 2.0
+
+# ข้อความปุ่มต่อไป
+@export var continue_button_text: String = "เข้าใจแล้ว / ต่อไป"
 
 # ข้อความหัวข้อหลัก
 @export var intro_title: String = "Duel 1: อ่านจังหวะ"
@@ -54,6 +60,8 @@ var root_control: Control = null
 var panel: PanelContainer = null
 var title_label: Label = null
 var body_label: Label = null
+var progress_bar: ProgressBar = null
+var continue_button: Button = null
 
 var has_started_intro: bool = false
 var has_completed_intro: bool = false
@@ -61,7 +69,7 @@ var has_completed_intro: bool = false
 # current_step มีค่า parry หรือ dash
 var current_step: String = "intro"
 
-# current_phase มีค่า briefing, windup หรือ active
+# current_phase มีค่า briefing, windup, active หรือ feedback
 var current_phase: String = "briefing"
 
 # เวลาที่ผ่านไปใน phase ปัจจุบัน
@@ -78,6 +86,9 @@ var miss_count: int = 0
 
 # กันไม่ให้ข้อความ feedback ถูก phase update เขียนทับทันที
 var is_showing_feedback: bool = false
+
+# ปุ่มต่อไปพร้อมกดหรือยังในช่วง briefing
+var can_continue_briefing: bool = false
 
 # จำข้อความล่าสุด เพื่อลดการ set text ซ้ำทุกเฟรมจนดูพรึ่บพรั่บ
 var last_title_text: String = ""
@@ -135,12 +146,13 @@ func create_ui() -> void:
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(580.0, 240.0)
-	panel.position = Vector2(286.0, 126.0)
+	panel.custom_minimum_size = Vector2(600.0, 305.0)
+	panel.position = Vector2(276.0, 100.0)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(panel)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.02, 0.025, 0.035, 0.90)
+	style.bg_color = Color(0.02, 0.025, 0.035, 0.92)
 	style.border_color = Color(1.0, 0.78, 0.28, 0.94)
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(16)
@@ -167,7 +179,24 @@ func create_ui() -> void:
 	body_label.add_theme_font_size_override("font_size", 21)
 	layout.add_child(body_label)
 
+	progress_bar = ProgressBar.new()
+	progress_bar.custom_minimum_size = Vector2(470.0, 18.0)
+	progress_bar.min_value = 0.0
+	progress_bar.max_value = 100.0
+	progress_bar.value = 0.0
+	progress_bar.show_percentage = false
+	layout.add_child(progress_bar)
+
+	continue_button = Button.new()
+	continue_button.custom_minimum_size = Vector2(260.0, 54.0)
+	continue_button.focus_mode = Control.FOCUS_NONE
+	continue_button.text = continue_button_text
+	continue_button.add_theme_font_size_override("font_size", 20)
+	continue_button.pressed.connect(on_continue_button_pressed)
+	layout.add_child(continue_button)
+
 	root_control.visible = false
+	continue_button.visible = false
 
 
 func setup_references() -> void:
@@ -221,7 +250,7 @@ func start_intro() -> void:
 	root_control.visible = true
 
 	start_step("parry")
-	print("Duel 1 readable rhythm practice started")
+	print("Duel 1 interactive rhythm practice started")
 
 
 func start_step(step_name: String) -> void:
@@ -231,7 +260,10 @@ func start_step(step_name: String) -> void:
 	phase_elapsed_time = 0.0
 	beat_elapsed_time = 0.0
 	beat_count = 0
+	can_continue_briefing = false
 	show_briefing_text()
+	set_continue_button_visible(false)
+	set_progress_percent(0.0)
 	pulse_title(1.04)
 
 
@@ -254,8 +286,17 @@ func update_practice_step(delta: float) -> void:
 
 
 func update_briefing_phase() -> void:
-	# ช่วงอ่านคำอธิบาย ไม่ลงโทษการกดปุ่ม เพื่อไม่ให้ผู้เล่นรู้สึกถูกจับผิดเร็วเกินไป
-	if phase_elapsed_time >= instruction_read_time:
+	# ช่วงอ่านคำอธิบาย ให้ progress bar เติมก่อน แล้วค่อยเปิดปุ่มต่อไป
+	var progress_percent: float = clamp(phase_elapsed_time / max(instruction_read_time, 0.01), 0.0, 1.0)
+	set_progress_percent(progress_percent)
+
+	if phase_elapsed_time < instruction_read_time:
+		return
+
+	can_continue_briefing = true
+	set_continue_button_visible(true)
+
+	if not require_continue_for_briefing:
 		enter_windup_phase()
 
 
@@ -265,12 +306,17 @@ func enter_windup_phase() -> void:
 	phase_elapsed_time = 0.0
 	beat_elapsed_time = 0.0
 	beat_count = 0
+	can_continue_briefing = false
+	set_continue_button_visible(false)
+	set_progress_percent(0.0)
 	show_windup_text()
 	pulse_title(1.06)
 
 
 func update_windup_phase() -> void:
 	# ช่วงเตรียมจังหวะ: ให้เห็น beat แต่ยังไม่ควรกด
+	set_progress_percent(clamp(phase_elapsed_time / max(cue_windup_time, 0.01), 0.0, 1.0))
+
 	if expected_action_just_pressed():
 		retry_current_step("เร็วไป รอสัญญาณใหญ่ก่อน")
 		return
@@ -287,6 +333,8 @@ func update_windup_phase() -> void:
 
 func update_active_phase() -> void:
 	# ช่วงสัญญาณจริง: ต้องกดให้ทันใน active_response_window
+	set_progress_percent(1.0 - clamp(phase_elapsed_time / max(active_response_window, 0.01), 0.0, 1.0))
+
 	if expected_action_just_pressed():
 		complete_current_step()
 		return
@@ -300,6 +348,7 @@ func enter_active_phase() -> void:
 	current_phase = "active"
 	phase_elapsed_time = 0.0
 	beat_elapsed_time = 0.0
+	set_progress_percent(1.0)
 	show_active_text()
 	pulse_title(1.24)
 
@@ -316,16 +365,26 @@ func expected_action_just_pressed() -> bool:
 
 
 func complete_current_step() -> void:
-	# เมื่อทำ step ปัจจุบันสำเร็จ ให้ค้างข้อความก่อนเปลี่ยน ไม่เปลี่ยนฉับไวเกินไป
+	# สำคัญ: เปลี่ยนเป็น feedback ทันที เพื่อไม่ให้ active timer ยิงซ้ำจนขึ้นว่า "ช้าไป" หลังทำสำเร็จ
+	if is_showing_feedback:
+		return
+
+	current_phase = "feedback"
+	is_showing_feedback = true
+	set_continue_button_visible(false)
+	set_progress_percent(1.0)
+
 	if current_step == "parry":
 		show_feedback_text("ดีมาก", "นี่คือจังหวะ Parry ที่ถูกต้อง\nต่อไปจะฝึก Dash สำหรับท่าหนัก")
 		pulse_title(1.12)
 		print("Duel 1 practice: parry rhythm completed")
 		await get_tree().create_timer(step_success_message_time).timeout
+		is_showing_feedback = false
 		start_step("dash")
 		return
 
 	if current_step == "dash":
+		is_showing_feedback = false
 		complete_intro()
 
 
@@ -334,7 +393,7 @@ func show_briefing_text() -> void:
 	if current_step == "parry":
 		set_practice_text(
 			"ฝึก Parry",
-			"เมื่อเห็น PARRY! ให้กด Parry\nตอนนี้อ่านก่อน ยังไม่ต้องรีบกด"
+			"เมื่อเห็น PARRY! ให้กด Parry\nอ่านให้เข้าใจก่อน แล้วกด ต่อไป"
 		)
 		return
 
@@ -403,8 +462,14 @@ func get_beat_text() -> String:
 
 func retry_current_step(message: String) -> void:
 	# ถ้ากดเร็วไปหรือช้าไป ให้ค้างข้อความก่อนเริ่ม step เดิมใหม่
+	if is_showing_feedback:
+		return
+
+	current_phase = "feedback"
 	miss_count += 1
 	is_showing_feedback = true
+	set_continue_button_visible(false)
+	set_progress_percent(0.0)
 	show_feedback_text(
 		message,
 		"ไม่เป็นไร อ่านจังหวะแล้วลองอีกครั้ง\nพลาดแล้ว: %d ครั้ง" % miss_count
@@ -424,18 +489,49 @@ func complete_intro() -> void:
 
 	has_completed_intro = true
 	has_completed_intro_this_session = true
+	current_phase = "feedback"
+	set_continue_button_visible(false)
+	set_progress_percent(1.0)
 	show_feedback_text(
 		"พร้อมเข้าบอส",
 		"จำไว้: อ่านจังหวะก่อน\nPARRY! = Parry / DASH! = Dash"
 	)
 	pulse_title(1.16)
 
-	print("Duel 1 readable rhythm practice completed")
+	print("Duel 1 interactive rhythm practice completed")
 
 	await get_tree().create_timer(success_hold_time).timeout
 
 	root_control.visible = false
 	set_boss_hold(false)
+
+
+func set_progress_percent(percent: float) -> void:
+	# Progress bar อยู่ในกล่องเดียวกัน ใช้บอกระยะอ่าน/เตรียม/หน้าต่างกด
+	if progress_bar == null:
+		return
+
+	progress_bar.value = clamp(percent, 0.0, 1.0) * 100.0
+
+
+func set_continue_button_visible(is_visible: bool) -> void:
+	# ปุ่มต่อไปใช้เฉพาะช่วงที่ต้องการให้ผู้เล่นอ่านก่อน
+	if continue_button == null:
+		return
+
+	continue_button.visible = is_visible
+	continue_button.disabled = not is_visible
+
+
+func on_continue_button_pressed() -> void:
+	# ผู้เล่นอ่านแล้วค่อยกดต่อไป เพื่อไม่ให้กล่องเปลี่ยนเร็วเกินไป
+	if current_phase != "briefing":
+		return
+
+	if not can_continue_briefing:
+		return
+
+	enter_windup_phase()
 
 
 func pulse_title(target_scale: float) -> void:
