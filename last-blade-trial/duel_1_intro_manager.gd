@@ -5,8 +5,8 @@ extends CanvasLayer
 # ขั้นกลางของ Phase 9 ก่อนปล่อยบอสสู้จริง
 # เวอร์ชันนี้ฝึกแบบ Freeze Frame Prompt:
 # 1) อ่านคำอธิบาย
-# 2) บอสเข้าสู่ท่ากำลังจะโจมตีแบบสั้น ๆ
-# 3) หยุดจังหวะนั้นไว้ แล้วมีกล่องบอกให้กด Parry หรือ Dash
+# 2) สั่งให้บอสเริ่ม wind-up ท่าโจมตีจริงแบบควบคุม
+# 3) หยุดบอสก่อน hitbox เปิด แล้วมีกล่องบอกให้กด Parry หรือ Dash
 # 4) ผู้เล่นกดถูกหรือผิด ระบบให้ feedback แล้วไปต่อ
 # =========================
 
@@ -27,8 +27,9 @@ extends CanvasLayer
 # ถ้า true ช่วงอ่านคำอธิบายต้องกดปุ่มต่อไปเอง ไม่เปลี่ยนอัตโนมัติทันที
 @export var require_continue_for_briefing: bool = true
 
-# เวลาสั้น ๆ ที่ให้เห็นว่าบอสกำลังจะโจมตี ก่อนหยุดภาพเพื่อสอน
-@export var attack_preview_time: float = 0.85
+# เวลาสั้น ๆ ที่ให้เห็นว่าบอสกำลัง wind-up ก่อนหยุดภาพเพื่อสอน
+# ต้องสั้นกว่าท่าโจมตีจริงของบอส เพื่อหยุดก่อน hitbox เปิด
+@export var attack_preview_time: float = 0.45
 
 # เวลาที่ให้ผู้เล่นตอบสนองหลังเกมหยุดจังหวะโจมตีไว้และขึ้นกล่องเตือน
 @export var active_response_window: float = 3.00
@@ -118,6 +119,11 @@ var last_body_text: String = ""
 
 # จำว่า active visual เปิดอยู่หรือไม่ เพื่อลดการ set style ซ้ำ
 var is_active_signal_visual: bool = false
+
+# เก็บค่า debug pattern เดิมของบอสไว้ เพื่อคืนค่าก่อนปล่อยสู้จริง
+var has_saved_original_boss_debug: bool = false
+var original_debug_force_attack_pattern_enabled: bool = false
+var original_debug_forced_attack_pattern: String = "random"
 
 # tween สำหรับ pulse ข้อความ
 var pulse_tween: Tween = null
@@ -295,12 +301,41 @@ func start_intro() -> void:
 	# เริ่ม controlled practice และแปลงบอสเป็นหุ่นฝึกชั่วคราว
 	has_started_intro = true
 	miss_count = 0
+	save_original_boss_debug_settings()
 	prepare_boss_as_training_dummy()
 	root_control.visible = true
 	set_skip_button_visible(skip_button_enabled)
 
 	start_step("parry")
 	print("Duel 1 freeze-frame boss practice started")
+
+
+func save_original_boss_debug_settings() -> void:
+	# จำค่า debug pattern เดิม เพื่อไม่ให้โหมดฝึกทำให้บอสจริงโดนบังคับ pattern ต่อ
+	if has_saved_original_boss_debug:
+		return
+
+	if not is_instance_valid(boss):
+		return
+
+	var original_force = boss.get("debug_force_attack_pattern_enabled")
+	if original_force != null:
+		original_debug_force_attack_pattern_enabled = bool(original_force)
+
+	var original_pattern = boss.get("debug_forced_attack_pattern")
+	if original_pattern != null:
+		original_debug_forced_attack_pattern = str(original_pattern)
+
+	has_saved_original_boss_debug = true
+
+
+func restore_original_boss_debug_settings() -> void:
+	# คืนค่า pattern เดิมก่อนปล่อยบอสจริง
+	if not is_instance_valid(boss):
+		return
+
+	boss.set("debug_force_attack_pattern_enabled", original_debug_force_attack_pattern_enabled)
+	boss.set("debug_forced_attack_pattern", original_debug_forced_attack_pattern)
 
 
 func prepare_boss_as_training_dummy() -> void:
@@ -360,8 +395,8 @@ func update_briefing_phase() -> void:
 
 
 func enter_attack_preview_phase() -> void:
-	# บอสเข้าสู่ท่ากำลังจะโจมตี แต่ยังไม่ขึ้นคำตอบทันที
-	# จุดประสงค์คือให้ผู้เล่นเห็นว่า "ตอนนี้บอสกำลังจะตี" ก่อนเกมหยุดเตือน
+	# บอสเริ่ม wind-up ท่าจริงแบบควบคุม แต่ยังไม่ขึ้นคำตอบทันที
+	# เราจะหยุดก่อน hitbox เปิด เพื่อทำ freeze frame prompt
 	current_phase = "attack_preview"
 	phase_elapsed_time = 0.0
 	can_continue_briefing = false
@@ -369,12 +404,59 @@ func enter_attack_preview_phase() -> void:
 	set_active_signal_visual(false)
 	set_progress_percent(0.0)
 	show_attack_preview_text()
-	show_boss_windup_preview()
+	start_controlled_boss_windup_preview()
 	pulse_title(1.08)
 
 
+func start_controlled_boss_windup_preview() -> void:
+	# ใช้ attack() ของบอสจริงเพื่อให้บอสเข้า state wind-up จริง
+	# แต่จะ cancel ก่อน hitbox เปิดใน enter_frozen_prompt_phase()
+	if not is_instance_valid(boss):
+		return
+
+	reset_boss_state_before_controlled_preview()
+
+	boss.set("debug_force_attack_pattern_enabled", true)
+	boss.set("debug_forced_attack_pattern", get_controlled_boss_pattern_for_current_step())
+	boss.set("can_attack", true)
+
+	if boss.has_method("attack"):
+		boss.call("attack")
+
+
+func reset_boss_state_before_controlled_preview() -> void:
+	# ล้างสถานะค้างเพื่อให้ controlled attack preview เริ่มสะอาด
+	if not is_instance_valid(boss):
+		return
+
+	var attack_id = boss.get("attack_sequence_id")
+	if attack_id != null:
+		boss.set("attack_sequence_id", int(attack_id) + 1)
+
+	boss.set("is_winding_up", false)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("knockback_velocity", Vector2.ZERO)
+	boss.set("velocity", Vector2.ZERO)
+	boss.set("has_hit_player", false)
+	boss.set("can_attack", true)
+
+	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
+	if attack_shape != null:
+		attack_shape.set_deferred("disabled", true)
+
+
+func get_controlled_boss_pattern_for_current_step() -> String:
+	# Parry ใช้ท่าปกติที่ Parry ได้ / Dash ใช้ท่าหนักที่ต้องหลบ
+	if current_step == "dash":
+		return "heavy_slash"
+
+	return "normal_slash"
+
+
 func update_attack_preview_phase() -> void:
-	# ช่วงเห็นท่าบอสกำลังจะโจมตี ก่อน freeze frame prompt
+	# ช่วงเห็นท่าบอสกำลัง wind-up ก่อน freeze frame prompt
 	var progress_percent: float = clamp(phase_elapsed_time / max(attack_preview_time, 0.01), 0.0, 1.0)
 	set_progress_percent(progress_percent)
 
@@ -383,14 +465,39 @@ func update_attack_preview_phase() -> void:
 
 
 func enter_frozen_prompt_phase() -> void:
-	# นี่คือจังหวะ freeze frame: บอสหยุดนิ่งตอนกำลังจะโจมตี แล้วกล่องเตือนให้กด Parry/Dash
+	# นี่คือจังหวะ freeze frame: หยุดบอสก่อน hitbox เปิด แล้วกล่องเตือนให้กด Parry/Dash
 	current_phase = "frozen_prompt"
 	phase_elapsed_time = 0.0
+	freeze_boss_before_training_hitbox()
 	set_active_signal_visual(true)
 	set_progress_percent(1.0)
 	show_frozen_prompt_text()
 	show_boss_cue_for_current_step()
 	pulse_title(1.28)
+
+
+func freeze_boss_before_training_hitbox() -> void:
+	# สำคัญ: ยกเลิก coroutine attack() ของบอสก่อนถึง active hitbox
+	# แล้วหยุดสถานะไว้เป็นจังหวะ freeze frame สำหรับกล่องสอน
+	if not is_instance_valid(boss):
+		return
+
+	var attack_id = boss.get("attack_sequence_id")
+	if attack_id != null:
+		boss.set("attack_sequence_id", int(attack_id) + 1)
+
+	boss.set_physics_process(false)
+	boss.set("is_winding_up", true)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("can_attack", false)
+	boss.set("velocity", Vector2.ZERO)
+	boss.set("knockback_velocity", Vector2.ZERO)
+
+	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
+	if attack_shape != null:
+		attack_shape.set_deferred("disabled", true)
 
 
 func update_frozen_prompt_phase() -> void:
@@ -454,6 +561,7 @@ func finish_current_step(was_successful: bool, fail_message: String) -> void:
 	set_progress_percent(1.0 if was_successful else 0.0)
 	play_controlled_attack_visual()
 	clear_boss_cue()
+	stop_boss_after_controlled_prompt()
 
 	if was_successful:
 		show_success_feedback()
@@ -476,6 +584,25 @@ func finish_current_step(was_successful: bool, fail_message: String) -> void:
 
 	if current_step == "dash":
 		complete_intro()
+
+
+func stop_boss_after_controlled_prompt() -> void:
+	# หลังผู้เล่นตอบแล้ว ให้หยุดบอสกลับเป็นหุ่นฝึกนิ่ง ๆ ก่อน step ถัดไป
+	if not is_instance_valid(boss):
+		return
+
+	boss.set_physics_process(false)
+	boss.set("is_winding_up", false)
+	boss.set("is_attacking", false)
+	boss.set("is_staggered", false)
+	boss.set("is_knocked_back", false)
+	boss.set("can_attack", false)
+	boss.set("velocity", Vector2.ZERO)
+	boss.set("knockback_velocity", Vector2.ZERO)
+
+	var attack_shape = boss.get_node_or_null("AttackHitbox/CollisionShape2D")
+	if attack_shape != null:
+		attack_shape.set_deferred("disabled", true)
 
 
 func show_success_feedback() -> void:
@@ -511,18 +638,18 @@ func show_fail_feedback(fail_message: String) -> void:
 
 
 func show_briefing_text() -> void:
-	# แสดงคำอธิบายก่อนเริ่ม sequence บอสกำลังจะโจมตี -> freeze prompt
+	# แสดงคำอธิบายก่อนเริ่ม sequence บอส wind-up -> freeze prompt
 	if current_step == "parry":
 		set_practice_text(
 			"ฝึก Parry",
-			"ต่อไปบอสจะทำท่าจะโจมตี\nเกมจะหยุดจังหวะนั้นไว้ แล้วบอกให้กด Parry"
+			"ต่อไปบอสจะเริ่มท่าฟันจริง\nเกมจะหยุดก่อน hitbox เปิด แล้วบอกให้กด Parry"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
 			"ฝึก Dash",
-			"ต่อไปบอสจะทำท่าหนัก\nเกมจะหยุดจังหวะนั้นไว้ แล้วบอกให้กด Dash"
+			"ต่อไปบอสจะเริ่มท่าหนักจริง\nเกมจะหยุดก่อน hitbox เปิด แล้วบอกให้กด Dash"
 		)
 		return
 
@@ -532,14 +659,14 @@ func show_attack_preview_text() -> void:
 	if current_step == "parry":
 		set_practice_text(
 			"บอสกำลังจะโจมตี",
-			"ดูท่าทางบอสก่อน\nอีกสักครู่เกมจะหยุดจังหวะสำคัญเพื่อบอกปุ่ม"
+			"บอสเริ่ม wind-up ท่าฟันจริงแล้ว\nอีกสักครู่เกมจะหยุดก่อนโดนฟัน"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
 			"บอสกำลังจะใช้ท่าหนัก",
-			"ดูท่าทางบอสก่อน\nอีกสักครู่เกมจะหยุดจังหวะสำคัญเพื่อบอกปุ่ม"
+			"บอสเริ่ม wind-up ท่าหนักจริงแล้ว\nอีกสักครู่เกมจะหยุดก่อนโดนฟัน"
 		)
 		return
 
@@ -549,28 +676,15 @@ func show_frozen_prompt_text() -> void:
 	if current_step == "parry":
 		set_practice_text(
 			"⏸  %s  ⏸" % parry_practice_text,
-			"บอสถูกหยุดไว้ตรงจังหวะกำลังโจมตี\nกด PARRY ตอนนี้"
+			"บอสถูกหยุดไว้ก่อน hitbox เปิด\nกด PARRY ตอนนี้"
 		)
 		return
 
 	if current_step == "dash":
 		set_practice_text(
 			"⏸  %s  ⏸" % dash_practice_text,
-			"บอสถูกหยุดไว้ตรงจังหวะท่าหนัก\nกด DASH ตอนนี้ ห้าม Parry"
+			"บอสถูกหยุดไว้ก่อนท่าหนักโดนตัว\nกด DASH ตอนนี้ ห้าม Parry"
 		)
-		return
-
-
-func show_boss_windup_preview() -> void:
-	# ทำให้บอสเหมือนกำลัง wind-up ก่อน freeze prompt
-	if current_step == "parry":
-		show_boss_cue("...", Color.YELLOW)
-		set_boss_sprite_color(Color.YELLOW)
-		return
-
-	if current_step == "dash":
-		show_boss_cue("...", Color(1.0, 0.35, 0.0, 1.0))
-		set_boss_sprite_color(Color(1.0, 0.35, 0.0, 1.0))
 		return
 
 
@@ -590,13 +704,13 @@ func show_boss_cue_for_current_step() -> void:
 func show_boss_cue(text: String, color: Color) -> void:
 	# เรียกใช้ระบบ hint เหนือหัวบอสเดิม ถ้ามี
 	if is_instance_valid(boss) and boss.has_method("update_boss_hint_label"):
-		boss.update_boss_hint_label(text, color)
+		boss.call("update_boss_hint_label", text, color)
 
 
 func clear_boss_cue() -> void:
 	# ล้าง hint และคืนสีบอสหลังจบ step
 	if is_instance_valid(boss) and boss.has_method("clear_attack_hint"):
-		boss.clear_attack_hint()
+		boss.call("clear_attack_hint")
 
 	set_boss_sprite_color(Color.WHITE)
 
@@ -614,7 +728,7 @@ func set_boss_sprite_color(new_color: Color) -> void:
 func play_controlled_attack_visual() -> void:
 	# เล่น slash placeholder ของบอสตอนผู้เล่นตอบสนอง เพื่อให้รู้สึกว่าหลังตอบแล้วท่าถูกปล่อยออกจริง
 	if is_instance_valid(boss) and boss.has_method("show_boss_slash_effect"):
-		boss.show_boss_slash_effect()
+		boss.call("show_boss_slash_effect")
 
 
 func set_practice_text(new_title: String, new_body: String) -> void:
@@ -641,6 +755,7 @@ func complete_intro() -> void:
 	set_skip_button_visible(false)
 	set_progress_percent(1.0)
 	clear_boss_cue()
+	restore_original_boss_debug_settings()
 	set_practice_text(
 		"พร้อมเข้าบอสจริง",
 		"จากนี้บอสจะไม่หยุดเตือนแล้ว\nอ่านท่าก่อนโจมตี และตอบสนองให้ทันในเวลาจริง"
@@ -671,6 +786,7 @@ func on_skip_button_pressed() -> void:
 	set_skip_button_visible(false)
 	set_progress_percent(1.0)
 	clear_boss_cue()
+	restore_original_boss_debug_settings()
 
 	if is_instance_valid(root_control):
 		root_control.visible = false
