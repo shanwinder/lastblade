@@ -15,6 +15,10 @@ run/main_scene="res://scenes/main/BossBrokenMaster.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 
+[autoload]
+
+UpgradeRunState="*res://upgrade_run_state.gd"
+
 [display]
 
 window/stretch/mode="canvas_items"
