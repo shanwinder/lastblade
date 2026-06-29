@@ -65,29 +65,37 @@ func create_arena_background_if_needed() -> void:
 
 	# ไม่จำเป็นต้อง move_child เพราะใช้ z_index ติดลบควบคุมให้ฉากหลังอยู่ด้านหลังแล้ว
 
-	# ชั้นหลังสุด เป็นสีมืดไล่บรรยากาศแบบ arena ร้าง
+	# ชั้นหลังสุด ใช้สีเข้มเย็น เพื่อให้ rim light ของตัวละครเด่นขึ้น
 	var back_wall := create_background_rect(
 		Vector2.ZERO,
 		Vector2(arena_background_width, arena_background_height),
-		Color(0.055, 0.06, 0.085, 1.0)
+		Color(0.025, 0.030, 0.045, 1.0)
 	)
 	background_root.add_child(back_wall)
 
-	# พื้นสนาม ใช้สีเข้มกว่าเล็กน้อยเพื่อแยกพื้นที่ยืนจากฉากหลัง
+	# พื้นสนามเพิ่มความสว่างเล็กน้อย เพื่อให้เห็นตำแหน่งเท้าและขอบสนามชัดขึ้น
 	var floor_rect := create_background_rect(
 		Vector2(0.0, arena_floor_y),
 		Vector2(arena_background_width, arena_background_height - arena_floor_y),
-		Color(0.075, 0.07, 0.065, 1.0)
+		Color(0.105, 0.095, 0.075, 1.0)
 	)
 	background_root.add_child(floor_rect)
 
-	# แถบแสงกลางฉาก ช่วยนำสายตาไปที่พื้นที่ดวล
+	# แถบแสงกลางฉากสำหรับ readability วางหลัง Player/Boss เพื่อให้ตัวละครไม่กลืนกับฉาก
 	var center_glow := create_background_rect(
-		Vector2(360.0, 120.0),
-		Vector2(430.0, 270.0),
-		Color(0.12, 0.105, 0.16, 0.65)
+		Vector2(250.0, 105.0),
+		Vector2(680.0, 285.0),
+		Color(0.24, 0.215, 0.155, 0.82)
 	)
 	background_root.add_child(center_glow)
+
+	# แถบเงาด้านบน ช่วยคุมบรรยากาศไม่ให้ฉากหลังสว่างแบนเกินไป
+	var top_shadow := create_background_rect(
+		Vector2(0.0, 0.0),
+		Vector2(arena_background_width, 95.0),
+		Color(0.010, 0.012, 0.020, 0.80)
+	)
+	background_root.add_child(top_shadow)
 
 	# เส้นพื้นสนาม เพื่อให้ผู้เล่นรู้ว่าตัวละครยืนอยู่ตรงไหน
 	var floor_line := create_background_line(
@@ -95,8 +103,8 @@ func create_arena_background_if_needed() -> void:
 			Vector2(0.0, arena_floor_y),
 			Vector2(arena_background_width, arena_floor_y)
 		]),
-		Color(0.62, 0.52, 0.28, 0.70),
-		4.0
+		Color(0.95, 0.73, 0.28, 0.95),
+		5.0
 	)
 	background_root.add_child(floor_line)
 
@@ -106,8 +114,8 @@ func create_arena_background_if_needed() -> void:
 			Vector2(arena_min_x, arena_floor_y - 28.0),
 			Vector2(arena_min_x, arena_floor_y + 45.0)
 		]),
-		Color(0.85, 0.65, 0.22, 0.75),
-		5.0
+		Color(1.0, 0.78, 0.28, 0.95),
+		6.0
 	)
 	background_root.add_child(left_boundary)
 
@@ -116,20 +124,20 @@ func create_arena_background_if_needed() -> void:
 			Vector2(arena_max_x, arena_floor_y - 28.0),
 			Vector2(arena_max_x, arena_floor_y + 45.0)
 		]),
-		Color(0.85, 0.65, 0.22, 0.75),
-		5.0
+		Color(1.0, 0.78, 0.28, 0.95),
+		6.0
 	)
 	background_root.add_child(right_boundary)
 
-	# เส้นตกแต่งด้านหลังแบบเรียบ ๆ ให้ฉากไม่โล่งเกินไป แต่ไม่บังการต่อสู้
+	# เส้นตกแต่งด้านหลังแบบเรียบ ๆ ให้ฉากไม่โล่งเกินไป แต่ใช้สีจางเพื่อไม่แย่งสายตาจากตัวละคร
 	var back_line_left := create_background_line(
 		PackedVector2Array([
 			Vector2(160.0, 170.0),
 			Vector2(420.0, 145.0),
 			Vector2(610.0, 172.0)
 		]),
-		Color(0.22, 0.21, 0.30, 0.70),
-		3.0
+		Color(0.36, 0.32, 0.24, 0.45),
+		2.0
 	)
 	background_root.add_child(back_line_left)
 
@@ -139,8 +147,8 @@ func create_arena_background_if_needed() -> void:
 			Vector2(790.0, 150.0),
 			Vector2(1010.0, 178.0)
 		]),
-		Color(0.22, 0.21, 0.30, 0.70),
-		3.0
+		Color(0.36, 0.32, 0.24, 0.45),
+		2.0
 	)
 	background_root.add_child(back_line_right)
 
