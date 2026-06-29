@@ -4,7 +4,7 @@ extends CanvasLayer
 # TrainingCoachManager.gd
 # ระบบสอนผู้เล่นใหม่แบบสั้นสำหรับ Phase 9 Vertical Slice
 # สอนเดิน / Attack / Dash / Parry ก่อนปล่อยให้บอสเริ่มสู้จริง
-# เวอร์ชันนี้เพิ่ม progress bar และข้อความสำเร็จระหว่าง step
+# เวอร์ชันนี้เพิ่ม progress bar, ข้อความสำเร็จ และปุ่ม Skip
 # =========================
 
 # อ้างอิง Player ในฉากหลัก
@@ -25,11 +25,17 @@ extends CanvasLayer
 # ถ้า true จะแสดง tutorial เฉพาะรอบแรกของ session นี้
 @export var show_only_once_per_session: bool = true
 
+# เปิด/ปิดปุ่ม Skip สำหรับผู้เล่นที่อยากลองเอง หรือใช้ตอนทดสอบเร็ว
+@export var skip_button_enabled: bool = true
+
+# ข้อความบนปุ่ม Skip
+@export var skip_button_text: String = "SKIP"
+
 # ตำแหน่งกล่องข้อความบนจอ
 @export var coach_panel_position: Vector2 = Vector2(296.0, 18.0)
 
 # ขนาดกล่องข้อความ
-@export var coach_panel_size: Vector2 = Vector2(560.0, 132.0)
+@export var coach_panel_size: Vector2 = Vector2(560.0, 172.0)
 
 # ขนาดตัวอักษรหัวข้อ
 @export var title_font_size: int = 23
@@ -54,6 +60,7 @@ var coach_panel: PanelContainer = null
 var title_label: Label = null
 var body_label: Label = null
 var progress_bar: ProgressBar = null
+var skip_button: Button = null
 
 # สถานะ tutorial
 var is_training_active: bool = false
@@ -144,7 +151,7 @@ func create_coach_ui() -> void:
 	coach_panel.name = "CoachPanel"
 	coach_panel.position = coach_panel_position
 	coach_panel.custom_minimum_size = coach_panel_size
-	coach_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coach_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_control.add_child(coach_panel)
 
 	var panel_style := StyleBoxFlat.new()
@@ -180,6 +187,14 @@ func create_coach_ui() -> void:
 	progress_bar.value = 0.0
 	progress_bar.show_percentage = false
 	layout.add_child(progress_bar)
+
+	skip_button = Button.new()
+	skip_button.custom_minimum_size = Vector2(140.0, 38.0)
+	skip_button.focus_mode = Control.FOCUS_NONE
+	skip_button.text = skip_button_text
+	skip_button.add_theme_font_size_override("font_size", 16)
+	skip_button.pressed.connect(on_skip_button_pressed)
+	layout.add_child(skip_button)
 
 	root_control.visible = false
 
@@ -227,6 +242,7 @@ func start_training() -> void:
 	set_boss_training_hold(true)
 
 	root_control.visible = true
+	set_skip_button_visible(skip_button_enabled)
 	show_current_step_text()
 	update_progress_bar()
 
@@ -267,6 +283,10 @@ func advance_to_next_step() -> void:
 	update_progress_bar()
 
 	await get_tree().create_timer(step_success_message_time).timeout
+
+	# ถ้าผู้เล่นกด Skip ระหว่างรอ feedback ให้หยุดต่อทันที
+	if is_training_completed:
+		return
 
 	if current_step_index >= training_steps.size():
 		is_advancing_step = false
@@ -322,6 +342,7 @@ func complete_training() -> void:
 	has_completed_training_this_session = true
 	current_step_index = training_steps.size()
 	update_progress_bar()
+	set_skip_button_visible(false)
 
 	title_label.text = "พร้อมสู้"
 	body_label.text = "ต่อไปจะฝึกอ่านจังหวะ PARRY! และ DASH!"
@@ -334,6 +355,34 @@ func complete_training() -> void:
 
 	if is_instance_valid(root_control):
 		root_control.visible = false
+
+
+func on_skip_button_pressed() -> void:
+	# ข้าม Training Coach สำหรับผู้เล่นที่อยากลองเอง หรือเพื่อทดสอบเร็ว
+	if is_training_completed:
+		return
+
+	print("Training Coach skipped")
+	is_advancing_step = false
+	is_training_active = false
+	is_training_completed = true
+	has_completed_training_this_session = true
+	current_step_index = training_steps.size()
+	update_progress_bar()
+	set_skip_button_visible(false)
+	set_boss_training_hold(false)
+
+	if is_instance_valid(root_control):
+		root_control.visible = false
+
+
+func set_skip_button_visible(is_visible: bool) -> void:
+	# ซ่อน/แสดงปุ่ม Skip ตามสถานะ tutorial
+	if skip_button == null:
+		return
+
+	skip_button.visible = is_visible
+	skip_button.disabled = not is_visible
 
 
 func set_boss_training_hold(should_hold: bool) -> void:
