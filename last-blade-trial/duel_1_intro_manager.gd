@@ -17,7 +17,7 @@ extends CanvasLayer
 @export var show_only_once_per_session: bool = true
 
 # เวลาให้อ่านคำอธิบายของแต่ละท่าก่อนเริ่มจับจังหวะจริง
-@export var instruction_read_time: float = 2.20
+@export var instruction_read_time: float = 5
 
 # เวลาก่อนขึ้น PARRY! หรือ DASH! ใช้เป็นช่วงอ่าน wind-up
 @export var cue_windup_time: float = 1.25
