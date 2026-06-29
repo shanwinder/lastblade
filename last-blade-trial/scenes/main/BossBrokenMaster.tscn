@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
 [ext_resource type="Script" path="res://combat_decay_manager.gd" id="7_decay"]
 [ext_resource type="Script" path="res://touch_controls.gd" id="8_touch"]
+[ext_resource type="Script" path="res://player_attack_vfx_manager.gd" id="9_player_vfx"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -51,6 +52,9 @@ position = Vector2(780, 324)
 
 [node name="CombatDecayManager" type="Node" parent="."]
 script = ExtResource("7_decay")
+
+[node name="PlayerAttackVFXManager" type="Node" parent="."]
+script = ExtResource("9_player_vfx")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=613196371]
 script = ExtResource("5_7w3th")
