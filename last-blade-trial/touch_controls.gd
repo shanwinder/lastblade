@@ -13,10 +13,10 @@ extends CanvasLayer
 @export var allow_mouse_test: bool = true
 
 # ความโปร่งใสของปุ่มปกติ
-@export var button_alpha: float = 0.48
+@export var button_alpha: float = 0.52
 
 # ความโปร่งใสของปุ่มตอนกด
-@export var pressed_button_alpha: float = 0.78
+@export var pressed_button_alpha: float = 0.82
 
 # ขนาดปุ่มเดินซ้าย/ขวา
 @export var move_button_size: Vector2 = Vector2(96.0, 96.0)
@@ -32,6 +32,18 @@ extends CanvasLayer
 
 # ขนาดตัวอักษรบนปุ่ม
 @export var button_font_size: int = 20
+
+# สีพื้นปุ่มปกติ
+@export var button_fill_color: Color = Color(0.07, 0.09, 0.12, 0.52)
+
+# สีพื้นปุ่มตอนกด
+@export var button_pressed_fill_color: Color = Color(0.20, 0.42, 0.55, 0.82)
+
+# สีเส้นขอบปุ่ม
+@export var button_border_color: Color = Color(0.75, 0.95, 1.0, 0.85)
+
+# ความหนาเส้นขอบปุ่ม
+@export var button_border_width: int = 3
 
 # Root control ที่คลุมทั้งจอ
 var root_control: Control = null
@@ -102,7 +114,46 @@ func create_touch_button(label_text: String, button_size: Vector2) -> Button:
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.modulate = Color(1.0, 1.0, 1.0, button_alpha)
 	button.add_theme_font_size_override("font_size", button_font_size)
+
+	# ทำให้ปุ่มเป็นวงกลมด้วย StyleBoxFlat โดยตั้ง corner radius ให้มากกว่าครึ่งของขนาดปุ่ม
+	apply_circle_button_style(button, button_size)
+
 	return button
+
+
+func apply_circle_button_style(button: Button, button_size: Vector2) -> void:
+	# คำนวณ radius จากปุ่ม เพื่อให้ปุ่มดูเป็นวงกลม/แคปซูลตามขนาดจริง
+	var radius: int = int(max(button_size.x, button_size.y))
+
+	var normal_style := create_circle_style(button_fill_color, radius)
+	var hover_style := create_circle_style(Color(button_fill_color.r + 0.04, button_fill_color.g + 0.04, button_fill_color.b + 0.04, button_fill_color.a), radius)
+	var pressed_style := create_circle_style(button_pressed_fill_color, radius)
+
+	button.add_theme_stylebox_override("normal", normal_style)
+	button.add_theme_stylebox_override("hover", hover_style)
+	button.add_theme_stylebox_override("pressed", pressed_style)
+	button.add_theme_stylebox_override("focus", normal_style)
+	tbutton_disabled_style_if_needed(button, radius)
+
+
+func tbutton_disabled_style_if_needed(button: Button, radius: int) -> void:
+	# ใส่ style disabled เผื่ออนาคตมีการปิดปุ่ม จะได้ยังเป็นทรงเดียวกัน
+	var disabled_color := Color(button_fill_color.r, button_fill_color.g, button_fill_color.b, 0.22)
+	button.add_theme_stylebox_override("disabled", create_circle_style(disabled_color, radius))
+
+
+func create_circle_style(fill_color: Color, radius: int) -> StyleBoxFlat:
+	# สร้าง StyleBoxFlat ทรงวงกลม/โค้งมนสูง
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill_color
+	style.border_color = button_border_color
+	style.set_border_width_all(button_border_width)
+	style.set_corner_radius_all(radius)
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
+	return style
 
 
 func connect_hold_button(button: Button, action_name: String) -> void:
