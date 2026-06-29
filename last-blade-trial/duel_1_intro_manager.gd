@@ -3,27 +3,33 @@ extends CanvasLayer
 # =========================
 # Duel1IntroManager.gd
 # ขั้นกลางของ Phase 9 ก่อนทำศัตรู Duel 1 เต็มตัว
-# ใช้สอนแนวคิด Duel 1 แบบสั้น และหน่วงบอสก่อนเริ่มจริง
+# เวอร์ชันนี้ให้ผู้เล่นฝึกตอบสนองจริง: PARRY! แล้ว DASH!
 # =========================
 
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
 @export var game_loop_manager_path: NodePath = NodePath("../GameLoopManager")
 @export var training_coach_manager_path: NodePath = NodePath("../TrainingCoachManager")
 
-# เปิด/ปิด Duel 1 intro gate
+# เปิด/ปิด Duel 1 practice gate
 @export var duel_intro_enabled: bool = true
 
 # แสดงเฉพาะครั้งแรกของ session เพื่อไม่รบกวนการเล่นซ้ำ
 @export var show_only_once_per_session: bool = true
 
-# ระยะเวลาหน่วงก่อนปล่อยบอส หลัง Training Coach จบ
-@export var intro_duration: float = 3.0
+# เวลาหน่วงสั้น ๆ หลังทำสำเร็จ ก่อนปล่อยบอส
+@export var success_hold_time: float = 0.65
 
-# ข้อความหัวข้อ
+# ข้อความหัวข้อหลัก
 @export var intro_title: String = "Duel 1: อ่านสัญญาณ"
 
-# ข้อความสั้น ๆ ก่อนเข้าบอส
-@export var intro_body: String = "PARRY! = กด Parry\nDASH! = กด Dash\nจำสองอย่างนี้ก่อนเข้า Boss"
+# ข้อความอธิบายก่อนฝึก
+@export var intro_body: String = "ฝึกอ่านสัญญาณก่อนเข้าบอสจริง\nทำตามข้อความที่ขึ้นบนจอ"
+
+# ข้อความตอนฝึก Parry
+@export var parry_practice_text: String = "PARRY!"
+
+# ข้อความตอนฝึก Dash
+@export var dash_practice_text: String = "DASH!"
 
 var boss: Node = null
 var game_loop_manager: Node = null
@@ -36,6 +42,8 @@ var body_label: Label = null
 
 var has_started_intro: bool = false
 var has_completed_intro: bool = false
+var current_step: String = "intro"
+
 static var has_completed_intro_this_session: bool = false
 
 
@@ -57,7 +65,7 @@ func _physics_process(_delta: float) -> void:
 		setup_references()
 		return
 
-	if has_started_intro or has_completed_intro:
+	if has_completed_intro:
 		return
 
 	if not is_game_playing():
@@ -66,7 +74,11 @@ func _physics_process(_delta: float) -> void:
 	if not is_training_ready():
 		return
 
-	start_intro()
+	if not has_started_intro:
+		start_intro()
+		return
+
+	update_practice_step()
 
 
 func create_ui() -> void:
@@ -78,13 +90,13 @@ func create_ui() -> void:
 	add_child(root_control)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(480.0, 170.0)
-	panel.position = Vector2(336.0, 150.0)
+	panel.custom_minimum_size = Vector2(500.0, 190.0)
+	panel.position = Vector2(326.0, 145.0)
 	root_control.add_child(panel)
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.02, 0.025, 0.035, 0.84)
-	style.border_color = Color(1.0, 0.78, 0.28, 0.92)
+	style.bg_color = Color(0.02, 0.025, 0.035, 0.86)
+	style.border_color = Color(1.0, 0.78, 0.28, 0.94)
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(16)
 	style.content_margin_left = 22.0
@@ -100,12 +112,12 @@ func create_ui() -> void:
 
 	title_label = Label.new()
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 28)
+	title_label.add_theme_font_size_override("font_size", 30)
 	layout.add_child(title_label)
 
 	body_label = Label.new()
 	body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body_label.add_theme_font_size_override("font_size", 20)
+	body_label.add_theme_font_size_override("font_size", 21)
 	layout.add_child(body_label)
 
 	root_control.visible = false
@@ -149,25 +161,43 @@ func is_training_ready() -> bool:
 	if active == true:
 		return false
 
-	# ถ้า tutorial จบแล้ว หรือ session นี้เคยจบแล้ว ให้เริ่ม intro ได้
+	# ถ้า tutorial จบแล้ว ให้เริ่ม practice gate ได้
 	var completed = training_coach_manager.get("is_training_completed")
-	var completed_session = training_coach_manager.get("has_completed_training_this_session")
-	return completed == true or completed_session == true
+	return completed == true
 
 
 func start_intro() -> void:
+	# เริ่ม practice gate และหยุดบอสไว้ก่อน
 	has_started_intro = true
+	current_step = "parry"
 	set_boss_hold(true)
 
 	title_label.text = intro_title
-	body_label.text = intro_body
+	body_label.text = intro_body + "\n\n" + parry_practice_text + " = กด PARRY"
 	root_control.visible = true
 
-	print("Duel 1 intro started")
+	print("Duel 1 practice started")
 
-	await get_tree().create_timer(intro_duration).timeout
 
-	complete_intro()
+func update_practice_step() -> void:
+	# ตรวจ input ของผู้เล่นตามสัญญาณที่กำลังฝึก
+	if current_step == "parry":
+		if Input.is_action_just_pressed("parry"):
+			show_dash_step()
+		return
+
+	if current_step == "dash":
+		if Input.is_action_just_pressed("dash"):
+			complete_intro()
+		return
+
+
+func show_dash_step() -> void:
+	# ผู้เล่นกด Parry ถูกแล้ว ต่อไปฝึก Dash
+	current_step = "dash"
+	title_label.text = "ดีมาก"
+	body_label.text = dash_practice_text + " = กด DASH\nท่าหนักห้าม Parry ต้อง Dash หลบ"
+	print("Duel 1 practice: parry step completed")
 
 
 func complete_intro() -> void:
@@ -176,14 +206,19 @@ func complete_intro() -> void:
 
 	has_completed_intro = true
 	has_completed_intro_this_session = true
+	title_label.text = "พร้อมเข้าบอส"
+	body_label.text = "จำไว้: PARRY! = Parry / DASH! = Dash"
+
+	print("Duel 1 practice completed")
+
+	await get_tree().create_timer(success_hold_time).timeout
+
 	root_control.visible = false
 	set_boss_hold(false)
 
-	print("Duel 1 intro completed")
-
 
 func set_boss_hold(should_hold: bool) -> void:
-	# หยุดหรือปล่อยบอส เพื่อให้ผู้เล่นอ่านคำสอนก่อน
+	# หยุดหรือปล่อยบอส เพื่อให้ผู้เล่นฝึกก่อน
 	if not is_instance_valid(boss):
 		return
 
