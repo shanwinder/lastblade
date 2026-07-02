@@ -54,11 +54,11 @@ signal player_died
 @export var dash_stamina_cost: float = 30.0
 
 # ค่าเดิมของ Parry ยังเก็บไว้ชั่วคราวเพื่อ compatibility กับระบบเก่า
-# ในระบบใหม่ผู้เล่นไม่ได้กดปุ่ม Parry แล้ว แต่ใช้ Movement Deflect แทน
+# ในระบบใหม่ผู้เล่นไม่ได้กดปุ่ม Parry แล้ว แต่ใช้ Movement Deflect / Tap Deflect แทน
 @export var parry_stamina_cost: float = 20.0
 
 # จำนวน Focus ที่ได้รับเมื่อ Deflect สำเร็จ
-# ลดจากระบบ Parry เดิม เพราะ Movement Deflect ทำได้ง่ายขึ้นบนมือถือ
+# ลดจากระบบ Parry เดิม เพราะ Deflect จาก joystick ทำได้ง่ายขึ้นบนมือถือ
 @export var focus_gain_on_successful_parry: float = 8.0
 
 # Focus ที่ต้องใช้เพื่อทำ Finisher
@@ -110,14 +110,17 @@ signal player_died
 @export var target_lock_debug_print: bool = true
 
 # =========================
-# Movement Deflect System
+# Movement / Tap Deflect System
 # =========================
 
-# เปิด/ปิดระบบ Movement Deflect
+# เปิด/ปิดระบบ Deflect จาก joystick
 @export var movement_deflect_enabled: bool = true
 
 # ช่วงเวลาหลังเริ่มโยกซ้าย/ขวาที่ถือว่ายัง Deflect ได้
 @export var movement_deflect_window: float = 0.28
+
+# ช่วงเวลาหลังแตะ joystick ที่ถือว่ายัง Deflect ได้โดยไม่ต้องเดิน
+@export var tap_deflect_window: float = 0.22
 
 # ถ้า true จะไม่ให้กด movement ค้างเพื่อ Deflect ฟรี ต้องเป็นจังหวะเริ่มโยกหรือเปลี่ยนทิศเท่านั้น
 @export var movement_deflect_requires_new_input: bool = true
@@ -141,14 +144,18 @@ signal player_died
 # ความเร็วในการฟื้น Player Posture ต่อวินาที
 @export var player_posture_regen_rate: float = 5.0
 
-# Posture ที่เสียเมื่อ Deflect สำเร็จ
+# Posture ที่เสียเมื่อ Deflect จากการโยกซ้าย/ขวาสำเร็จ
 @export var posture_damage_on_deflect: float = 14.0
+
+# Posture ที่เสียเมื่อ Tap Deflect สำเร็จ
+# Tap Deflect ใช้ง่ายกว่า จึงเสีย Posture มากกว่าเล็กน้อย
+@export var posture_damage_on_tap_deflect: float = 16.0
 
 # ตัวคูณ Posture damage จากการโดนดาเมจจริง
 @export var posture_damage_from_hit_multiplier: float = 1.6
 
 # เวลาที่ Player ชะงักเมื่อ Posture แตก
-@export var player_posture_break_time: float = 3
+@export var player_posture_break_time: float = 3.0
 
 # สัดส่วน Posture ที่คืนให้หลังฟื้นจาก Posture Break
 @export var posture_recover_ratio_after_break: float = 0.55
@@ -158,6 +165,13 @@ signal player_died
 
 # ขนาดตัวอักษร feedback เมื่อ Player Posture แตก
 @export var posture_break_feedback_font_size: int = 28
+
+# =========================
+# Dash Landing Risk
+# =========================
+
+# ช่วงเวลาหลัง Dash จบที่ Boss สามารถมองว่า Player เสี่ยงโดน Grab ได้
+@export var dash_landing_risk_window: float = 0.35
 
 # =========================
 # Dash Trail Placeholder
@@ -305,11 +319,23 @@ var is_target_locked: bool = false
 # เวลาที่เกิด movement input ใหม่ล่าสุด ใช้เป็น Movement Deflect window
 var last_movement_deflect_msec: int = -999999
 
+# เวลาที่แตะ joystick ล่าสุด ใช้เป็น Tap Deflect window
+var last_tap_deflect_msec: int = -999999
+
+# เวลาที่ Dash จบล่าสุด ใช้ให้ Boss อ่าน Dash Landing Risk
+var last_dash_end_msec: int = -999999
+
+# เวลาที่ Deflect สำเร็จล่าสุด เผื่อ Boss ใช้ทำ Anti-Repetition Memory ในอนาคต
+var last_successful_deflect_msec: int = -999999
+
 # ทิศ movement ล่าสุดที่ใช้ trigger Deflect
 var last_movement_deflect_direction: int = 0
 
 # ทิศ movement ใน physics frame ก่อนหน้า ใช้ตรวจ keyboard และ fallback
 var previous_axis_direction: int = 0
+
+# ชนิด Deflect ล่าสุดที่ active อยู่ เช่น movement หรือ tap
+var last_active_deflect_type: String = ""
 
 # ใช้กัน Deflect feedback ซ้อนกันมากเกินไป
 var is_showing_deflect_feedback: bool = false
@@ -457,7 +483,7 @@ func _physics_process(delta: float) -> void:
 			update_facing_to_locked_target()
 		dash()
 
-	# ไม่รับ input parry โดยตรงแล้ว ระบบใหม่ใช้ Movement Deflect แทน
+	# ไม่รับ input parry โดยตรงแล้ว ระบบใหม่ใช้ Movement/Tap Deflect แทน
 
 
 func emit_stats() -> void:
@@ -578,19 +604,74 @@ func register_movement_deflect_input(direction: int) -> void:
 	last_movement_deflect_msec = Time.get_ticks_msec()
 
 
-func is_movement_deflect_active() -> bool:
-	# ใช้แทน Parry เดิม: ถ้าเพิ่งโยก movement ในช่วงเวลาสั้น ๆ ให้ถือว่าพร้อม Deflect
+func register_tap_deflect_input() -> void:
+	# บันทึกจังหวะแตะ joystick 1 ครั้ง เพื่อให้ Deflect ได้โดยไม่ต้องเดิน
+	# ฟังก์ชันนี้ต้องถูกเรียกเฉพาะตอน touch pressed / mouse pressed เท่านั้น ห้ามเรียกทุก frame ระหว่างแตะค้าง
 	if not movement_deflect_enabled:
-		return false
+		return
+
+	last_tap_deflect_msec = Time.get_ticks_msec()
+	last_active_deflect_type = "tap"
+
+
+func get_active_deflect_type() -> String:
+	# คืนชนิด Deflect ที่ยังอยู่ใน window ปัจจุบัน
+	# ถ้า Tap และ Movement active พร้อมกัน ให้เลือกอันที่เกิดล่าสุด
+	if not movement_deflect_enabled:
+		return ""
 
 	if is_dead or is_attacking or is_dashing or is_posture_broken or is_knocked_back:
-		return false
+		return ""
 
 	if current_player_posture <= 0.0:
-		return false
+		return ""
 
-	var elapsed_sec := float(Time.get_ticks_msec() - last_movement_deflect_msec) / 1000.0
-	return elapsed_sec <= movement_deflect_window
+	var now_msec := Time.get_ticks_msec()
+	var movement_elapsed_sec := float(now_msec - last_movement_deflect_msec) / 1000.0
+	var tap_elapsed_sec := float(now_msec - last_tap_deflect_msec) / 1000.0
+	var movement_active := movement_elapsed_sec <= movement_deflect_window
+	var tap_active := tap_elapsed_sec <= tap_deflect_window
+
+	if tap_active and movement_active:
+		if last_tap_deflect_msec >= last_movement_deflect_msec:
+			return "tap"
+		return "movement"
+
+	if tap_active:
+		return "tap"
+
+	if movement_active:
+		return "movement"
+
+	return ""
+
+
+func is_movement_deflect_active() -> bool:
+	# ใช้แทน Parry เดิม: ถ้ามี Tap หรือ Movement Deflect active ให้ถือว่าพร้อม Deflect
+	last_active_deflect_type = get_active_deflect_type()
+	return last_active_deflect_type != ""
+
+
+func clear_deflect_windows_after_success() -> void:
+	# ล้าง window หลัง Deflect สำเร็จ เพื่อไม่ให้ tap/movement ครั้งเดียวถูกใช้ซ้ำในเหตุการณ์ถัดไป
+	last_movement_deflect_msec = -999999
+	last_tap_deflect_msec = -999999
+	last_active_deflect_type = ""
+
+
+func get_time_since_last_dash_end() -> float:
+	# คืนเวลาหลัง Dash จบล่าสุดเป็นวินาที ถ้ายังไม่เคย Dash จะคืนค่าสูงมาก
+	return float(Time.get_ticks_msec() - last_dash_end_msec) / 1000.0
+
+
+func is_in_dash_landing_risk_window() -> bool:
+	# ให้ Boss ใช้ตรวจว่า Player เพิ่ง Dash จบและเสี่ยงโดน Grab หรือไม่
+	return get_time_since_last_dash_end() <= dash_landing_risk_window
+
+
+func get_time_since_last_successful_deflect() -> float:
+	# เผื่อ Boss ใช้ทำ Anti-Repetition Memory ในอนาคต
+	return float(Time.get_ticks_msec() - last_successful_deflect_msec) / 1000.0
 
 
 func gain_focus(amount: float) -> void:
@@ -895,8 +976,9 @@ func dash() -> void:
 	# รอระยะเวลาที่ Dash มีผล
 	await get_tree().create_timer(dash_time).timeout
 
-	# จบ Dash
+	# จบ Dash และบันทึกเวลา landing เพื่อให้ Boss ใช้เลือก Grab ได้
 	is_dashing = false
+	last_dash_end_msec = Time.get_ticks_msec()
 
 	# ปิดโหมด Dash-through ให้ Player กลับมาชนศัตรูตามปกติ
 	end_dash_collision_mode()
@@ -1010,26 +1092,37 @@ func parry() -> void:
 	# ปุ่ม Parry ถูกถอดออกจากระบบมือถือแล้ว
 	# ฟังก์ชันนี้คงไว้เพื่อไม่ให้ flow เก่าที่อาจยังเรียก parry() พังทันที
 	# แต่จะไม่เปิดหน้าต่าง Parry โดยตรงอีกต่อไป
-	print("Parry button deprecated. Use Movement Deflect instead.")
+	print("Parry button deprecated. Use Movement/Tap Deflect instead.")
 
 
 func is_parry_active() -> bool:
-	# ให้ Boss เรียกชื่อเดิมได้ แต่ความหมายใหม่คือ Movement Deflect
+	# ให้ Boss เรียกชื่อเดิมได้ แต่ความหมายใหม่คือ Movement/Tap Deflect
 	return is_movement_deflect_active()
 
 
 func on_successful_parry() -> void:
-	# ฟังก์ชันนี้ถูกเรียกเมื่อ Boss โจมตีเข้ามาในช่วง Movement Deflect
-	print("Successful Movement Deflect!")
+	# ฟังก์ชันนี้ถูกเรียกเมื่อ Boss โจมตีเข้ามาในช่วง Deflect
+	print("Successful Deflect!")
 
-	# Movement Deflect สำเร็จแล้ว Player ยังเสีย Posture เล็กน้อย เพื่อไม่ให้เกมง่ายเกินไป
-	apply_player_posture_damage(posture_damage_on_deflect)
+	last_successful_deflect_msec = Time.get_ticks_msec()
+	var deflect_type := last_active_deflect_type
+	if deflect_type == "":
+		deflect_type = get_active_deflect_type()
+
+	# Tap Deflect ใช้ง่ายกว่า จึงเสีย Posture มากกว่า Movement Deflect เล็กน้อย
+	if deflect_type == "tap":
+		apply_player_posture_damage(posture_damage_on_tap_deflect)
+	else:
+		apply_player_posture_damage(posture_damage_on_deflect)
 
 	# ได้ Focus เมื่อ Deflect สำเร็จ
 	gain_focus(focus_gain_on_successful_parry)
 
 	# แสดง feedback ฝั่ง Player
 	show_movement_deflect_feedback()
+
+	# ล้าง window เพื่อไม่ให้ touch/movement ครั้งเดียวถูกใช้ซ้ำ
+	clear_deflect_windows_after_success()
 
 
 func show_movement_deflect_feedback() -> void:
@@ -1166,12 +1259,7 @@ func take_damage(amount: int) -> void:
 	start_hurt_invincibility()
 
 	# ทำ Camera Shake เมื่อ Player โดนโจมตี
-	get_tree().call_group(
-		"game_camera",
-		"shake",
-		player_hit_camera_shake_strength,
-		player_hit_camera_shake_duration
-	)
+	get_tree().call_group("game_camera", "shake", player_hit_camera_shake_strength, player_hit_camera_shake_duration)
 
 	# ทำเอฟเฟกต์กระพริบแดงแบบง่าย ๆ
 	flash_red()
