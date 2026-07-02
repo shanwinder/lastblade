@@ -15,6 +15,9 @@ extends Node
 # อ้างอิง Boss หลักในฉาก
 @export var boss_path: NodePath = NodePath("../BossBrokenMaster")
 
+# อ้างอิง GameLoopManager ถ้ามี เพื่อให้ Grab ทำงานเฉพาะตอน playing
+@export var game_loop_manager_path: NodePath = NodePath("../GameLoopManager")
+
 # ระยะประชิดที่ Boss มีสิทธิ์ใช้ Grab
 @export var grab_close_range: float = 72.0
 
@@ -55,12 +58,35 @@ extends Node
 # ขนาดตัวอักษร feedback เมื่อติด Grab
 @export var grabbed_feedback_font_size: int = 26
 
+# =========================
+# Anti-Repetition Memory แบบเบา ๆ
+# =========================
+
+# เปิด/ปิดระบบจำพฤติกรรมซ้ำของผู้เล่น
+@export var anti_repetition_memory_enabled: bool = true
+
+# ช่วงเวลาที่ใช้จำพฤติกรรมซ้ำ
+@export var recent_action_memory_window: float = 4.0
+
+# โบนัสโอกาส Grab ต่อจำนวน Dash ในช่วง memory window
+@export_range(0.0, 1.0, 0.01) var dash_spam_grab_bonus_per_event: float = 0.08
+
+# โบนัสโอกาส Grab ต่อจำนวน Attack ในช่วง memory window
+@export_range(0.0, 1.0, 0.01) var attack_spam_grab_bonus_per_event: float = 0.06
+
+# โบนัสโอกาส Grab ต่อจำนวน Deflect สำเร็จในช่วง memory window
+@export_range(0.0, 1.0, 0.01) var deflect_spam_grab_bonus_per_event: float = 0.04
+
+# เพดานโบนัสรวมจาก Anti-Repetition เพื่อไม่ให้ Boss unfair เกินไป
+@export_range(0.0, 1.0, 0.01) var anti_repetition_max_bonus: float = 0.30
+
 # เปิด/ปิด debug print
 @export var debug_print_grab: bool = true
 
 # อ้างอิง node จริงหลัง setup
 var player: Node2D = null
 var boss: Node = null
+var game_loop_manager: Node = null
 
 # ตัวจับเวลา evaluation
 var evaluation_timer: float = 0.0
@@ -70,6 +96,16 @@ var is_grabbing: bool = false
 
 # เวลาที่อนุญาตให้ Grab ครั้งต่อไปได้
 var next_grab_allowed_msec: int = 0
+
+# จำ timestamp ของ Dash/Attack/Deflect ล่าสุดที่เห็น เพื่อไม่บันทึกซ้ำทุก frame
+var last_seen_dash_end_msec: int = -999999
+var last_seen_deflect_msec: int = -999999
+var was_player_attacking: bool = false
+
+# เก็บ event ย้อนหลังสำหรับ Anti-Repetition
+var recent_dash_msecs: Array[int] = []
+var recent_attack_msecs: Array[int] = []
+var recent_deflect_msecs: Array[int] = []
 
 
 func _ready() -> void:
@@ -86,6 +122,13 @@ func _physics_process(delta: float) -> void:
 	if not are_references_ready():
 		setup_references()
 		return
+
+	# ทำงานเฉพาะตอนเกมกำลัง playing ถ้ามี GameLoopManager ให้ตรวจสถานะก่อน
+	if not is_game_playing_if_available():
+		return
+
+	# อัปเดตความจำพฤติกรรมซ้ำของผู้เล่น
+	update_anti_repetition_memory()
 
 	# ถ้ากำลัง Grab อยู่ ไม่ต้องประเมินรอบใหม่
 	if is_grabbing:
@@ -117,10 +160,27 @@ func setup_references() -> void:
 	if boss == null and get_parent() != null:
 		boss = get_parent().get_node_or_null("BossBrokenMaster")
 
+	# หา GameLoopManager แบบ optional
+	game_loop_manager = get_node_or_null(game_loop_manager_path)
+	if game_loop_manager == null and get_parent() != null:
+		game_loop_manager = get_parent().get_node_or_null("GameLoopManager")
+
 
 func are_references_ready() -> bool:
-	# ต้องมีทั้ง Player และ Boss จึงทำงานได้
+	# ต้องมีทั้ง Player และ Boss จึงทำงานได้ ส่วน GameLoopManager เป็น optional
 	return is_instance_valid(player) and is_instance_valid(boss)
+
+
+func is_game_playing_if_available() -> bool:
+	# ถ้าไม่มี GameLoopManager ให้ยอมทำงาน เพื่อรองรับ scene test แยก
+	if not is_instance_valid(game_loop_manager):
+		return true
+
+	var state = game_loop_manager.get("game_state")
+	if state == null:
+		return true
+
+	return str(state) == "playing"
 
 
 func should_start_grab() -> bool:
@@ -145,6 +205,10 @@ func should_start_grab() -> bool:
 	var final_chance := grab_chance
 	if is_dash_landing_close:
 		final_chance += grab_dash_landing_bonus_chance
+
+	# ถ้าอยู่ใกล้ ให้เพิ่มโบนัสจากพฤติกรรมซ้ำ เช่น Dash/Attack/Deflect บ่อย
+	if is_close:
+		final_chance += get_anti_repetition_grab_bonus()
 
 	final_chance = clamp(final_chance, 0.0, 1.0)
 	var roll := randf()
@@ -199,6 +263,9 @@ func is_player_available_for_grab_check() -> bool:
 
 func get_distance_to_player() -> float:
 	# ใช้ระยะบนแกน X เพราะเกมเป็น 2D side-view duel
+	if not (boss is Node2D):
+		return 99999.0
+
 	return abs(player.global_position.x - (boss as Node2D).global_position.x)
 
 
@@ -208,6 +275,61 @@ func is_player_dash_landing_risk() -> bool:
 		return player.call("is_in_dash_landing_risk_window") == true
 
 	return false
+
+
+func update_anti_repetition_memory() -> void:
+	# บันทึก Dash จบล่าสุด ถ้า timestamp เปลี่ยน
+	var dash_end_value = player.get("last_dash_end_msec")
+	if dash_end_value != null:
+		var dash_end_msec := int(dash_end_value)
+		if dash_end_msec > 0 and dash_end_msec != last_seen_dash_end_msec:
+			last_seen_dash_end_msec = dash_end_msec
+			recent_dash_msecs.append(dash_end_msec)
+
+	# บันทึก Attack ตอนเริ่ม attack จาก false -> true
+	var is_attacking_now = player.get("is_attacking") == true
+	if is_attacking_now and not was_player_attacking:
+		recent_attack_msecs.append(Time.get_ticks_msec())
+	was_player_attacking = is_attacking_now
+
+	# บันทึก Deflect สำเร็จล่าสุด ถ้า timestamp เปลี่ยน
+	var deflect_value = player.get("last_successful_deflect_msec")
+	if deflect_value != null:
+		var deflect_msec := int(deflect_value)
+		if deflect_msec > 0 and deflect_msec != last_seen_deflect_msec:
+			last_seen_deflect_msec = deflect_msec
+			recent_deflect_msecs.append(deflect_msec)
+
+	trim_recent_memory_arrays()
+
+
+func trim_recent_memory_arrays() -> void:
+	# ลบ event ที่เก่าเกิน memory window ออก
+	var oldest_allowed := Time.get_ticks_msec() - int(recent_action_memory_window * 1000.0)
+	recent_dash_msecs = filter_recent_msecs(recent_dash_msecs, oldest_allowed)
+	recent_attack_msecs = filter_recent_msecs(recent_attack_msecs, oldest_allowed)
+	recent_deflect_msecs = filter_recent_msecs(recent_deflect_msecs, oldest_allowed)
+
+
+func filter_recent_msecs(source: Array[int], oldest_allowed: int) -> Array[int]:
+	# คืน array ใหม่ที่มีเฉพาะ timestamp ที่ยังอยู่ในช่วงจำ
+	var result: Array[int] = []
+	for item in source:
+		if item >= oldest_allowed:
+			result.append(item)
+	return result
+
+
+func get_anti_repetition_grab_bonus() -> float:
+	# คำนวณโบนัส Grab จากพฤติกรรมซ้ำแบบเบา ๆ และมีเพดานกัน unfair
+	if not anti_repetition_memory_enabled:
+		return 0.0
+
+	var bonus := 0.0
+	bonus += float(recent_dash_msecs.size()) * dash_spam_grab_bonus_per_event
+	bonus += float(recent_attack_msecs.size()) * attack_spam_grab_bonus_per_event
+	bonus += float(recent_deflect_msecs.size()) * deflect_spam_grab_bonus_per_event
+	return clamp(bonus, 0.0, anti_repetition_max_bonus)
 
 
 func start_grab() -> void:
