@@ -13,7 +13,7 @@
 [ext_resource type="Script" uid="uid://b26knylfkh4bd" path="res://boss_difficulty_curve_manager.gd" id="11_curve"]
 [ext_resource type="Script" uid="uid://ds5hmdbr5yu0w" path="res://training_coach_manager.gd" id="12_training"]
 [ext_resource type="Script" uid="uid://c1m0u7ckyk1go" path="res://duel_1_intro_manager.gd" id="13_duel_intro"]
-[ext_resource type="Script" uid="uid://jaxi5rv4eayk" path="res://boss_weight_manager.gd" id="14_boss_weight"]
+[ext_resource type="Script" uid="jaxi5rv4eayk" path="res://boss_weight_manager.gd" id="14_boss_weight"]
 [ext_resource type="Script" uid="uid://bi30j8tod7u0s" path="res://duel_1_dummy_manager.gd" id="15_duel_dummy"]
 [ext_resource type="Script" uid="uid://duirfdqpqv88a" path="res://boss_fight_hint_cleanup_manager.gd" id="16_hint_cleanup"]
 [ext_resource type="Script" uid="uid://emndjwk0eht3" path="res://run_metrics_manager.gd" id="17_run_metrics"]
@@ -39,6 +39,7 @@ script = ExtResource("18_arena_visual")
 [node name="Player" type="CharacterBody2D" parent="." unique_id=220317986]
 position = Vector2(576, 324)
 script = ExtResource("2_mknfb")
+movement_deflect_requires_new_input = false
 
 [node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=1611597603]
 scale = Vector2(0.75, 0.75)
@@ -157,7 +158,3 @@ script = ExtResource("16_hint_cleanup")
 
 [node name="RunMetricsManager" type="Node" parent="." unique_id=2040110207]
 script = ExtResource("17_run_metrics")
-
-[node name="GameCamera" type="Camera2D" parent="." unique_id=2003199488]
-position = Vector2(576, 324)
-script = ExtResource("6_jpax5")
