@@ -3,8 +3,9 @@ extends CanvasLayer
 # =========================
 # TouchControls.gd
 # ระบบควบคุมบนมือถือสำหรับ Last Blade Trial / ดาบไร้นาม
-# เวอร์ชันนี้เปลี่ยนปุ่มซ้าย/ขวาเดิมให้เป็น Virtual Joystick แบบวงกลม
-# และขยายปุ่ม Action ฝั่งขวาให้กดง่ายขึ้นบนมือถือจริง
+# เวอร์ชัน Mobile Combat Rework
+# ซ้าย = Virtual Joystick / Movement Deflect
+# ขวา = Attack / Dash / Lock-on
 # =========================
 
 # เปิด/ปิด touch controls ทั้งชุด
@@ -21,7 +22,6 @@ extends CanvasLayer
 # =========================
 
 # ขนาดพื้นที่รับสัมผัสของ joystick ฝั่งซ้าย
-# ค่านี้ใหญ่กว่าฐาน joystick เพื่อให้นิ้วเริ่มลากได้ง่ายขึ้น
 @export var joystick_area_size: Vector2 = Vector2(230.0, 230.0)
 
 # ขนาดวงฐานของ joystick
@@ -39,7 +39,7 @@ extends CanvasLayer
 # ขนาดปุ่ม Attack ซึ่งควรใหญ่และกดง่ายที่สุด
 @export var attack_button_size: Vector2 = Vector2(150.0, 150.0)
 
-# ขนาดปุ่ม Dash และ Parry
+# ขนาดปุ่ม Dash และ Lock
 @export var action_button_size: Vector2 = Vector2(116.0, 116.0)
 
 # ระยะห่างจากขอบจอ
@@ -70,8 +70,14 @@ extends CanvasLayer
 # สีพื้นปุ่ม action ตอนกด
 @export var button_pressed_fill_color: Color = Color(0.20, 0.42, 0.55, 0.88)
 
+# สีพื้นปุ่ม Lock-on เมื่อเปิดล็อคเป้าแล้ว
+@export var lock_on_fill_color: Color = Color(0.95, 0.72, 0.18, 0.88)
+
 # สีเส้นขอบปุ่ม action
 @export var button_border_color: Color = Color(0.75, 0.95, 1.0, 0.90)
+
+# สีเส้นขอบปุ่ม Lock-on เมื่อเปิดล็อคเป้าแล้ว
+@export var lock_on_border_color: Color = Color(1.0, 0.92, 0.35, 1.0)
 
 # ความหนาเส้นขอบปุ่ม action
 @export var button_border_width: int = 3
@@ -107,7 +113,7 @@ var joystick_knob_panel: Panel = null
 # ปุ่ม action ฝั่งขวา
 var attack_touch_button: Button = null
 var dash_touch_button: Button = null
-var parry_touch_button: Button = null
+var lock_touch_button: Button = null
 
 # =========================
 # สถานะ joystick / input
@@ -150,6 +156,9 @@ func _process(_delta: float) -> void:
 		release_all_touch_actions()
 		return
 
+	# อัปเดตภาพปุ่ม Lock ให้ตรงกับสถานะจริงของ Player
+	update_lock_button_visual()
+
 	# ถ้าเปิด responsive layout ให้ตรวจขนาดจอ และจัดปุ่มใหม่เมื่อ viewport เปลี่ยน
 	if not responsive_layout_enabled:
 		return
@@ -170,7 +179,7 @@ func create_touch_ui() -> void:
 	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
-	# สร้าง joystick ฝั่งซ้ายแทนปุ่ม ◀ / ▶ เดิม
+	# สร้าง joystick ฝั่งซ้าย ใช้ทั้งเดินและกระตุ้น Movement Deflect
 	create_virtual_joystick()
 
 	# ปุ่ม Attack ฝั่งขวา ใหญ่ที่สุดและอยู่ตำแหน่งนิ้วโป้งกดง่าย
@@ -178,18 +187,18 @@ func create_touch_ui() -> void:
 	root_control.add_child(attack_touch_button)
 	connect_tap_button(attack_touch_button, "attack")
 
-	# ปุ่ม Dash วางซ้ายของ Attack เพื่อให้แยกจาก Parry ชัดเจน
+	# ปุ่ม Dash วางซ้ายของ Attack
 	dash_touch_button = create_touch_button("DASH", action_button_size)
 	root_control.add_child(dash_touch_button)
 	connect_tap_button(dash_touch_button, "dash")
 
-	# ปุ่ม Parry วางเหนือ Attack เพื่อให้กดสวนจังหวะบอสได้เร็ว
-	parry_touch_button = create_touch_button("PARRY", action_button_size)
-	root_control.add_child(parry_touch_button)
-	connect_tap_button(parry_touch_button, "parry")
+	# ปุ่ม Lock แทนปุ่ม Parry เดิม ใช้เปิด/ปิดการล็อคเป้า Boss
+	lock_touch_button = create_touch_button("LOCK", action_button_size)
+	root_control.add_child(lock_touch_button)
+	connect_lock_button(lock_touch_button)
 
 	layout_touch_controls()
-	print("TouchControls ready. Virtual Joystick enabled. Mouse test =", allow_mouse_test, "Responsive =", responsive_layout_enabled)
+	print("TouchControls ready. Attack/Dash/Lock + Movement Deflect enabled. Mouse test =", allow_mouse_test)
 
 
 func create_virtual_joystick() -> void:
@@ -203,23 +212,11 @@ func create_virtual_joystick() -> void:
 	joystick_area.gui_input.connect(_on_joystick_gui_input)
 
 	# วงฐานของ joystick ใช้ Panel เพื่อวาด StyleBoxFlat ทรงกลม
-	joystick_base_panel = create_round_panel(
-		"JoystickBase",
-		joystick_base_size,
-		joystick_base_color,
-		joystick_border_color,
-		3
-	)
+	joystick_base_panel = create_round_panel("JoystickBase", joystick_base_size, joystick_base_color, joystick_border_color, 3)
 	joystick_area.add_child(joystick_base_panel)
 
 	# ปุ่มแกนกลางของ joystick
-	joystick_knob_panel = create_round_panel(
-		"JoystickKnob",
-		joystick_knob_size,
-		joystick_knob_color,
-		joystick_border_color,
-		2
-	)
+	joystick_knob_panel = create_round_panel("JoystickKnob", joystick_knob_size, joystick_knob_color, joystick_border_color, 2)
 	joystick_area.add_child(joystick_knob_panel)
 
 	reset_virtual_joystick_visual_only()
@@ -252,7 +249,7 @@ func layout_touch_controls() -> void:
 		screen_size
 	)
 
-	# ปุ่ม Dash อยู่ซ้ายของ Attack เพื่อให้กดด้วยนิ้วโป้งขวาได้ง่าย
+	# ปุ่ม Dash อยู่ซ้ายของ Attack
 	set_button_rect(
 		dash_touch_button,
 		Vector2(screen_size.x - screen_margin - attack_button_size.x - action_button_size.x - action_button_gap, screen_size.y - bottom_margin - action_button_size.y),
@@ -260,9 +257,9 @@ func layout_touch_controls() -> void:
 		screen_size
 	)
 
-	# ปุ่ม Parry อยู่เหนือ Attack เพื่อไม่ชนกับ Dash และยังตอบสนองเร็ว
+	# ปุ่ม Lock อยู่เหนือ Attack แทนตำแหน่ง Parry เดิม
 	set_button_rect(
-		parry_touch_button,
+		lock_touch_button,
 		Vector2(screen_size.x - screen_margin - action_button_size.x, screen_size.y - bottom_margin - attack_button_size.y - action_button_size.y - action_button_gap),
 		action_button_size,
 		screen_size
@@ -376,9 +373,25 @@ func set_current_move_action(action_name: String) -> void:
 			release_action("ui_left")
 
 		press_action(current_move_action)
+		notify_player_movement_deflect_input(current_move_action)
 	else:
 		release_action("ui_left")
 		release_action("ui_right")
+
+
+func notify_player_movement_deflect_input(action_name: String) -> void:
+	# แจ้ง Player ว่ามีจังหวะเริ่มโยก movement ใหม่ เพื่อใช้เป็น Movement Deflect
+	# Player ยังตรวจ keyboard เองด้วย ฟังก์ชันนี้ช่วยให้ touch joystick แม่นขึ้น
+	var player := find_player_node()
+	if player != null and player.has_method("register_movement_deflect_input"):
+		var direction := 0
+		if action_name == "ui_left":
+			direction = -1
+		elif action_name == "ui_right":
+			direction = 1
+
+		if direction != 0:
+			player.register_movement_deflect_input(direction)
 
 
 func _on_joystick_gui_input(event: InputEvent) -> void:
@@ -387,13 +400,11 @@ func _on_joystick_gui_input(event: InputEvent) -> void:
 		var touch_event := event as InputEventScreenTouch
 
 		if touch_event.pressed:
-			# ถ้ายังไม่มีนิ้วควบคุม joystick ให้รับนิ้วนี้เป็นเจ้าของ joystick
 			if active_joystick_touch_index == -1:
 				active_joystick_touch_index = touch_event.index
 				update_virtual_joystick(touch_event.position)
 				joystick_area.accept_event()
 		else:
-			# ปล่อย joystick เฉพาะนิ้วที่เป็นเจ้าของ joystick เท่านั้น
 			if touch_event.index == active_joystick_touch_index:
 				reset_virtual_joystick()
 				joystick_area.accept_event()
@@ -470,6 +481,25 @@ func apply_circle_button_style(button: Button, button_size: Vector2) -> void:
 	button.add_theme_stylebox_override("disabled", disabled_style)
 
 
+func apply_lock_button_style(is_locked: bool) -> void:
+	# เปลี่ยนสีปุ่ม Lock ให้เห็นชัดว่าตอนนี้ล็อคเป้าอยู่หรือไม่
+	if lock_touch_button == null:
+		return
+
+	var radius: int = int(max(action_button_size.x, action_button_size.y))
+
+	if is_locked:
+		lock_touch_button.text = "LOCKED"
+		lock_touch_button.modulate.a = pressed_button_alpha
+		lock_touch_button.add_theme_stylebox_override("normal", create_circle_style(lock_on_fill_color, lock_on_border_color, button_border_width, radius))
+		lock_touch_button.add_theme_stylebox_override("hover", create_circle_style(lock_on_fill_color, lock_on_border_color, button_border_width, radius))
+		lock_touch_button.add_theme_stylebox_override("pressed", create_circle_style(lock_on_fill_color, lock_on_border_color, button_border_width, radius))
+	else:
+		lock_touch_button.text = "LOCK"
+		lock_touch_button.modulate.a = button_alpha
+		apply_circle_button_style(lock_touch_button, action_button_size)
+
+
 func create_circle_style(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
 	# สร้าง StyleBoxFlat ทรงวงกลม/โค้งมนสูง
 	var style := StyleBoxFlat.new()
@@ -510,6 +540,12 @@ func connect_tap_button(button: Button, action_name: String) -> void:
 	button.button_up.connect(_on_visual_button_up.bind(button))
 
 
+func connect_lock_button(button: Button) -> void:
+	# ปุ่ม Lock เป็น toggle จึงไม่ใช้ trigger_action_once แบบ Attack/Dash
+	button.button_down.connect(_on_lock_button_down)
+	button.button_up.connect(_on_visual_button_up.bind(button))
+
+
 func _on_tap_button_down(button: Button, action_name: String) -> void:
 	# กัน mouse test หากปิดไว้ แต่บนมือถือยังใช้ touch ได้ผ่าน Button ปกติ
 	if not allow_mouse_test and not DisplayServer.is_touchscreen_available():
@@ -519,13 +555,57 @@ func _on_tap_button_down(button: Button, action_name: String) -> void:
 	trigger_action_once(action_name)
 
 
+func _on_lock_button_down() -> void:
+	# กดปุ่ม Lock เพื่อเปิด/ปิดการหันหน้าเข้าหา Boss
+	if not allow_mouse_test and not DisplayServer.is_touchscreen_available():
+		return
+
+	var player := find_player_node()
+	if player != null and player.has_method("toggle_target_lock"):
+		player.toggle_target_lock()
+	else:
+		# เผื่อทดสอบผ่าน keyboard หรือระบบ Input ภายนอก
+		trigger_action_once("lock_on")
+
+	update_lock_button_visual()
+
+
 func _on_visual_button_up(button: Button) -> void:
 	# คืนความโปร่งใสของปุ่ม action ตอนปล่อยนิ้วหรือปล่อย mouse
+	if button == lock_touch_button:
+		update_lock_button_visual()
+		return
+
 	button.modulate.a = button_alpha
 
 
+func find_player_node() -> Node:
+	# หา Player จาก parent หลักของฉาก เพื่อไม่ hardcode โครงสร้างมากเกินไป
+	if get_parent() == null:
+		return null
+
+	return get_parent().get_node_or_null("Player")
+
+
+func is_player_target_locked() -> bool:
+	# อ่านสถานะ Lock จาก Player อย่างปลอดภัย
+	var player := find_player_node()
+	if player == null:
+		return false
+
+	if player.has_method("is_target_lock_active"):
+		return player.is_target_lock_active()
+
+	return false
+
+
+func update_lock_button_visual() -> void:
+	# อัปเดตปุ่ม Lock ให้ตรงกับสถานะจริงของ Player
+	apply_lock_button_style(is_player_target_locked())
+
+
 func press_action(action_name: String) -> void:
-	# กด action เข้าระบบ Input เดิม ทำให้ player.gd ไม่ต้องแก้
+	# กด action เข้าระบบ Input เดิม ทำให้ player.gd ไม่ต้องแก้ input หลักมากเกินไป
 	if not Input.is_action_pressed(action_name):
 		Input.action_press(action_name)
 
@@ -561,8 +641,8 @@ func release_all_touch_actions() -> void:
 		attack_touch_button.modulate.a = button_alpha
 	if dash_touch_button != null:
 		dash_touch_button.modulate.a = button_alpha
-	if parry_touch_button != null:
-		parry_touch_button.modulate.a = button_alpha
+	if lock_touch_button != null:
+		update_lock_button_visual()
 
 
 func _exit_tree() -> void:
