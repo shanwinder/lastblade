@@ -20,10 +20,10 @@ signal player_died
 # =========================
 
 # ความเร็วในการเดินปกติ
-@export var speed: float = 200.0
+@export var speed: float = 150.0
 
 # ความเร็วตอน Dash
-@export var dash_speed: float = 650.0
+@export var dash_speed: float = 500.0
 
 # ระยะเวลาที่ Dash มีผล
 @export var dash_time: float = 0.18
@@ -139,7 +139,7 @@ signal player_died
 @export var max_player_posture: float = 100.0
 
 # ความเร็วในการฟื้น Player Posture ต่อวินาที
-@export var player_posture_regen_rate: float = 16.0
+@export var player_posture_regen_rate: float = 5.0
 
 # Posture ที่เสียเมื่อ Deflect สำเร็จ
 @export var posture_damage_on_deflect: float = 14.0
@@ -148,7 +148,7 @@ signal player_died
 @export var posture_damage_from_hit_multiplier: float = 1.6
 
 # เวลาที่ Player ชะงักเมื่อ Posture แตก
-@export var player_posture_break_time: float = 0.85
+@export var player_posture_break_time: float = 3
 
 # สัดส่วน Posture ที่คืนให้หลังฟื้นจาก Posture Break
 @export var posture_recover_ratio_after_break: float = 0.55
