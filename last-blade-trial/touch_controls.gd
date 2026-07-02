@@ -2,74 +2,134 @@ extends CanvasLayer
 
 # =========================
 # TouchControls.gd
-# ปุ่มควบคุมมือถือแบบ prototype สำหรับ Phase 6.6
-# สร้างด้วยโค้ดทั้งหมด เพื่อยังไม่ต้องใช้ asset ปุ่มจริง
-# เวอร์ชันนี้เพิ่ม responsive layout เพื่อเตรียมทดสอบบน Android หลายขนาดจอ
+# ระบบควบคุมบนมือถือสำหรับ Last Blade Trial / ดาบไร้นาม
+# เวอร์ชันนี้เปลี่ยนปุ่มซ้าย/ขวาเดิมให้เป็น Virtual Joystick แบบวงกลม
+# และขยายปุ่ม Action ฝั่งขวาให้กดง่ายขึ้นบนมือถือจริง
 # =========================
 
 # เปิด/ปิด touch controls ทั้งชุด
 @export var touch_controls_enabled: bool = true
 
-# เปิดให้ใช้ mouse click ทดสอบบน Mac/PC ได้
+# เปิดให้ใช้ mouse click/drag ทดสอบบน Mac/PC ได้
 @export var allow_mouse_test: bool = true
 
-# เปิด/ปิดการจัดตำแหน่งปุ่มใหม่เมื่อขนาดจอเปลี่ยน
+# เปิด/ปิดการจัดตำแหน่งใหม่เมื่อขนาดจอเปลี่ยน
 @export var responsive_layout_enabled: bool = true
 
-# ความโปร่งใสของปุ่มปกติ
-@export var button_alpha: float = 0.52
+# =========================
+# ขนาด UI หลัก
+# =========================
 
-# ความโปร่งใสของปุ่มตอนกด
-@export var pressed_button_alpha: float = 0.82
+# ขนาดพื้นที่รับสัมผัสของ joystick ฝั่งซ้าย
+# ค่านี้ใหญ่กว่าฐาน joystick เพื่อให้นิ้วเริ่มลากได้ง่ายขึ้น
+@export var joystick_area_size: Vector2 = Vector2(230.0, 230.0)
 
-# ขนาดปุ่มเดินซ้าย/ขวา
-@export var move_button_size: Vector2 = Vector2(96.0, 96.0)
+# ขนาดวงฐานของ joystick
+@export var joystick_base_size: Vector2 = Vector2(174.0, 174.0)
+
+# ขนาดปุ่มแกนกลางของ joystick
+@export var joystick_knob_size: Vector2 = Vector2(78.0, 78.0)
+
+# ระยะสูงสุดที่แกนกลาง joystick ขยับออกจากจุดศูนย์กลางได้
+@export var joystick_knob_max_distance: float = 56.0
+
+# ระยะ deadzone ถ้านิ้วขยับน้อยกว่านี้จะยังไม่สั่งเดิน
+@export var joystick_deadzone: float = 22.0
 
 # ขนาดปุ่ม Attack ซึ่งควรใหญ่และกดง่ายที่สุด
-@export var attack_button_size: Vector2 = Vector2(124.0, 124.0)
+@export var attack_button_size: Vector2 = Vector2(150.0, 150.0)
 
 # ขนาดปุ่ม Dash และ Parry
-@export var action_button_size: Vector2 = Vector2(96.0, 96.0)
+@export var action_button_size: Vector2 = Vector2(116.0, 116.0)
 
 # ระยะห่างจากขอบจอ
-@export var screen_margin: float = 28.0
-
-# ระยะห่างระหว่างปุ่มเดินซ้าย/ขวา
-@export var move_button_gap: float = 16.0
+@export var screen_margin: float = 32.0
 
 # ระยะห่างระหว่างปุ่ม action ฝั่งขวา
-@export var action_button_gap: float = 18.0
+@export var action_button_gap: float = 20.0
 
 # ระยะเผื่อด้านล่างสำหรับมือถือที่มีแถบนำทางหรือขอบจอหนา
 @export var mobile_bottom_safe_margin: float = 0.0
 
 # ขนาดตัวอักษรบนปุ่ม
-@export var button_font_size: int = 20
+@export var button_font_size: int = 22
 
-# สีพื้นปุ่มปกติ
-@export var button_fill_color: Color = Color(0.07, 0.09, 0.12, 0.52)
+# =========================
+# สีและความโปร่งใส
+# =========================
 
-# สีพื้นปุ่มตอนกด
-@export var button_pressed_fill_color: Color = Color(0.20, 0.42, 0.55, 0.82)
+# ความโปร่งใสของปุ่มปกติ
+@export var button_alpha: float = 0.58
 
-# สีเส้นขอบปุ่ม
-@export var button_border_color: Color = Color(0.75, 0.95, 1.0, 0.85)
+# ความโปร่งใสของปุ่มตอนกด
+@export var pressed_button_alpha: float = 0.88
 
-# ความหนาเส้นขอบปุ่ม
+# สีพื้นปุ่ม action ปกติ
+@export var button_fill_color: Color = Color(0.07, 0.09, 0.12, 0.58)
+
+# สีพื้นปุ่ม action ตอนกด
+@export var button_pressed_fill_color: Color = Color(0.20, 0.42, 0.55, 0.88)
+
+# สีเส้นขอบปุ่ม action
+@export var button_border_color: Color = Color(0.75, 0.95, 1.0, 0.90)
+
+# ความหนาเส้นขอบปุ่ม action
 @export var button_border_width: int = 3
+
+# สีฐาน joystick
+@export var joystick_base_color: Color = Color(0.06, 0.08, 0.11, 0.36)
+
+# สีแกนกลาง joystick ตอนปกติ
+@export var joystick_knob_color: Color = Color(0.15, 0.24, 0.30, 0.70)
+
+# สีแกนกลาง joystick ตอนกำลังลาก
+@export var joystick_knob_pressed_color: Color = Color(0.28, 0.54, 0.68, 0.86)
+
+# สีเส้นขอบ joystick
+@export var joystick_border_color: Color = Color(0.75, 0.95, 1.0, 0.82)
+
+# =========================
+# Node UI ที่สร้างด้วยโค้ด
+# =========================
 
 # Root control ที่คลุมทั้งจอ
 var root_control: Control = null
 
-# ปุ่มควบคุมจริง เก็บไว้เพื่อจัดตำแหน่งใหม่เมื่อขนาดจอเปลี่ยน
-var left_move_button: Button = null
-var right_move_button: Button = null
+# พื้นที่รับ input ของ joystick
+var joystick_area: Control = null
+
+# วงฐาน joystick
+var joystick_base_panel: Panel = null
+
+# ปุ่มแกนกลาง joystick
+var joystick_knob_panel: Panel = null
+
+# ปุ่ม action ฝั่งขวา
 var attack_touch_button: Button = null
 var dash_touch_button: Button = null
 var parry_touch_button: Button = null
 
+# =========================
+# สถานะ joystick / input
+# =========================
+
 # จำขนาดจอล่าสุด เพื่อรู้ว่าควรจัด layout ใหม่หรือไม่
 var last_screen_size: Vector2 = Vector2.ZERO
+
+# จุดศูนย์กลาง joystick ภายใน joystick_area
+var joystick_center: Vector2 = Vector2.ZERO
+
+# ทิศทาง joystick ปัจจุบัน ค่า x อยู่ประมาณ -1 ถึง 1
+var joystick_vector: Vector2 = Vector2.ZERO
+
+# touch index ที่กำลังควบคุม joystick อยู่ ใช้กันนิ้วอื่นมาแย่ง joystick
+var active_joystick_touch_index: int = -1
+
+# ใช้สำหรับทดสอบด้วย mouse บน Mac/PC
+var is_mouse_dragging_joystick: bool = false
+
+# action เดินปัจจุบันที่ joystick กดค้างอยู่
+var current_move_action: String = ""
 
 # รายชื่อ action ที่กดค้างอยู่ เพื่อปล่อยตอนปิด scene กัน input ค้าง
 var held_actions: Array[String] = []
@@ -85,6 +145,11 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	# ถ้าทั้ง CanvasLayer ถูกซ่อน เช่น ตอนหน้า Start / Victory ให้ปล่อย input ที่ค้างทันที
+	if not visible:
+		release_all_touch_actions()
+		return
+
 	# ถ้าเปิด responsive layout ให้ตรวจขนาดจอ และจัดปุ่มใหม่เมื่อ viewport เปลี่ยน
 	if not responsive_layout_enabled:
 		return
@@ -94,7 +159,7 @@ func _process(_delta: float) -> void:
 
 	var screen_size: Vector2 = get_viewport().get_visible_rect().size
 	if screen_size.distance_squared_to(last_screen_size) > 1.0:
-		layout_touch_buttons()
+		layout_touch_controls()
 
 
 func create_touch_ui() -> void:
@@ -105,35 +170,62 @@ func create_touch_ui() -> void:
 	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
-	# ปุ่มเดินฝั่งซ้าย
-	left_move_button = create_touch_button("◀", move_button_size)
-	root_control.add_child(left_move_button)
-	connect_hold_button(left_move_button, "ui_left")
-
-	right_move_button = create_touch_button("▶", move_button_size)
-	root_control.add_child(right_move_button)
-	connect_hold_button(right_move_button, "ui_right")
+	# สร้าง joystick ฝั่งซ้ายแทนปุ่ม ◀ / ▶ เดิม
+	create_virtual_joystick()
 
 	# ปุ่ม Attack ฝั่งขวา ใหญ่ที่สุดและอยู่ตำแหน่งนิ้วโป้งกดง่าย
 	attack_touch_button = create_touch_button("ATTACK", attack_button_size)
 	root_control.add_child(attack_touch_button)
 	connect_tap_button(attack_touch_button, "attack")
 
-	# ปุ่ม Dash วางเหนือซ้ายของ Attack เพื่อไม่ชิด Parry เกินไป
+	# ปุ่ม Dash วางซ้ายของ Attack เพื่อให้แยกจาก Parry ชัดเจน
 	dash_touch_button = create_touch_button("DASH", action_button_size)
 	root_control.add_child(dash_touch_button)
 	connect_tap_button(dash_touch_button, "dash")
 
-	# ปุ่ม Parry วางเหนือ Attack เพื่อให้กดตอบสนองเร็ว แต่ไม่บัง Boss hint กลางจอ
+	# ปุ่ม Parry วางเหนือ Attack เพื่อให้กดสวนจังหวะบอสได้เร็ว
 	parry_touch_button = create_touch_button("PARRY", action_button_size)
 	root_control.add_child(parry_touch_button)
 	connect_tap_button(parry_touch_button, "parry")
 
-	layout_touch_buttons()
-	print("TouchControls ready. Mouse test =", allow_mouse_test, "Responsive =", responsive_layout_enabled)
+	layout_touch_controls()
+	print("TouchControls ready. Virtual Joystick enabled. Mouse test =", allow_mouse_test, "Responsive =", responsive_layout_enabled)
 
 
-func layout_touch_buttons() -> void:
+func create_virtual_joystick() -> void:
+	# joystick_area เป็น Control ล่องหนที่รับการแตะ/ลากนิ้ว
+	joystick_area = Control.new()
+	joystick_area.name = "VirtualJoystickArea"
+	joystick_area.custom_minimum_size = joystick_area_size
+	joystick_area.size = joystick_area_size
+	joystick_area.mouse_filter = Control.MOUSE_FILTER_STOP
+	root_control.add_child(joystick_area)
+	joystick_area.gui_input.connect(_on_joystick_gui_input)
+
+	# วงฐานของ joystick ใช้ Panel เพื่อวาด StyleBoxFlat ทรงกลม
+	joystick_base_panel = create_round_panel(
+		"JoystickBase",
+		joystick_base_size,
+		joystick_base_color,
+		joystick_border_color,
+		3
+	)
+	joystick_area.add_child(joystick_base_panel)
+
+	# ปุ่มแกนกลางของ joystick
+	joystick_knob_panel = create_round_panel(
+		"JoystickKnob",
+		joystick_knob_size,
+		joystick_knob_color,
+		joystick_border_color,
+		2
+	)
+	joystick_area.add_child(joystick_knob_panel)
+
+	reset_virtual_joystick_visual_only()
+
+
+func layout_touch_controls() -> void:
 	# จัดตำแหน่งปุ่มตามขนาด viewport ปัจจุบัน ใช้ได้ทั้ง editor และ Android
 	var screen_size: Vector2 = get_viewport().get_visible_rect().size
 	last_screen_size = screen_size
@@ -143,20 +235,14 @@ func layout_touch_buttons() -> void:
 
 	var bottom_margin: float = screen_margin + mobile_bottom_safe_margin
 
-	# ปุ่มเดินซ้าย/ขวาอยู่มุมซ้ายล่าง
-	set_button_rect(
-		left_move_button,
-		Vector2(screen_margin, screen_size.y - bottom_margin - move_button_size.y),
-		move_button_size,
+	# joystick อยู่มุมซ้ายล่าง แต่มีพื้นที่รับนิ้วใหญ่กว่าภาพที่เห็น
+	set_control_rect(
+		joystick_area,
+		Vector2(screen_margin, screen_size.y - bottom_margin - joystick_area_size.y),
+		joystick_area_size,
 		screen_size
 	)
-
-	set_button_rect(
-		right_move_button,
-		Vector2(screen_margin + move_button_size.x + move_button_gap, screen_size.y - bottom_margin - move_button_size.y),
-		move_button_size,
-		screen_size
-	)
+	reset_virtual_joystick_visual_only()
 
 	# ปุ่ม Attack อยู่มุมขวาล่าง และใหญ่สุด
 	set_button_rect(
@@ -166,7 +252,7 @@ func layout_touch_buttons() -> void:
 		screen_size
 	)
 
-	# ปุ่ม Dash อยู่ซ้ายของ Attack เพื่อให้แยกจาก Parry ชัดเจน
+	# ปุ่ม Dash อยู่ซ้ายของ Attack เพื่อให้กดด้วยนิ้วโป้งขวาได้ง่าย
 	set_button_rect(
 		dash_touch_button,
 		Vector2(screen_size.x - screen_margin - attack_button_size.x - action_button_size.x - action_button_gap, screen_size.y - bottom_margin - action_button_size.y),
@@ -174,7 +260,7 @@ func layout_touch_buttons() -> void:
 		screen_size
 	)
 
-	# ปุ่ม Parry อยู่เหนือ Attack เพื่อให้กดสวนจังหวะบอสได้เร็ว
+	# ปุ่ม Parry อยู่เหนือ Attack เพื่อไม่ชนกับ Dash และยังตอบสนองเร็ว
 	set_button_rect(
 		parry_touch_button,
 		Vector2(screen_size.x - screen_margin - action_button_size.x, screen_size.y - bottom_margin - attack_button_size.y - action_button_size.y - action_button_gap),
@@ -183,25 +269,172 @@ func layout_touch_buttons() -> void:
 	)
 
 
+func set_control_rect(control: Control, desired_position: Vector2, control_size: Vector2, screen_size: Vector2) -> void:
+	# ตั้งขนาดและตำแหน่ง Control พร้อม clamp ไม่ให้หลุดออกนอกจอ
+	if control == null:
+		return
+
+	control.custom_minimum_size = control_size
+	control.size = control_size
+	control.position = clamp_control_position(desired_position, control_size, screen_size)
+
+
 func set_button_rect(button: Button, desired_position: Vector2, button_size: Vector2, screen_size: Vector2) -> void:
-	# ตั้งขนาดและตำแหน่งปุ่ม พร้อม clamp ไม่ให้หลุดออกนอกจอในเครื่องที่ viewport เล็ก
+	# ตั้งขนาดและตำแหน่งปุ่ม พร้อม clamp ไม่ให้หลุดออกนอกจอ
 	if button == null:
 		return
 
 	button.custom_minimum_size = button_size
 	button.size = button_size
-	button.position = clamp_button_position(desired_position, button_size, screen_size)
+	button.position = clamp_control_position(desired_position, button_size, screen_size)
 
 
-func clamp_button_position(desired_position: Vector2, button_size: Vector2, screen_size: Vector2) -> Vector2:
-	# กันปุ่มหลุดขอบจอ โดยยังรักษา margin ให้มากที่สุดเท่าที่ทำได้
-	var max_x: float = max(screen_margin, screen_size.x - screen_margin - button_size.x)
-	var max_y: float = max(screen_margin, screen_size.y - screen_margin - button_size.y)
+func clamp_control_position(desired_position: Vector2, control_size: Vector2, screen_size: Vector2) -> Vector2:
+	# กัน UI หลุดขอบจอ โดยยังรักษา margin ให้มากที่สุดเท่าที่ทำได้
+	var max_x: float = max(screen_margin, screen_size.x - screen_margin - control_size.x)
+	var max_y: float = max(screen_margin, screen_size.y - screen_margin - control_size.y)
 
 	return Vector2(
 		clamp(desired_position.x, screen_margin, max_x),
 		clamp(desired_position.y, screen_margin, max_y)
 	)
+
+
+func reset_virtual_joystick_visual_only() -> void:
+	# วางฐานและแกนกลางกลับกลาง joystick_area โดยไม่แตะ input
+	if joystick_area == null:
+		return
+
+	joystick_center = joystick_area_size * 0.5
+
+	if joystick_base_panel != null:
+		joystick_base_panel.size = joystick_base_size
+		joystick_base_panel.position = joystick_center - joystick_base_size * 0.5
+
+	if joystick_knob_panel != null:
+		joystick_knob_panel.size = joystick_knob_size
+		joystick_knob_panel.position = joystick_center - joystick_knob_size * 0.5
+		apply_round_panel_style(joystick_knob_panel, joystick_knob_color, joystick_border_color, 2)
+
+
+func reset_virtual_joystick() -> void:
+	# คืน joystick กลับกลาง และปล่อยปุ่มเดินทั้งหมด
+	active_joystick_touch_index = -1
+	is_mouse_dragging_joystick = false
+	joystick_vector = Vector2.ZERO
+	current_move_action = ""
+	release_action("ui_left")
+	release_action("ui_right")
+	reset_virtual_joystick_visual_only()
+
+
+func update_virtual_joystick(local_position: Vector2) -> void:
+	# แปลงตำแหน่งนิ้วภายใน joystick_area เป็นระยะที่แกนกลางควรขยับ
+	var raw_offset: Vector2 = local_position - joystick_center
+	var clamped_offset: Vector2 = raw_offset.limit_length(joystick_knob_max_distance)
+
+	# อัปเดตภาพแกนกลาง joystick
+	if joystick_knob_panel != null:
+		joystick_knob_panel.position = joystick_center - joystick_knob_size * 0.5 + clamped_offset
+		apply_round_panel_style(joystick_knob_panel, joystick_knob_pressed_color, joystick_border_color, 2)
+
+	# เก็บ vector ไว้ เผื่ออนาคตอยากเปลี่ยนเป็น analog movement จริง
+	if joystick_knob_max_distance > 0.0:
+		joystick_vector = clamped_offset / joystick_knob_max_distance
+	else:
+		joystick_vector = Vector2.ZERO
+
+	update_movement_from_joystick(clamped_offset.x)
+
+
+func update_movement_from_joystick(offset_x: float) -> void:
+	# เกมนี้เดินแค่ซ้าย/ขวา จึงใช้แกน X ของ joystick เป็นตัวตัดสิน
+	if offset_x < -joystick_deadzone:
+		set_current_move_action("ui_left")
+	elif offset_x > joystick_deadzone:
+		set_current_move_action("ui_right")
+	else:
+		set_current_move_action("")
+
+
+func set_current_move_action(action_name: String) -> void:
+	# ถ้า action เดิมยังเหมือนเดิม ไม่ต้องกดซ้ำทุกเฟรม
+	if current_move_action == action_name:
+		return
+
+	# ปล่อย action เดิมก่อน เพื่อไม่ให้ ui_left และ ui_right ค้างพร้อมกัน
+	if current_move_action != "":
+		release_action(current_move_action)
+
+	current_move_action = action_name
+
+	# กด action ใหม่ตามทิศ joystick
+	if current_move_action != "":
+		if current_move_action == "ui_left":
+			release_action("ui_right")
+		elif current_move_action == "ui_right":
+			release_action("ui_left")
+
+		press_action(current_move_action)
+	else:
+		release_action("ui_left")
+		release_action("ui_right")
+
+
+func _on_joystick_gui_input(event: InputEvent) -> void:
+	# รับ input จากหน้าจอสัมผัสจริงบน Android
+	if event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+
+		if touch_event.pressed:
+			# ถ้ายังไม่มีนิ้วควบคุม joystick ให้รับนิ้วนี้เป็นเจ้าของ joystick
+			if active_joystick_touch_index == -1:
+				active_joystick_touch_index = touch_event.index
+				update_virtual_joystick(touch_event.position)
+				joystick_area.accept_event()
+		else:
+			# ปล่อย joystick เฉพาะนิ้วที่เป็นเจ้าของ joystick เท่านั้น
+			if touch_event.index == active_joystick_touch_index:
+				reset_virtual_joystick()
+				joystick_area.accept_event()
+		return
+
+	# รับ input ลากนิ้วบน Android
+	if event is InputEventScreenDrag:
+		var drag_event := event as InputEventScreenDrag
+
+		if drag_event.index == active_joystick_touch_index:
+			update_virtual_joystick(drag_event.position)
+			joystick_area.accept_event()
+		return
+
+	# รองรับ mouse สำหรับทดสอบใน editor หรือบน Mac/PC
+	if event is InputEventMouseButton:
+		var mouse_button_event := event as InputEventMouseButton
+
+		if mouse_button_event.button_index != MOUSE_BUTTON_LEFT:
+			return
+
+		if not allow_mouse_test and not DisplayServer.is_touchscreen_available():
+			return
+
+		if mouse_button_event.pressed:
+			is_mouse_dragging_joystick = true
+			update_virtual_joystick(mouse_button_event.position)
+			joystick_area.accept_event()
+		else:
+			if is_mouse_dragging_joystick:
+				reset_virtual_joystick()
+				joystick_area.accept_event()
+		return
+
+	if event is InputEventMouseMotion:
+		var mouse_motion_event := event as InputEventMouseMotion
+
+		if is_mouse_dragging_joystick:
+			update_virtual_joystick(mouse_motion_event.position)
+			joystick_area.accept_event()
+		return
 
 
 func create_touch_button(label_text: String, button_size: Vector2) -> Button:
@@ -225,29 +458,24 @@ func apply_circle_button_style(button: Button, button_size: Vector2) -> void:
 	# คำนวณ radius จากปุ่ม เพื่อให้ปุ่มดูเป็นวงกลม/แคปซูลตามขนาดจริง
 	var radius: int = int(max(button_size.x, button_size.y))
 
-	var normal_style := create_circle_style(button_fill_color, radius)
-	var hover_style := create_circle_style(Color(button_fill_color.r + 0.04, button_fill_color.g + 0.04, button_fill_color.b + 0.04, button_fill_color.a), radius)
-	var pressed_style := create_circle_style(button_pressed_fill_color, radius)
+	var normal_style := create_circle_style(button_fill_color, button_border_color, button_border_width, radius)
+	var hover_style := create_circle_style(Color(button_fill_color.r + 0.04, button_fill_color.g + 0.04, button_fill_color.b + 0.04, button_fill_color.a), button_border_color, button_border_width, radius)
+	var pressed_style := create_circle_style(button_pressed_fill_color, button_border_color, button_border_width, radius)
+	var disabled_style := create_circle_style(Color(button_fill_color.r, button_fill_color.g, button_fill_color.b, 0.22), button_border_color, button_border_width, radius)
 
 	button.add_theme_stylebox_override("normal", normal_style)
 	button.add_theme_stylebox_override("hover", hover_style)
 	button.add_theme_stylebox_override("pressed", pressed_style)
 	button.add_theme_stylebox_override("focus", normal_style)
-	tbutton_disabled_style_if_needed(button, radius)
+	button.add_theme_stylebox_override("disabled", disabled_style)
 
 
-func tbutton_disabled_style_if_needed(button: Button, radius: int) -> void:
-	# ใส่ style disabled เผื่ออนาคตมีการปิดปุ่ม จะได้ยังเป็นทรงเดียวกัน
-	var disabled_color := Color(button_fill_color.r, button_fill_color.g, button_fill_color.b, 0.22)
-	button.add_theme_stylebox_override("disabled", create_circle_style(disabled_color, radius))
-
-
-func create_circle_style(fill_color: Color, radius: int) -> StyleBoxFlat:
+func create_circle_style(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
 	# สร้าง StyleBoxFlat ทรงวงกลม/โค้งมนสูง
 	var style := StyleBoxFlat.new()
 	style.bg_color = fill_color
-	style.border_color = button_border_color
-	style.set_border_width_all(button_border_width)
+	style.border_color = border_color
+	style.set_border_width_all(border_width)
 	style.set_corner_radius_all(radius)
 	style.content_margin_left = 6.0
 	style.content_margin_right = 6.0
@@ -256,31 +484,30 @@ func create_circle_style(fill_color: Color, radius: int) -> StyleBoxFlat:
 	return style
 
 
-func connect_hold_button(button: Button, action_name: String) -> void:
-	# ปุ่มเดินต้องกดค้างได้ จึงใช้ button_down/button_up
-	button.button_down.connect(_on_hold_button_down.bind(button, action_name))
-	button.button_up.connect(_on_hold_button_up.bind(button, action_name))
+func create_round_panel(panel_name: String, panel_size: Vector2, fill_color: Color, border_color: Color, border_width: int) -> Panel:
+	# สร้าง Panel ทรงกลมสำหรับใช้เป็นฐานหรือแกนกลาง joystick
+	var panel := Panel.new()
+	panel.name = panel_name
+	panel.custom_minimum_size = panel_size
+	panel.size = panel_size
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	apply_round_panel_style(panel, fill_color, border_color, border_width)
+	return panel
+
+
+func apply_round_panel_style(panel: Panel, fill_color: Color, border_color: Color, border_width: int) -> void:
+	# ใส่ style ทรงกลมให้ Panel
+	if panel == null:
+		return
+
+	var radius: int = int(max(panel.size.x, panel.size.y))
+	panel.add_theme_stylebox_override("panel", create_circle_style(fill_color, border_color, border_width, radius))
 
 
 func connect_tap_button(button: Button, action_name: String) -> void:
 	# ปุ่ม action ต้องตอบสนองทันทีเมื่อแตะลง ไม่ต้องรอปล่อยนิ้ว
 	button.button_down.connect(_on_tap_button_down.bind(button, action_name))
 	button.button_up.connect(_on_visual_button_up.bind(button))
-
-
-func _on_hold_button_down(button: Button, action_name: String) -> void:
-	# กัน mouse test หากปิดไว้ แต่บนมือถือยังใช้ touch ได้ผ่าน Button ปกติ
-	if not allow_mouse_test and not DisplayServer.is_touchscreen_available():
-		return
-
-	press_action(action_name)
-	button.modulate.a = pressed_button_alpha
-
-
-func _on_hold_button_up(button: Button, action_name: String) -> void:
-	# ปล่อย action เมื่อปล่อยปุ่มเดิน
-	release_action(action_name)
-	button.modulate.a = button_alpha
 
 
 func _on_tap_button_down(button: Button, action_name: String) -> void:
@@ -321,10 +548,23 @@ func trigger_action_once(action_name: String) -> void:
 	Input.action_release(action_name)
 
 
-func _exit_tree() -> void:
-	# กัน input ค้าง หากเปลี่ยน scene ระหว่างกดปุ่มอยู่
-	for action_name in held_actions:
+func release_all_touch_actions() -> void:
+	# ปล่อยทุก action ที่ touch controls เคยกดไว้ กัน input ค้างตอนซ่อน UI หรือเปลี่ยน scene
+	reset_virtual_joystick()
+
+	for action_name in held_actions.duplicate():
 		if Input.is_action_pressed(action_name):
 			Input.action_release(action_name)
+		held_actions.erase(action_name)
 
-	held_actions.clear()
+	if attack_touch_button != null:
+		attack_touch_button.modulate.a = button_alpha
+	if dash_touch_button != null:
+		dash_touch_button.modulate.a = button_alpha
+	if parry_touch_button != null:
+		parry_touch_button.modulate.a = button_alpha
+
+
+func _exit_tree() -> void:
+	# กัน input ค้าง หากเปลี่ยน scene ระหว่างกดปุ่มอยู่
+	release_all_touch_actions()
