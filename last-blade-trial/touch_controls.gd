@@ -4,7 +4,7 @@ extends CanvasLayer
 # TouchControls.gd
 # ระบบควบคุมบนมือถือสำหรับ Last Blade Trial / ดาบไร้นาม
 # เวอร์ชัน Mobile Combat Rework
-# ซ้าย = Virtual Joystick / Movement Deflect
+# ซ้าย = Virtual Joystick / Movement Deflect / Tap Deflect
 # ขวา = Attack / Dash / Lock-on
 # =========================
 
@@ -179,7 +179,7 @@ func create_touch_ui() -> void:
 	root_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root_control)
 
-	# สร้าง joystick ฝั่งซ้าย ใช้ทั้งเดินและกระตุ้น Movement Deflect
+	# สร้าง joystick ฝั่งซ้าย ใช้ทั้งเดินและกระตุ้น Deflect
 	create_virtual_joystick()
 
 	# ปุ่ม Attack ฝั่งขวา ใหญ่ที่สุดและอยู่ตำแหน่งนิ้วโป้งกดง่าย
@@ -198,7 +198,7 @@ func create_touch_ui() -> void:
 	connect_lock_button(lock_touch_button)
 
 	layout_touch_controls()
-	print("TouchControls ready. Attack/Dash/Lock + Movement Deflect enabled. Mouse test =", allow_mouse_test)
+	print("TouchControls ready. Attack/Dash/Lock + Tap/Movement Deflect enabled. Mouse test =", allow_mouse_test)
 
 
 func create_virtual_joystick() -> void:
@@ -394,6 +394,14 @@ func notify_player_movement_deflect_input(action_name: String) -> void:
 			player.register_movement_deflect_input(direction)
 
 
+func notify_player_tap_deflect_input() -> void:
+	# แจ้ง Player ว่าแตะ joystick แล้ว เพื่อเปิด Tap Deflect window โดยไม่ต้องเดิน
+	# ต้องเรียกเฉพาะตอน touch/mouse pressed ใหม่เท่านั้น เพื่อไม่ให้แตะค้างแล้วกันฟรี
+	var player := find_player_node()
+	if player != null and player.has_method("register_tap_deflect_input"):
+		player.register_tap_deflect_input()
+
+
 func _on_joystick_gui_input(event: InputEvent) -> void:
 	# รับ input จากหน้าจอสัมผัสจริงบน Android
 	if event is InputEventScreenTouch:
@@ -402,6 +410,7 @@ func _on_joystick_gui_input(event: InputEvent) -> void:
 		if touch_event.pressed:
 			if active_joystick_touch_index == -1:
 				active_joystick_touch_index = touch_event.index
+				notify_player_tap_deflect_input()
 				update_virtual_joystick(touch_event.position)
 				joystick_area.accept_event()
 		else:
@@ -431,6 +440,7 @@ func _on_joystick_gui_input(event: InputEvent) -> void:
 
 		if mouse_button_event.pressed:
 			is_mouse_dragging_joystick = true
+			notify_player_tap_deflect_input()
 			update_virtual_joystick(mouse_button_event.position)
 			joystick_area.accept_event()
 		else:
