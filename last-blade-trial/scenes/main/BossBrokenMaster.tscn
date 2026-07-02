@@ -17,6 +17,7 @@
 [ext_resource type="Script" uid="uid://duirfdqpqv88a" path="res://boss_fight_hint_cleanup_manager.gd" id="16_hint_cleanup"]
 [ext_resource type="Script" uid="uid://emndjwk0eht3" path="res://run_metrics_manager.gd" id="17_run_metrics"]
 [ext_resource type="Script" uid="uid://rqfjmafhjd2l" path="res://arena_visual_manager.gd" id="18_arena_visual"]
+[ext_resource type="Script" path="res://boss_grab_balance_manager.gd" id="19_grab"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -61,6 +62,9 @@ shape = SubResource("RectangleShape2D_32k8f")
 
 [node name="BossBrokenMaster" parent="." unique_id=951068463 instance=ExtResource("4_tedvd")]
 position = Vector2(780, 324)
+
+[node name="BossGrabBalanceManager" type="Node" parent="."]
+script = ExtResource("19_grab")
 
 [node name="CombatDecayManager" type="Node" parent="." unique_id=2045727950]
 script = ExtResource("7_decay")
