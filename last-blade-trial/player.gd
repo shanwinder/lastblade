@@ -1,13 +1,15 @@
 extends CharacterBody2D
 
-# ส่งสัญญาณไปให้ HUD ทุกครั้งที่ HP, Stamina หรือ Focus เปลี่ยน
+# ส่งสัญญาณไปให้ HUD ทุกครั้งที่ HP, Stamina, Focus หรือ Player Posture เปลี่ยน
 signal stats_changed(
 	current_hp: int,
 	max_hp: int,
 	current_stamina: float,
 	max_stamina: float,
 	current_focus: float,
-	max_focus: float
+	max_focus: float,
+	current_player_posture: float,
+	max_player_posture: float
 )
 
 # ส่งสัญญาณเมื่อ Player ตาย เพื่อให้ HUD หรือ Main แสดง Game Over
@@ -39,7 +41,7 @@ signal player_died
 @export var max_stamina: float = 100.0
 
 # Focus สูงสุดของผู้เล่น
-# ใช้สะสมจากการ Parry สำเร็จ เพื่อใช้ Focus Finisher
+# ใช้สะสมจาก Deflect สำเร็จ เพื่อใช้ Focus Finisher
 @export var max_focus: float = 100.0
 
 # ความเร็วในการฟื้น Stamina ต่อวินาที
@@ -51,11 +53,13 @@ signal player_died
 # Stamina ที่ใช้เมื่อ Dash หนึ่งครั้ง
 @export var dash_stamina_cost: float = 30.0
 
-# Stamina ที่ใช้เมื่อกด Parry หนึ่งครั้ง
+# ค่าเดิมของ Parry ยังเก็บไว้ชั่วคราวเพื่อ compatibility กับระบบเก่า
+# ในระบบใหม่ผู้เล่นไม่ได้กดปุ่ม Parry แล้ว แต่ใช้ Movement Deflect แทน
 @export var parry_stamina_cost: float = 20.0
 
-# จำนวน Focus ที่ได้รับเมื่อ Parry สำเร็จ
-@export var focus_gain_on_successful_parry: float = 15.0
+# จำนวน Focus ที่ได้รับเมื่อ Deflect สำเร็จ
+# ลดจากระบบ Parry เดิม เพราะ Movement Deflect ทำได้ง่ายขึ้นบนมือถือ
+@export var focus_gain_on_successful_parry: float = 8.0
 
 # Focus ที่ต้องใช้เพื่อทำ Finisher
 @export var focus_finisher_cost: float = 100.0
@@ -64,11 +68,10 @@ signal player_died
 # 0.40 = 40% ของ HP สูงสุดศัตรู
 @export var focus_finisher_damage_ratio: float = 0.40
 
-# ระยะเวลาที่ Parry มีผลจริง
-# ค่านี้คือหน้าต่างสำเร็จของ Parry
+# ค่าเดิมของ Parry Active Time เก็บไว้เพื่อ compatibility เท่านั้น
 @export var parry_active_time: float = 0.45
 
-# เวลาหน่วงหลัง Parry ก่อนจะทำ action อื่นได้
+# ค่าเดิมของ Parry Recovery Time เก็บไว้เพื่อ compatibility เท่านั้น
 @export var parry_recovery_time: float = 0.1
 
 # ระยะเวลาที่ Hitbox ของดาบเปิดตอนโจมตี
@@ -92,6 +95,69 @@ signal player_died
 # ระยะเวลาอมตะหลัง Player โดนโจมตี
 # ป้องกันไม่ให้โดนดาเมจซ้ำติด ๆ กัน
 @export var hurt_invincible_time: float = 0.65
+
+# =========================
+# Lock-on System
+# =========================
+
+# เปิด/ปิดระบบ Lock-on
+@export var target_lock_enabled: bool = true
+
+# ระยะสูงสุดที่ยังยอมให้ Lock-on ทำงาน ถ้า Boss ไกลเกินไปจะปลดล็อคเอง
+@export var target_lock_max_distance: float = 1400.0
+
+# เปิด/ปิดข้อความ debug ของ Lock-on
+@export var target_lock_debug_print: bool = true
+
+# =========================
+# Movement Deflect System
+# =========================
+
+# เปิด/ปิดระบบ Movement Deflect
+@export var movement_deflect_enabled: bool = true
+
+# ช่วงเวลาหลังเริ่มโยกซ้าย/ขวาที่ถือว่ายัง Deflect ได้
+@export var movement_deflect_window: float = 0.28
+
+# ถ้า true จะไม่ให้กด movement ค้างเพื่อ Deflect ฟรี ต้องเป็นจังหวะเริ่มโยกหรือเปลี่ยนทิศเท่านั้น
+@export var movement_deflect_requires_new_input: bool = true
+
+# ข้อความ feedback เมื่อ Deflect สำเร็จ
+@export var movement_deflect_feedback_text: String = "DEFLECT!"
+
+# ขนาดตัวอักษร feedback เมื่อ Deflect สำเร็จ
+@export var movement_deflect_feedback_font_size: int = 28
+
+# ระยะเวลาที่ feedback Deflect ลอยขึ้นและจางหาย
+@export var movement_deflect_feedback_duration: float = 0.28
+
+# =========================
+# Player Posture System
+# =========================
+
+# Posture สูงสุดของผู้เล่น ใช้จำกัดการ Deflect ไม่ให้ฟรีเกินไป
+@export var max_player_posture: float = 100.0
+
+# ความเร็วในการฟื้น Player Posture ต่อวินาที
+@export var player_posture_regen_rate: float = 16.0
+
+# Posture ที่เสียเมื่อ Deflect สำเร็จ
+@export var posture_damage_on_deflect: float = 14.0
+
+# ตัวคูณ Posture damage จากการโดนดาเมจจริง
+@export var posture_damage_from_hit_multiplier: float = 1.6
+
+# เวลาที่ Player ชะงักเมื่อ Posture แตก
+@export var player_posture_break_time: float = 0.85
+
+# สัดส่วน Posture ที่คืนให้หลังฟื้นจาก Posture Break
+@export var posture_recover_ratio_after_break: float = 0.55
+
+# ข้อความ feedback เมื่อ Player Posture แตก
+@export var posture_break_feedback_text: String = "POSTURE BROKEN!"
+
+# ขนาดตัวอักษร feedback เมื่อ Player Posture แตก
+@export var posture_break_feedback_font_size: int = 28
 
 # =========================
 # Dash Trail Placeholder
@@ -183,6 +249,9 @@ var current_stamina: float
 # Focus ปัจจุบันของผู้เล่น
 var current_focus: float
 
+# Player Posture ปัจจุบัน
+var current_player_posture: float
+
 # ใช้เช็กว่าผู้เล่นกำลังโจมตีอยู่หรือไม่
 var is_attacking: bool = false
 
@@ -192,7 +261,7 @@ var is_dashing: bool = false
 # ใช้เช็กว่า Dash ยังติด cooldown อยู่หรือไม่
 var can_dash: bool = true
 
-# ใช้เช็กว่าผู้เล่นกำลังอยู่ในช่วง Parry หรือไม่
+# ค่าเก่าเก็บไว้เพื่อ compatibility กับ Boss/Tutorial เก่าบางส่วน
 var is_parrying: bool = false
 
 # ใช้เช็กว่า Player ตายไปแล้วหรือยัง
@@ -203,6 +272,9 @@ var is_knocked_back: bool = false
 
 # ใช้เช็กว่า Player กำลังอมตะหลังโดนตีอยู่หรือไม่
 var is_hurt_invincible: bool = false
+
+# ใช้เช็กว่า Player กำลัง Posture Broken อยู่หรือไม่
+var is_posture_broken: bool = false
 
 # ใช้กันไม่ให้ข้อความ NO STAMINA! ซ้อนกันหลายอันในเวลาเดียวกัน
 var is_showing_stamina_feedback: bool = false
@@ -223,6 +295,24 @@ var hit_targets: Array = []
 # ใช้เช็กว่าเคยแจ้งเตือน Focus เต็มแล้วหรือยัง
 # ป้องกันไม่ให้ print ซ้ำทุกครั้งที่ Focus เปลี่ยน
 var has_shown_focus_ready_message: bool = false
+
+# เป้าหมายที่ล็อคอยู่
+var locked_target: Node2D = null
+
+# สถานะ Lock-on ปัจจุบัน
+var is_target_locked: bool = false
+
+# เวลาที่เกิด movement input ใหม่ล่าสุด ใช้เป็น Movement Deflect window
+var last_movement_deflect_msec: int = -999999
+
+# ทิศ movement ล่าสุดที่ใช้ trigger Deflect
+var last_movement_deflect_direction: int = 0
+
+# ทิศ movement ใน physics frame ก่อนหน้า ใช้ตรวจ keyboard และ fallback
+var previous_axis_direction: int = 0
+
+# ใช้กัน Deflect feedback ซ้อนกันมากเกินไป
+var is_showing_deflect_feedback: bool = false
 
 # =========================
 # ระบบ Collision Layer ของตัวละคร
@@ -274,10 +364,11 @@ func _ready() -> void:
 	else:
 		print("Player using fallback arena bounds")
 
-	# ตั้งเลือด / Stamina / Focus เริ่มต้น
+	# ตั้งเลือด / Stamina / Focus / Posture เริ่มต้น
 	current_hp = max_hp
 	current_stamina = max_stamina
 	current_focus = 0.0
+	current_player_posture = max_player_posture
 
 	# ปิด Hitbox ดาบไว้ก่อน เพราะยังไม่ได้โจมตี
 	attack_shape.disabled = true
@@ -291,20 +382,32 @@ func _ready() -> void:
 	# เชื่อมสัญญาณ เมื่อ AttackHitbox ไปชน Area2D อื่น
 	attack_hitbox.area_entered.connect(_on_attack_hitbox_area_entered)
 
-	print("Player ready. HP =", current_hp, "Stamina =", current_stamina)
+	print("Player ready. HP =", current_hp, "Stamina =", current_stamina, "Posture =", current_player_posture)
 
 	# ส่งค่าเริ่มต้นไปให้ HUD แสดงผล
 	emit_stats()
 
 
 func _physics_process(delta: float) -> void:
-	# ฟื้น Stamina ทุกเฟรม
+	# ฟื้น Stamina และ Player Posture ทุกเฟรม
 	regenerate_stamina(delta)
+	regenerate_player_posture(delta)
+
+	# รองรับปุ่ม Lock-on บน keyboard เช่น L
+	if Input.is_action_just_pressed("lock_on"):
+		toggle_target_lock()
 
 	# ถ้า Player ตายแล้ว ไม่ต้องควบคุมต่อ
 	if is_dead:
 		velocity = Vector2.ZERO
 		move_and_slide()
+		return
+
+	# ถ้า Player Posture แตก ให้หยุดควบคุมชั่วคราว
+	if is_posture_broken:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		clamp_to_arena()
 		return
 
 	# ถ้า Player กำลังถูก Knockback ให้ขยับตามแรงกระเด็น
@@ -315,7 +418,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# ถ้ากำลัง Dash อยู่ ให้เคลื่อนที่ด้วยความเร็ว Dash
-	# และไม่รับ input เดินปกติชั่วคราว
+	# ระหว่าง Dash ไม่อัปเดต Lock-on facing เพื่อไม่ให้ Dash กลับทิศกลางทาง
 	if is_dashing:
 		velocity.x = float(facing_direction) * dash_speed
 		velocity.y = 0.0
@@ -325,9 +428,11 @@ func _physics_process(delta: float) -> void:
 
 	# รับค่าการกดปุ่มซ้าย/ขวา จาก ui_left และ ui_right
 	var direction := Input.get_axis("ui_left", "ui_right")
+	var axis_direction := int(sign(direction))
+	track_movement_deflect_from_axis(axis_direction)
 
-	# ถ้ากำลังโจมตีหรือ Parry ให้หยุดขยับชั่วคราว
-	if is_attacking or is_parrying:
+	# ถ้ากำลังโจมตี ให้หยุดขยับชั่วคราว
+	if is_attacking:
 		velocity.x = 0.0
 	else:
 		velocity.x = direction * speed
@@ -336,35 +441,156 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	clamp_to_arena()
 
-	# ถ้ามีการเดิน และไม่ได้โจมตี ให้เปลี่ยนทิศหันหน้า
-	if direction != 0.0 and not is_attacking:
-		facing_direction = int(sign(direction))
-		sprite_2d.flip_h = facing_direction < 0
-		attack_hitbox.position.x = attack_hitbox_offset_x * float(facing_direction)
+	# จัดทิศหันหน้าตาม Lock-on หรือ movement ปกติ
+	if is_target_locked:
+		update_facing_to_locked_target()
+	elif direction != 0.0 and not is_attacking:
+		set_facing_direction(axis_direction)
 
 	# ถ้ากดปุ่ม attack และตอนนี้ไม่ได้ทำ action อื่น ให้โจมตี
-	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing and not is_parrying:
+	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing and not is_posture_broken:
 		attack()
 
 	# ถ้ากดปุ่ม dash และตอนนี้ไม่ได้ทำ action อื่น ให้ Dash
-	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing and not is_parrying:
+	if Input.is_action_just_pressed("dash") and can_dash and not is_attacking and not is_dashing and not is_posture_broken:
+		if is_target_locked:
+			update_facing_to_locked_target()
 		dash()
 
-	# ถ้ากดปุ่ม parry และตอนนี้ไม่ได้ทำ action อื่น ให้ Parry
-	if Input.is_action_just_pressed("parry") and not is_attacking and not is_dashing and not is_parrying:
-		parry()
+	# ไม่รับ input parry โดยตรงแล้ว ระบบใหม่ใช้ Movement Deflect แทน
 
 
 func emit_stats() -> void:
-	# ส่งค่า HP, Stamina และ Focus ปัจจุบันออกไปให้ HUD
+	# ส่งค่า HP, Stamina, Focus และ Player Posture ปัจจุบันออกไปให้ HUD
 	stats_changed.emit(
 		current_hp,
 		max_hp,
 		current_stamina,
 		max_stamina,
 		current_focus,
-		max_focus
+		max_focus,
+		current_player_posture,
+		max_player_posture
 	)
+
+
+func set_facing_direction(new_direction: int) -> void:
+	# ตั้งทิศหันหน้าและย้าย hitbox ดาบให้ตรงกับทิศนั้น
+	if new_direction == 0:
+		return
+
+	facing_direction = new_direction
+	if is_instance_valid(sprite_2d):
+		sprite_2d.flip_h = facing_direction < 0
+	attack_hitbox.position.x = attack_hitbox_offset_x * float(facing_direction)
+
+
+func find_lock_target() -> Node2D:
+	# หา Boss หรือศัตรูหลักจาก group combat_target เพื่อลดการ hardcode ชื่อ node
+	var targets := get_tree().get_nodes_in_group("combat_target")
+	for target in targets:
+		if target is Node2D and is_instance_valid(target):
+			return target as Node2D
+
+	# fallback เผื่อ scene บางชุดยังใช้ชื่อ node ตรง
+	if get_parent() != null:
+		var boss := get_parent().get_node_or_null("BossBrokenMaster") as Node2D
+		if boss != null:
+			return boss
+
+	return null
+
+
+func toggle_target_lock() -> void:
+	# เปิด/ปิด Lock-on ตามสถานะปัจจุบัน
+	if not target_lock_enabled:
+		return
+
+	if is_target_locked:
+		clear_target_lock()
+		return
+
+	locked_target = find_lock_target()
+	if locked_target == null:
+		print("Lock-on failed: no combat target")
+		return
+
+	is_target_locked = true
+	update_facing_to_locked_target()
+
+	if target_lock_debug_print:
+		print("Target Lock ON:", locked_target.name)
+
+
+func clear_target_lock() -> void:
+	# ปลด Lock-on อย่างปลอดภัย
+	if target_lock_debug_print and is_target_locked:
+		print("Target Lock OFF")
+
+	is_target_locked = false
+	locked_target = null
+
+
+func is_target_lock_active() -> bool:
+	# ให้ TouchControls อ่านสถานะไปอัปเดตปุ่ม LOCK/LOCKED
+	return is_target_locked
+
+
+func update_facing_to_locked_target() -> void:
+	# ถ้า Lock-on เปิดอยู่ ให้หันหน้าเข้าหาเป้าหมายเสมอ
+	if not is_target_locked:
+		return
+
+	if not is_instance_valid(locked_target):
+		clear_target_lock()
+		return
+
+	if global_position.distance_to(locked_target.global_position) > target_lock_max_distance:
+		clear_target_lock()
+		return
+
+	var target_direction := int(sign(locked_target.global_position.x - global_position.x))
+	if target_direction != 0:
+		set_facing_direction(target_direction)
+
+
+func track_movement_deflect_from_axis(axis_direction: int) -> void:
+	# ตรวจ movement จาก keyboard หรือ fallback
+	# TouchControls จะเรียก register_movement_deflect_input() โดยตรงด้วยเมื่อ joystick เปลี่ยนทิศ
+	if axis_direction != 0 and axis_direction != previous_axis_direction:
+		register_movement_deflect_input(axis_direction)
+
+	previous_axis_direction = axis_direction
+
+
+func register_movement_deflect_input(direction: int) -> void:
+	# บันทึกจังหวะเริ่มโยกหรือเปลี่ยนทิศ เพื่อใช้เป็น Movement Deflect window
+	if not movement_deflect_enabled:
+		return
+
+	if direction == 0:
+		return
+
+	if movement_deflect_requires_new_input and direction == last_movement_deflect_direction:
+		return
+
+	last_movement_deflect_direction = direction
+	last_movement_deflect_msec = Time.get_ticks_msec()
+
+
+func is_movement_deflect_active() -> bool:
+	# ใช้แทน Parry เดิม: ถ้าเพิ่งโยก movement ในช่วงเวลาสั้น ๆ ให้ถือว่าพร้อม Deflect
+	if not movement_deflect_enabled:
+		return false
+
+	if is_dead or is_attacking or is_dashing or is_posture_broken or is_knocked_back:
+		return false
+
+	if current_player_posture <= 0.0:
+		return false
+
+	var elapsed_sec := float(Time.get_ticks_msec() - last_movement_deflect_msec) / 1000.0
+	return elapsed_sec <= movement_deflect_window
 
 
 func gain_focus(amount: float) -> void:
@@ -448,7 +674,7 @@ func show_focus_ready_feedback() -> void:
 	# รอให้เห็น feedback ก่อนคืนสี Player ถ้าไม่มีสถานะอื่นครอบอยู่
 	await get_tree().create_timer(focus_ready_feedback_duration).timeout
 
-	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_parrying:
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_posture_broken:
 		sprite_2d.modulate = Color.WHITE
 
 
@@ -467,7 +693,7 @@ func play_focus_finisher_feedback() -> void:
 	await get_tree().create_timer(0.12).timeout
 
 	# ถ้ายังอยู่ในเกม ให้คืนสีปกติ
-	if is_instance_valid(sprite_2d) and not is_hurt_invincible:
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_posture_broken:
 		sprite_2d.modulate = Color.WHITE
 
 
@@ -483,6 +709,91 @@ func regenerate_stamina(delta: float) -> void:
 	# ถ้าค่า Stamina เปลี่ยนในระดับจำนวนเต็ม ให้ส่งค่าไปอัปเดต HUD
 	if int(old_stamina) != int(current_stamina):
 		emit_stats()
+
+
+func regenerate_player_posture(delta: float) -> void:
+	# Posture ไม่ฟื้นระหว่างตายหรือ Posture Broken
+	if is_dead or is_posture_broken:
+		return
+
+	var old_posture := current_player_posture
+
+	if current_player_posture < max_player_posture:
+		current_player_posture += player_posture_regen_rate * delta
+		current_player_posture = clamp(current_player_posture, 0.0, max_player_posture)
+
+	if int(old_posture) != int(current_player_posture):
+		emit_stats()
+
+
+func apply_player_posture_damage(amount: float, allow_break: bool = true) -> void:
+	# ลด Player Posture และสั่ง Posture Break หากหมด
+	if is_dead:
+		return
+
+	if amount <= 0.0:
+		return
+
+	current_player_posture -= amount
+	current_player_posture = clamp(current_player_posture, 0.0, max_player_posture)
+	print("Player posture:", int(current_player_posture), "/", int(max_player_posture))
+	emit_stats()
+
+	if allow_break and current_player_posture <= 0.0:
+		start_player_posture_break()
+
+
+func start_player_posture_break() -> void:
+	# เมื่อ Player Posture หมด ให้ชะงักชั่วคราวเพื่อไม่ให้ Deflect ฟรีเกินไป
+	if is_posture_broken or is_dead:
+		return
+
+	is_posture_broken = true
+	is_attacking = false
+	is_dashing = false
+	is_parrying = false
+	velocity = Vector2.ZERO
+	attack_shape.set_deferred("disabled", true)
+
+	print("Player POSTURE BROKEN!")
+	show_posture_break_feedback()
+	get_tree().call_group("game_camera", "shake", 8.0, 0.18)
+
+	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color(0.85, 0.25, 1.0, 1.0)
+
+	await get_tree().create_timer(player_posture_break_time).timeout
+
+	if is_dead:
+		return
+
+	is_posture_broken = false
+	current_player_posture = max_player_posture * posture_recover_ratio_after_break
+	emit_stats()
+
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible:
+		sprite_2d.modulate = Color.WHITE
+
+
+func show_posture_break_feedback() -> void:
+	# สร้างข้อความเมื่อ Posture แตก
+	var popup := Label.new()
+	popup.text = posture_break_feedback_text
+	popup.modulate = Color(1.0, 0.35, 0.95, 1.0)
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	popup.z_index = 200
+	popup.add_theme_font_size_override("font_size", posture_break_feedback_font_size)
+	get_parent().add_child(popup)
+	popup.global_position = global_position + Vector2(-125.0, -130.0)
+
+	var target_position: Vector2 = popup.global_position + Vector2(0.0, -34.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "global_position", target_position, player_posture_break_time)
+	tween.tween_property(popup, "modulate:a", 0.0, player_posture_break_time)
+	tween.set_parallel(false)
+	tween.tween_callback(Callable(popup, "queue_free"))
 
 
 func attack() -> void:
@@ -520,6 +831,8 @@ func attack() -> void:
 
 	# จบสถานะโจมตี
 	is_attacking = false
+	if is_target_locked:
+		update_facing_to_locked_target()
 
 
 func start_dash_collision_mode() -> void:
@@ -591,6 +904,10 @@ func dash() -> void:
 	# เปิด Hurtbox กลับมา เพื่อให้รับดาเมจได้ตามปกติ
 	hurtbox_shape.disabled = false
 
+	# ถ้าเปิด Lock-on อยู่ หลัง Dash ข้าม Boss ให้หันกลับเข้าหา Boss ทันที
+	if is_target_locked:
+		update_facing_to_locked_target()
+
 	print("Dash End. Invincible OFF")
 
 	# รอ cooldown ก่อน Dash ครั้งต่อไป
@@ -642,7 +959,7 @@ func show_stamina_insufficient_feedback() -> void:
 	# รอให้ feedback จบ แล้วอนุญาตให้แสดงใหม่ได้
 	await get_tree().create_timer(stamina_feedback_duration).timeout
 
-	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_parrying:
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_posture_broken:
 		sprite_2d.modulate = Color.WHITE
 
 	is_showing_stamina_feedback = false
@@ -690,58 +1007,65 @@ func create_dash_trail_ghost() -> void:
 
 
 func parry() -> void:
-	# ถ้า Stamina ไม่พอ ห้าม Parry และแจ้งบนจอทันที
-	if current_stamina < parry_stamina_cost:
-		print("Not enough stamina to parry. Stamina =", int(current_stamina))
-		show_stamina_insufficient_feedback()
-		return
-
-	# ใช้ Stamina สำหรับ Parry
-	current_stamina -= parry_stamina_cost
-	print("Parry stamina used. Stamina left =", int(current_stamina))
-	emit_stats()
-
-	# เริ่มสถานะ Parry
-	is_parrying = true
-	print("Player Parry ON")
-
-	# เปลี่ยนสีตัวละครเป็นฟ้าอ่อน เพื่อให้รู้ว่ากำลัง Parry
-	sprite_2d.modulate = Color.CYAN
-
-	# รอช่วงเวลาที่ Parry มีผลจริง
-	await get_tree().create_timer(parry_active_time).timeout
-
-	# หมดช่วง Parry
-	is_parrying = false
-	print("Player Parry OFF")
-
-	# เปลี่ยนสีกลับเป็นปกติ
-	if is_instance_valid(sprite_2d):
-		sprite_2d.modulate = Color.WHITE
-
-	# รอ recovery เล็กน้อย เพื่อไม่ให้กด Parry รัวแบบไม่มีโทษ
-	await get_tree().create_timer(parry_recovery_time).timeout
+	# ปุ่ม Parry ถูกถอดออกจากระบบมือถือแล้ว
+	# ฟังก์ชันนี้คงไว้เพื่อไม่ให้ flow เก่าที่อาจยังเรียก parry() พังทันที
+	# แต่จะไม่เปิดหน้าต่าง Parry โดยตรงอีกต่อไป
+	print("Parry button deprecated. Use Movement Deflect instead.")
 
 
 func is_parry_active() -> bool:
-	# ฟังก์ชันนี้ให้ศัตรูเรียกถามว่า ตอนนี้ Player อยู่ในช่วง Parry สำเร็จได้หรือไม่
-	return is_parrying
+	# ให้ Boss เรียกชื่อเดิมได้ แต่ความหมายใหม่คือ Movement Deflect
+	return is_movement_deflect_active()
 
 
 func on_successful_parry() -> void:
-	# ฟังก์ชันนี้ถูกเรียกเมื่อศัตรูโจมตีเข้ามาในช่วง Parry
-	print("Successful Parry!")
+	# ฟังก์ชันนี้ถูกเรียกเมื่อ Boss โจมตีเข้ามาในช่วง Movement Deflect
+	print("Successful Movement Deflect!")
 
-	# ได้ Focus เมื่อ Parry สำเร็จ
+	# Movement Deflect สำเร็จแล้ว Player ยังเสีย Posture เล็กน้อย เพื่อไม่ให้เกมง่ายเกินไป
+	apply_player_posture_damage(posture_damage_on_deflect)
+
+	# ได้ Focus เมื่อ Deflect สำเร็จ
 	gain_focus(focus_gain_on_successful_parry)
 
-	# ให้สีเป็นเหลืองชั่วคราวเพื่อ feedback
-	sprite_2d.modulate = Color.YELLOW
+	# แสดง feedback ฝั่ง Player
+	show_movement_deflect_feedback()
 
-	await get_tree().create_timer(0.08).timeout
+
+func show_movement_deflect_feedback() -> void:
+	# กัน feedback ซ้อนกันหลายอันเกินไป
+	if is_showing_deflect_feedback:
+		return
+
+	is_showing_deflect_feedback = true
+
+	var popup := Label.new()
+	popup.text = movement_deflect_feedback_text
+	popup.modulate = Color(0.35, 0.95, 1.0, 1.0)
+	popup.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	popup.z_index = 190
+	popup.add_theme_font_size_override("font_size", movement_deflect_feedback_font_size)
+	get_parent().add_child(popup)
+	popup.global_position = global_position + Vector2(-75.0, -115.0)
 
 	if is_instance_valid(sprite_2d):
+		sprite_2d.modulate = Color(0.35, 0.95, 1.0, 1.0)
+
+	var target_position: Vector2 = popup.global_position + Vector2(0.0, -28.0)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(popup, "global_position", target_position, movement_deflect_feedback_duration)
+	tween.tween_property(popup, "modulate:a", 0.0, movement_deflect_feedback_duration)
+	tween.set_parallel(false)
+	tween.tween_callback(Callable(popup, "queue_free"))
+
+	await get_tree().create_timer(movement_deflect_feedback_duration).timeout
+
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_posture_broken:
 		sprite_2d.modulate = Color.WHITE
+
+	is_showing_deflect_feedback = false
 
 
 func _on_attack_hitbox_area_entered(area: Area2D) -> void:
@@ -823,6 +1147,9 @@ func take_damage(amount: int) -> void:
 	if is_dashing:
 		print("Damage avoided by dash!")
 		return
+
+	# โดนโจมตีจริงจะทำให้ Player Posture ลดด้วย
+	apply_player_posture_damage(float(amount) * posture_damage_from_hit_multiplier)
 
 	# ลดเลือดผู้เล่นตามจำนวนดาเมจที่ได้รับ
 	current_hp -= amount
@@ -906,6 +1233,8 @@ func apply_knockback() -> void:
 	if is_instance_valid(self):
 		is_knocked_back = false
 		knockback_velocity = Vector2.ZERO
+		if is_target_locked:
+			update_facing_to_locked_target()
 
 
 func start_hurt_invincibility() -> void:
@@ -936,7 +1265,7 @@ func start_hurt_invincibility() -> void:
 	hurtbox_shape.set_deferred("disabled", false)
 
 	# คืนสีปกติ
-	if is_instance_valid(sprite_2d):
+	if is_instance_valid(sprite_2d) and not is_posture_broken:
 		sprite_2d.modulate = Color.WHITE
 
 
@@ -962,8 +1291,8 @@ func flash_red() -> void:
 
 	await get_tree().create_timer(0.1).timeout
 
-	# ถ้า Sprite ยังอยู่ และไม่ได้อยู่ในช่วงอมตะ ให้เปลี่ยนกลับเป็นสีขาว
-	if is_instance_valid(sprite_2d) and not is_hurt_invincible:
+	# ถ้า Sprite ยังอยู่ และไม่ได้อยู่ในช่วงอมตะ/สะดุด ให้เปลี่ยนกลับเป็นสีขาว
+	if is_instance_valid(sprite_2d) and not is_hurt_invincible and not is_posture_broken:
 		sprite_2d.modulate = Color.WHITE
 
 
@@ -980,6 +1309,8 @@ func die() -> void:
 	is_dashing = false
 	is_parrying = false
 	is_knocked_back = false
+	is_posture_broken = false
+	clear_target_lock()
 
 	# ปิด Hitbox และ Hurtbox เพื่อไม่ให้ชนอะไรต่อ
 	attack_shape.set_deferred("disabled", true)
