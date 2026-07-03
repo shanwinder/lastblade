@@ -93,6 +93,7 @@ Player
 ```text
 sprite_source_faces_left = true
 force_positive_scale_x = true
+orientation_process_priority = 1000
 ```
 
 ดังนั้น `Player/Sprite2D.scale` กลับมาเป็นค่าบวกแล้ว:
@@ -106,6 +107,25 @@ Vector2(0.5, 0.5)
 ```text
 facing_direction = 1  → source หันซ้ายจึง flip_h = true เพื่อให้ภาพหันขวา
 facing_direction = -1 → source หันซ้ายจึง flip_h = false เพื่อให้ภาพหันซ้าย
+```
+
+## Lock-on Dash Orientation Bugfix
+
+เคยพบ bug จากการทดสอบ:
+
+```text
+เมื่อ lock boss แล้วกดทิศถอยหลังค้างไว้ จากนั้นกด dash
+หลัง dash จบ ภาพตัวละครหันผิดฝั่งประมาณเสี้ยววินาที
+```
+
+สาเหตุคือ `player.gd` เรียก `update_facing_to_locked_target()` หลัง dash จบ แล้ว `set_facing_direction()` ยังตั้ง `sprite_2d.flip_h` ด้วย logic เก่า ก่อนที่ orientation manager จะได้แก้ใน physics frame ถัดไป
+
+วิธีแก้ปัจจุบัน:
+
+```text
+PlayerSpriteOrientationManager ทำงานทั้ง _physics_process() และ _process()
+ตั้ง process_priority = 1000 เพื่อให้แก้ flip_h หลัง player.gd
+บันทึก orientation_process_priority = 1000 ใน scene
 ```
 
 ## ข้อควรทำใน Phase ถัดไป
