@@ -26,16 +26,21 @@ extends Node
 # ค่าใหญ่กว่า 0 ทำให้ทำงานช้ากว่า Player ที่ใช้ค่า default 0
 @export var orientation_process_priority: int = 1000
 
+# ถ้า true จะนัดแก้ orientation ซ้ำแบบ deferred อีกครั้งในเฟรมเดียวกัน
+# ใช้ดักจังหวะ await timer ของ dash/attack ที่อาจเปลี่ยน facing หลังรอบ _process ปกติ
+@export var use_deferred_orientation_fix: bool = true
+
 # เปิด/ปิด debug print ตอน setup
 @export var debug_print_orientation: bool = true
 
 var player: Node = null
 var sprite_2d: Sprite2D = null
+var deferred_orientation_fix_queued: bool = false
 
 
 func _ready() -> void:
 	# ตั้ง priority ให้ตัวจัด orientation ทำงานหลัง player.gd
-	# สำคัญมากตอน Dash จบ เพราะ player.gd จะ update facing ใน coroutine แล้ว manager ต้องแก้ภาพให้ทันก่อน render
+	# สำคัญมากตอน Dash/Attack จบ เพราะ player.gd อาจ update facing ใน coroutine แล้ว manager ต้องแก้ภาพให้ทันก่อน render
 	process_priority = orientation_process_priority
 
 	# หา reference ทันที 1 ครั้ง และเรียกซ้ำแบบ deferred เผื่อ node ยังจัดตัวไม่เสร็จ
@@ -44,13 +49,13 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	# ใช้ใน physics frame เพื่อให้ทิศภาพตรงกับ gameplay direction ระหว่างเดิน/lock-on/dash
+	# ใช้ใน physics frame เพื่อให้ทิศภาพตรงกับ gameplay direction ระหว่างเดิน/lock-on/dash/attack
 	process_orientation_frame()
 
 
 func _process(_delta: float) -> void:
 	# ใช้ใน idle frame เพื่อแก้จังหวะที่ player.gd เปลี่ยน facing หลัง await timer
-	# เช่น Dash จบแล้ว update_facing_to_locked_target() ทำให้เห็นภาพผิดฝั่งเสี้ยววินาที
+	# เช่น Dash หรือ Attack จบแล้ว update_facing_to_locked_target() ทำให้เห็นภาพผิดฝั่งเสี้ยววินาที
 	process_orientation_frame()
 
 
@@ -62,6 +67,35 @@ func process_orientation_frame() -> void:
 	if not are_references_ready():
 		setup_references()
 		return
+
+	apply_sprite_orientation()
+	queue_deferred_orientation_fix()
+
+
+func queue_deferred_orientation_fix() -> void:
+	# นัดแก้ซ้ำตอนท้ายเฟรม เพื่อดัก callback จาก await timer ของ player.gd
+	# ถ้าไม่ทำแบบนี้ บางจังหวะ attack/dash coroutine อาจตั้ง flip_h ผิดหลัง manager ทำงานไปแล้ว
+	if not use_deferred_orientation_fix:
+		return
+
+	if deferred_orientation_fix_queued:
+		return
+
+	deferred_orientation_fix_queued = true
+	apply_deferred_sprite_orientation.call_deferred()
+
+
+func apply_deferred_sprite_orientation() -> void:
+	# แก้ซ้ำแบบ deferred และปลด queue เพื่อให้เฟรมถัดไปนัดใหม่ได้
+	deferred_orientation_fix_queued = false
+
+	if not orientation_enabled:
+		return
+
+	if not are_references_ready():
+		setup_references()
+		if not are_references_ready():
+			return
 
 	apply_sprite_orientation()
 
