@@ -72,6 +72,7 @@ boss_path = NodePath("../BossBrokenMaster")
 game_loop_manager_path = NodePath("../GameLoopManager")
 duel_1_manager_path = NodePath("../Duel1DummyManager")
 grab_manager_process_priority = -50
+grab_can_interrupt_boss_cooldown = true
 grab_close_range = 72.0
 grab_dash_landing_range = 96.0
 grab_chance = 0.18
