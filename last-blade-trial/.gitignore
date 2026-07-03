@@ -1,4 +1,6 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
-/assets/
+_ai_raw/
+_work_in_progress/
+.DS_Store
