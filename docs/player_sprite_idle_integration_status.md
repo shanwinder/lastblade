@@ -18,6 +18,7 @@ docs/player_sprite_idle_integration_plan.md
 Phase 1: ตรวจ asset และมาตรฐานไฟล์
 Phase 2: เปลี่ยน placeholder แบบเสี่ยงต่ำก่อน
 Phase 3: ทำให้ source sprite หันซ้ายใช้งานกับ gameplay direction ได้โดยไม่พึ่ง negative scale
+Phase 3.1: แก้ bug หันผิดฝั่งเสี้ยววินาทีหลัง lock-on dash
 ```
 
 หยุดงานไว้ก่อนเข้าสู่:
@@ -26,7 +27,7 @@ Phase 3: ทำให้ source sprite หันซ้ายใช้งาน�
 Phase 4: เปลี่ยนจาก Sprite2D เป็น AnimatedSprite2D
 ```
 
-เหตุผลที่หยุด: Phase 4 ต้องเปลี่ยนระบบ visual node ของ Player จาก `Sprite2D` เป็น `AnimatedSprite2D` ซึ่งจะกระทบ `player.gd` หลายจุด เช่น `@onready var sprite_2d: Sprite2D = $Sprite2D`, dash trail ที่ใช้ `sprite_2d.texture`, และ feedback สีตัวละครที่ใช้ `sprite_2d.modulate` จึงควรทดสอบ Phase 3 ใน Godot ก่อน
+เหตุผลที่หยุด: Phase 4 ต้องเปลี่ยนระบบ visual node ของ Player จาก `Sprite2D` เป็น `AnimatedSprite2D` ซึ่งจะกระทบ `player.gd` หลายจุด เช่น `@onready var sprite_2d: Sprite2D = $Sprite2D`, dash trail ที่ใช้ `sprite_2d.texture`, และ feedback สีตัวละครที่ใช้ `sprite_2d.modulate` จึงควรทดสอบ Phase 3.1 ใน Godot ก่อน
 
 ---
 
@@ -127,6 +128,7 @@ Player
 orientation_enabled = true
 sprite_source_faces_left = true
 force_positive_scale_x = true
+orientation_process_priority = 1000
 ```
 
 เปลี่ยน `Player/Sprite2D.scale` จาก workaround เดิม:
@@ -149,6 +151,42 @@ Vector2(0.5, 0.5)
 Source sprite หันซ้าย
 facing_direction = 1  → flip_h = true  เพื่อให้ภาพหันขวา
 facing_direction = -1 → flip_h = false เพื่อให้ภาพหันซ้าย
+```
+
+---
+
+## Phase 3.1: Bugfix หลังทดสอบ lock-on dash
+
+ข้อสังเกตจากการทดสอบ:
+
+```text
+เมื่อ lock boss แล้วกดทิศถอยหลังค้างไว้ จากนั้นกด dash
+หลัง dash จบ ภาพตัวละครหันผิดฝั่งประมาณเสี้ยววินาที
+```
+
+สาเหตุ:
+
+```text
+player.gd ยังเรียก update_facing_to_locked_target() หลัง dash จบ
+ฟังก์ชันนี้เรียก set_facing_direction()
+set_facing_direction() ยังตั้ง sprite_2d.flip_h ด้วย logic เก่า ที่สมมติว่า source sprite หันขวา
+PlayerSpriteOrientationManager เดิมแก้ใน physics frame ถัดไป จึงมีโอกาสเห็นภาพผิดฝั่งสั้น ๆ
+```
+
+วิธีแก้:
+
+```text
+ให้ PlayerSpriteOrientationManager ทำงานทั้งใน _physics_process() และ _process()
+ตั้ง process_priority = 1000 เพื่อให้ manager ทำงานหลัง player.gd
+บันทึก orientation_process_priority = 1000 ใน scene แบบ explicit
+```
+
+ผลที่ต้องการ:
+
+```text
+หลัง dash จบ ถ้า player.gd ตั้ง flip_h ผิดจาก logic เก่า
+manager จะรีบแก้ใน idle frame เดียวกันก่อน render หรือเร็วที่สุดเท่าที่ทำได้
+ลด/กำจัดภาพหันผิดฝั่งชั่วคราว
 ```
 
 ---
@@ -216,7 +254,7 @@ feedback สี เช่น Hurt / Deflect / Focus Ready ใช้ sprite_2d.mo
 ถ้าเปลี่ยน node ทันที อาจทำให้ dash trail หรือ feedback พัง
 ```
 
-ดังนั้นควรทดสอบ Phase 3 ก่อนว่า orientation manager ไม่ทำให้ทิศทางเพี้ยน
+ดังนั้นควรทดสอบ Phase 3.1 ก่อนว่า orientation manager ไม่ทำให้ทิศทางเพี้ยน
 
 ---
 
@@ -234,9 +272,10 @@ res://scenes/main/BossBrokenMaster.tscn
 1. ดูว่า Player ยังแสดง idle frame ใหม่เหมือนเดิม
 2. กดเดินซ้าย/ขวา ดูว่าทิศหันถูกไหม
 3. เปิด Lock-on แล้ว Dash ข้าม Boss ดูว่าหันกลับถูกไหม
-4. โจมตีซ้าย/ขวา ดูว่า hitbox ฟันโดนด้านหน้าถูกฝั่งไหม
-5. ให้ Boss Grab ดูว่าตำแหน่งจับยังโอเคไหม
-6. ดู console ว่ามีข้อความ PlayerSpriteOrientationManager ready หรือ error ใด ๆ หรือไม่
+4. เปิด Lock-on กดถอยหลังค้าง แล้วกด Dash ดูว่ายังมีภาพหันผิดฝั่งเสี้ยววินาทีไหม
+5. โจมตีซ้าย/ขวา ดูว่า hitbox ฟันโดนด้านหน้าถูกฝั่งไหม
+6. ให้ Boss Grab ดูว่าตำแหน่งจับยังโอเคไหม
+7. ดู console ว่ามีข้อความ PlayerSpriteOrientationManager ready หรือ error ใด ๆ หรือไม่
 ```
 
 ---
@@ -248,9 +287,10 @@ res://scenes/main/BossBrokenMaster.tscn
 ```text
 1. ภาพ idle frame ใหม่ยังแสดงถูก
 2. หันซ้าย/ขวาถูกหลังเลิกใช้ negative scale
-3. AttackHitbox ยังถูกฝั่ง
-4. Dash trail ยังไม่ error
-5. Boss Grab ยังไม่เพี้ยน
+3. อาการหันผิดฝั่งเสี้ยววินาทีหลัง lock-on dash หายไป
+4. AttackHitbox ยังถูกฝั่ง
+5. Dash trail ยังไม่ error
+6. Boss Grab ยังไม่เพี้ยน
 ```
 
 งานถัดไปคือ:
@@ -258,5 +298,3 @@ res://scenes/main/BossBrokenMaster.tscn
 ```text
 Phase 4: เปลี่ยนจาก Sprite2D เป็น AnimatedSprite2D
 ```
-
-โดยต้องทำพร้อม helper สำหรับ dash trail และ feedback สีของ visual node
