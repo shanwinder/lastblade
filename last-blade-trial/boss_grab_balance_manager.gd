@@ -65,7 +65,7 @@ extends Node
 
 # เวลาฟื้นตัวหลังถูกเหวี่ยง Player จะยังควบคุมไม่ได้ช่วงนี้
 # ใช้เพิ่มความอันตรายให้ Grab และเตรียมรองรับ animation ลุก/มึนหลังถูกเหวี่ยง
-@export var grab_recovery_time: float = 0.65
+@export var grab_recovery_time: float = 10
 
 # เวลาพักหลัง Grab เพื่อคืนจังหวะให้ Boss
 @export var grab_cooldown_bonus: float = 0.35
