@@ -18,6 +18,12 @@ extends Node
 # อ้างอิง GameLoopManager ถ้ามี เพื่อให้ Grab ทำงานเฉพาะตอน playing
 @export var game_loop_manager_path: NodePath = NodePath("../GameLoopManager")
 
+# อ้างอิง Duel 1 manager เพื่อกันไม่ให้ Grab แทรกระหว่าง tutorial
+@export var duel_1_manager_path: NodePath = NodePath("../Duel1DummyManager")
+
+# ให้ manager ประมวลผลก่อน Boss เพื่อแย่งจังหวะ can_attack ก่อนที่ Boss จะเริ่มท่าดาบปกติ
+@export var grab_manager_process_priority: int = -50
+
 # ระยะประชิดที่ Boss มีสิทธิ์ใช้ Grab
 @export var grab_close_range: float = 72.0
 
@@ -39,6 +45,19 @@ extends Node
 
 # ช่วง active ที่ถือว่า Boss กำลังจับ
 @export var grab_active_time: float = 0.18
+
+# เวลาที่ Player ถูกจับค้างไว้ก่อนโดนเหวี่ยง
+# ภายหลังสามารถใส่ animation หัวโขกของ Boss ในช่วงเวลานี้ได้
+@export var grab_hold_time: float = 0.85
+
+# ระยะที่ล็อก Player ให้อยู่หน้าบอสตอนโดนจับ
+@export var grab_hold_offset_x: float = 42.0
+
+# แรงเหวี่ยงกระเด็นหลังจบ Grab
+@export var grab_throw_force: float = 520.0
+
+# ระยะเวลาที่ Player ถูกเหวี่ยงกระเด็นหลัง Grab
+@export var grab_throw_time: float = 0.26
 
 # เวลาพักหลัง Grab เพื่อคืนจังหวะให้ Player
 @export var grab_cooldown_bonus: float = 0.35
@@ -87,6 +106,7 @@ extends Node
 var player: Node2D = null
 var boss: Node = null
 var game_loop_manager: Node = null
+var duel_1_manager: Node = null
 
 # ตัวจับเวลา evaluation
 var evaluation_timer: float = 0.0
@@ -107,8 +127,15 @@ var recent_dash_msecs: Array[int] = []
 var recent_attack_msecs: Array[int] = []
 var recent_deflect_msecs: Array[int] = []
 
+# จำสถานะ physics ของ Player ก่อนโดนจับ เพื่อคืนกลับหลัง Grab จบ
+var player_was_physics_processing_before_grab: bool = true
+
 
 func _ready() -> void:
+	# ให้ Grab manager ได้ประเมินก่อน BossBrokenMaster
+	# ถ้าไม่ตั้งค่านี้ Boss จะเริ่มท่าดาบและปิด can_attack ก่อน manager ทำงาน ทำให้ Grab ไม่ออกหลัง tutorial
+	process_priority = grab_manager_process_priority
+
 	# หา node หลังทุกอย่างใน scene พร้อมแล้ว เพื่อกันกรณี Boss หรือ Player ยังไม่ ready
 	setup_references.call_deferred()
 
@@ -125,6 +152,10 @@ func _physics_process(delta: float) -> void:
 
 	# ทำงานเฉพาะตอนเกมกำลัง playing ถ้ามี GameLoopManager ให้ตรวจสถานะก่อน
 	if not is_game_playing_if_available():
+		return
+
+	# ห้าม Grab ระหว่าง tutorial / Duel 1 เพื่อไม่แทรก flow ฝึกผู้เล่น
+	if is_tutorial_blocking_grab():
 		return
 
 	# อัปเดตความจำพฤติกรรมซ้ำของผู้เล่น
@@ -165,9 +196,14 @@ func setup_references() -> void:
 	if game_loop_manager == null and get_parent() != null:
 		game_loop_manager = get_parent().get_node_or_null("GameLoopManager")
 
+	# หา Duel1DummyManager แบบ optional เพื่อปิด Grab ระหว่าง tutorial
+	duel_1_manager = get_node_or_null(duel_1_manager_path)
+	if duel_1_manager == null and get_parent() != null:
+		duel_1_manager = get_parent().get_node_or_null("Duel1DummyManager")
+
 
 func are_references_ready() -> bool:
-	# ต้องมีทั้ง Player และ Boss จึงทำงานได้ ส่วน GameLoopManager เป็น optional
+	# ต้องมีทั้ง Player และ Boss จึงทำงานได้ ส่วน GameLoopManager/Duel1 เป็น optional
 	return is_instance_valid(player) and is_instance_valid(boss)
 
 
@@ -181,6 +217,28 @@ func is_game_playing_if_available() -> bool:
 		return true
 
 	return str(state) == "playing"
+
+
+func is_tutorial_blocking_grab() -> bool:
+	# ระหว่าง Duel 1 / tutorial ห้าม Grab เพื่อไม่แทรก prompt ฝึก
+	# หลัง is_training_boss_completed เป็น true แล้ว Grab จะเริ่มทำงานได้
+	if not is_instance_valid(duel_1_manager):
+		return false
+
+	var boss_training_enabled = duel_1_manager.get("boss_training_enabled") == true
+	if not boss_training_enabled:
+		return false
+
+	var is_completed = duel_1_manager.get("is_training_boss_completed") == true
+	if is_completed:
+		return false
+
+	var has_started = duel_1_manager.get("has_started_training_boss") == true
+	var is_active = duel_1_manager.get("is_training_boss_active") == true
+	var prompt_active = duel_1_manager.get("is_freeze_prompt_active") == true
+	var feedback_active = duel_1_manager.get("is_freeze_feedback_active") == true
+
+	return has_started or is_active or prompt_active or feedback_active
 
 
 func should_start_grab() -> bool:
@@ -371,10 +429,15 @@ func perform_grab_sequence() -> void:
 	boss.set("is_attacking", true)
 	set_boss_color(Color(1.0, 0.15, 0.35, 1.0))
 
-	# ตรวจจับทันทีในช่วง active ถ้า Player ยังใกล้และไม่ได้ Dash อยู่ จะโดน Grab
-	try_apply_grab_hit()
-
-	await get_tree().create_timer(grab_active_time).timeout
+	# ถ้าจับโดน ให้จับค้าง แล้วค่อยเหวี่ยงกระเด็น
+	var did_grab_player := try_begin_grab_hold()
+	if did_grab_player:
+		await get_tree().create_timer(grab_hold_time).timeout
+		if is_instance_valid(player) and not is_player_dead():
+			apply_grab_damage_to_player()
+			await throw_player_from_grab()
+	else:
+		await get_tree().create_timer(grab_active_time).timeout
 
 	finish_grab_sequence()
 
@@ -393,37 +456,151 @@ func can_continue_grab_sequence() -> bool:
 	return true
 
 
-func try_apply_grab_hit() -> void:
+func try_begin_grab_hold() -> bool:
 	# Grab ต้องลงโทษคนที่ยังอยู่ประชิด แต่ต้องให้ Dash หลบได้
 	if not is_instance_valid(player):
-		return
+		return false
 
 	var distance_to_player := get_distance_to_player()
 	if distance_to_player > grab_close_range:
 		if debug_print_grab:
 			print("Grab missed: player out of range")
-		return
+		return false
 
 	var player_is_dashing = player.get("is_dashing")
 	if player_is_dashing == true:
 		if debug_print_grab:
 			print("Grab avoided by dash")
-		return
+		return false
 
 	# Grab ไม่เช็ก Deflect เพราะออกแบบให้ Deflect ไม่ได้
 	if debug_print_grab:
-		print("Boss Grab hit player")
+		print("Boss Grab caught player")
 
 	boss.set("has_hit_player", true)
 	show_grabbed_feedback()
 	get_tree().call_group("game_camera", "shake", 8.0, 0.16)
+	enter_player_grab_hold()
+	return true
 
-	# ลด Posture แยกก่อน แล้วค่อยทำ HP damage เล็กน้อย
+
+func enter_player_grab_hold() -> void:
+	# จับ Player ค้างไว้ชั่วคราว รอ animation หัวโขก/เหวี่ยงในอนาคต
+	if not is_instance_valid(player):
+		return
+
+	player_was_physics_processing_before_grab = player.is_physics_processing()
+	player.set("is_attacking", false)
+	player.set("is_dashing", false)
+	player.set("is_parrying", false)
+	player.set("is_knocked_back", false)
+	player.set("velocity", Vector2.ZERO)
+	player.set("knockback_velocity", Vector2.ZERO)
+
+	# ปิดฟิสิกส์ของ Player ระหว่างถูกจับ เพื่อกันการกดเดิน/Attack/Dash หลุดออกจาก Grab
+	player.set_physics_process(false)
+
+	# ปิด hitbox/hurtbox ระหว่างถูกจับ เพื่อกันโดนซ้ำจาก hitbox อื่น
+	set_player_shape_disabled("AttackHitbox/CollisionShape2D", true)
+	set_player_shape_disabled("Hurtbox/CollisionShape2D", true)
+
+	# ล็อกตำแหน่ง Player ไว้หน้าบอส เหมือนถูกคว้าคอไว้
+	snap_player_to_grab_hold_position()
+
+
+func snap_player_to_grab_hold_position() -> void:
+	# จัดตำแหน่ง Player ให้อยู่หน้าบอสในระยะคงที่
+	if not (boss is Node2D):
+		return
+
+	var boss_2d := boss as Node2D
+	var side_direction := get_player_side_from_boss()
+	player.global_position = boss_2d.global_position + Vector2(float(side_direction) * grab_hold_offset_x, 0.0)
+
+
+func get_player_side_from_boss() -> int:
+	# คืน -1 ถ้า Player อยู่ซ้ายบอส, 1 ถ้าอยู่ขวาบอส
+	if not (boss is Node2D):
+		return 1
+
+	var boss_2d := boss as Node2D
+	var direction := int(sign(player.global_position.x - boss_2d.global_position.x))
+	if direction != 0:
+		return direction
+
+	var boss_facing = boss.get("facing_direction")
+	if boss_facing != null and int(boss_facing) != 0:
+		return int(boss_facing)
+
+	return 1
+
+
+func apply_grab_damage_to_player() -> void:
+	# ทำดาเมจจาก Grab แบบควบคุมเอง ไม่ใช้ player.take_damage()
+	# เพราะ take_damage() จะทำ knockback ทันที ซึ่งชนกับลำดับจับค้าง -> เหวี่ยง
+	if not is_instance_valid(player):
+		return
+
 	if player.has_method("apply_player_posture_damage"):
-		player.call("apply_player_posture_damage", grab_posture_damage)
+		player.call("apply_player_posture_damage", grab_posture_damage, false)
 
-	if player.has_method("take_damage"):
-		player.call("take_damage", grab_damage)
+	var current_hp_value = player.get("current_hp")
+	if current_hp_value != null:
+		var new_hp := max(int(current_hp_value) - grab_damage, 0)
+		player.set("current_hp", new_hp)
+		if player.has_method("emit_stats"):
+			player.call("emit_stats")
+
+		if debug_print_grab:
+			print("Player took grab damage:", grab_damage, "HP left:", new_hp)
+
+		if new_hp <= 0 and player.has_method("die"):
+			player.call("die")
+
+
+func throw_player_from_grab() -> void:
+	# เหวี่ยง Player ให้กระเด็นหลังถูกจับค้าง
+	if not is_instance_valid(player) or is_player_dead():
+		return
+
+	var throw_direction := get_player_side_from_boss()
+	player.set_physics_process(player_was_physics_processing_before_grab)
+	player.set("is_knocked_back", true)
+	player.set("knockback_velocity", Vector2(float(throw_direction) * grab_throw_force, 0.0))
+
+	await get_tree().create_timer(grab_throw_time).timeout
+
+	if not is_instance_valid(player):
+		return
+
+	player.set("is_knocked_back", false)
+	player.set("knockback_velocity", Vector2.ZERO)
+	player.set("velocity", Vector2.ZERO)
+	set_player_shape_disabled("Hurtbox/CollisionShape2D", false)
+
+	# ถ้า Posture เหลือ 0 จาก Grab ให้ค่อยเข้าสถานะ Posture Broken หลังถูกเหวี่ยงจบ
+	var posture_value = player.get("current_player_posture")
+	if posture_value != null and float(posture_value) <= 0.0 and player.has_method("start_player_posture_break"):
+		player.call("start_player_posture_break")
+
+
+func set_player_shape_disabled(shape_path: String, is_disabled: bool) -> void:
+	# เปิด/ปิด CollisionShape ของ Player แบบปลอดภัย
+	if not is_instance_valid(player):
+		return
+
+	var shape = player.get_node_or_null(shape_path)
+	if shape != null:
+		shape.set_deferred("disabled", is_disabled)
+
+
+func is_player_dead() -> bool:
+	# อ่านสถานะตายของ Player แบบปลอดภัย
+	if not is_instance_valid(player):
+		return true
+
+	var value = player.get("is_dead")
+	return value == true
 
 
 func finish_grab_sequence() -> void:
