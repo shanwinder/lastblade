@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://b3q1hobytor52" path="res://assets/sprites/player_silhouette.svg" id="3_5ds0b"]
 [ext_resource type="PackedScene" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
 [ext_resource type="Script" uid="uid://ctwdm7k5ww2c0" path="res://HUD.gd" id="5_7w3th"]
+[ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
 [ext_resource type="Script" uid="uid://dgxivfreo7g05" path="res://combat_decay_manager.gd" id="7_decay"]
 [ext_resource type="Script" uid="uid://c8qas2yj3xbcv" path="res://touch_controls.gd" id="8_touch"]
 [ext_resource type="Script" uid="uid://43w58vdgm2xd" path="res://player_attack_vfx_manager.gd" id="9_player_vfx"]
@@ -65,10 +66,6 @@ position = Vector2(780, 324)
 
 [node name="BossGrabBalanceManager" type="Node" parent="." unique_id=90965853]
 script = ExtResource("19_grab")
-<<<<<<< Updated upstream
-=======
-<<<<<<< HEAD
-=======
 grab_enabled = true
 player_path = NodePath("../Player")
 boss_path = NodePath("../BossBrokenMaster")
@@ -99,8 +96,6 @@ attack_spam_grab_bonus_per_event = 0.06
 deflect_spam_grab_bonus_per_event = 0.04
 anti_repetition_max_bonus = 0.30
 debug_print_grab = true
->>>>>>> b90b302db0344ce0498a2cfadfe3298d7e8ffc86
->>>>>>> Stashed changes
 
 [node name="CombatDecayManager" type="Node" parent="." unique_id=2045727950]
 script = ExtResource("7_decay")
@@ -197,3 +192,7 @@ script = ExtResource("16_hint_cleanup")
 
 [node name="RunMetricsManager" type="Node" parent="." unique_id=2040110207]
 script = ExtResource("17_run_metrics")
+
+[node name="GameCamera" type="Camera2D" parent="."]
+position = Vector2(576, 324)
+script = ExtResource("6_jpax5")
