@@ -22,6 +22,10 @@ extends Node
 # ถ้า true จะบังคับ scale.x ให้เป็นค่าบวก เพื่อเลิกใช้ negative scale workaround
 @export var force_positive_scale_x: bool = true
 
+# ให้ manager นี้ประมวลผลหลัง Player เพื่อแก้ flip_h ที่ player.gd อาจตั้งด้วย logic เก่าในเฟรมเดียวกัน
+# ค่าใหญ่กว่า 0 ทำให้ทำงานช้ากว่า Player ที่ใช้ค่า default 0
+@export var orientation_process_priority: int = 1000
+
 # เปิด/ปิด debug print ตอน setup
 @export var debug_print_orientation: bool = true
 
@@ -30,11 +34,28 @@ var sprite_2d: Sprite2D = null
 
 
 func _ready() -> void:
-	# รอให้ Player และ Sprite2D พร้อมก่อนค่อยหา reference
+	# ตั้ง priority ให้ตัวจัด orientation ทำงานหลัง player.gd
+	# สำคัญมากตอน Dash จบ เพราะ player.gd จะ update facing ใน coroutine แล้ว manager ต้องแก้ภาพให้ทันก่อน render
+	process_priority = orientation_process_priority
+
+	# หา reference ทันที 1 ครั้ง และเรียกซ้ำแบบ deferred เผื่อ node ยังจัดตัวไม่เสร็จ
+	setup_references()
 	setup_references.call_deferred()
 
 
 func _physics_process(_delta: float) -> void:
+	# ใช้ใน physics frame เพื่อให้ทิศภาพตรงกับ gameplay direction ระหว่างเดิน/lock-on/dash
+	process_orientation_frame()
+
+
+func _process(_delta: float) -> void:
+	# ใช้ใน idle frame เพื่อแก้จังหวะที่ player.gd เปลี่ยน facing หลัง await timer
+	# เช่น Dash จบแล้ว update_facing_to_locked_target() ทำให้เห็นภาพผิดฝั่งเสี้ยววินาที
+	process_orientation_frame()
+
+
+func process_orientation_frame() -> void:
+	# จุดรวมการทำงาน เพื่อให้ _physics_process และ _process ใช้ logic เดียวกัน
 	if not orientation_enabled:
 		return
 
