@@ -21,8 +21,12 @@ extends Node
 # อ้างอิง Duel 1 manager เพื่อกันไม่ให้ Grab แทรกระหว่าง tutorial
 @export var duel_1_manager_path: NodePath = NodePath("../Duel1DummyManager")
 
-# ให้ manager ประมวลผลก่อน Boss เพื่อแย่งจังหวะ can_attack ก่อนที่ Boss จะเริ่มท่าดาบปกติ
+# ให้ manager ประมวลผลก่อน Boss เพื่อแย่งจังหวะก่อนที่ Boss จะเริ่มท่าดาบปกติ
 @export var grab_manager_process_priority: int = -50
+
+# ถ้า true จะอนุญาตให้ Grab แทรกในช่วง boss cooldown หลังฟันจบ
+# จุดนี้สำคัญมาก เพราะหลัง tutorial Boss มักใช้ can_attack=false ระหว่าง cooldown ทำให้ Grab เดิมไม่เคยมีจังหวะออก
+@export var grab_can_interrupt_boss_cooldown: bool = true
 
 # ระยะประชิดที่ Boss มีสิทธิ์ใช้ Grab
 @export var grab_close_range: float = 72.0
@@ -133,7 +137,7 @@ var player_was_physics_processing_before_grab: bool = true
 
 func _ready() -> void:
 	# ให้ Grab manager ได้ประเมินก่อน BossBrokenMaster
-	# ถ้าไม่ตั้งค่านี้ Boss จะเริ่มท่าดาบและปิด can_attack ก่อน manager ทำงาน ทำให้ Grab ไม่ออกหลัง tutorial
+	# ถ้าไม่ตั้งค่านี้ Boss จะเริ่มท่าดาบและปิด can_attack ก่อน manager ทำงาน ทำให้ Grab มีโอกาสพลาดจังหวะ
 	process_priority = grab_manager_process_priority
 
 	# หา node หลังทุกอย่างใน scene พร้อมแล้ว เพื่อกันกรณี Boss หรือ Player ยังไม่ ready
@@ -242,7 +246,7 @@ func is_tutorial_blocking_grab() -> bool:
 
 
 func should_start_grab() -> bool:
-	# เงื่อนไขหลักก่อนใช้ Grab ต้องให้ Boss ยังพร้อมและไม่ได้ทำท่าอื่นอยู่
+	# เงื่อนไขหลักก่อนใช้ Grab ต้องให้ Boss ไม่อยู่กลางท่าที่มี animation/logic สำคัญ
 	if Time.get_ticks_msec() < next_grab_allowed_msec:
 		return false
 
@@ -279,6 +283,9 @@ func should_start_grab() -> bool:
 
 func is_boss_available_for_grab() -> bool:
 	# อ่านสถานะ Boss ด้วย get() เพื่อไม่ผูกกับ class ภายในมากเกินไป
+	# ห้าม Grab เฉพาะตอนบอสอยู่กลางสถานะสำคัญ เช่น wind-up / attack / stagger
+	# แต่ไม่บังคับ can_attack อีกแล้ว เพราะหลัง tutorial บอสใช้ can_attack=false ระหว่าง cooldown
+	# ถ้ายังบังคับ can_attack จะทำให้ Grab แทบไม่มีช่องออกเลยหลังบอสเริ่มลูปโจมตีจริง
 	if get_bool_value(boss, "is_dead"):
 		return false
 
@@ -297,7 +304,7 @@ func is_boss_available_for_grab() -> bool:
 	if get_bool_value(boss, "is_knocked_back"):
 		return false
 
-	if not get_bool_value(boss, "can_attack"):
+	if not grab_can_interrupt_boss_cooldown and not get_bool_value(boss, "can_attack"):
 		return false
 
 	return true
