@@ -67,24 +67,56 @@ Scene ปัจจุบันยังใช้ Sprite2D เดิมก่อ�
 
 ## Direction / Flip Convention ปัจจุบัน
 
-โค้ด `player.gd` ปัจจุบันยังใช้ logic เดิม:
+โค้ด `player.gd` ปัจจุบันยังใช้ logic เดิมภายใน `set_facing_direction()`:
 
 ```gdscript
 sprite_2d.flip_h = facing_direction < 0
 ```
 
-logic นี้สมมติว่า source sprite หันขวา แต่ idle sprite ชุดใหม่หันซ้าย ดังนั้นใน Phase 2 ใช้วิธีเสี่ยงต่ำก่อนคือกำหนด scale ของ `Player/Sprite2D` เป็น:
+logic นี้สมมติว่า source sprite หันขวา แต่ idle sprite ชุดใหม่หันซ้าย
+
+เพื่อไม่รื้อ `player.gd` ทั้งไฟล์ทันที จึงเพิ่มตัวช่วย:
 
 ```text
-Vector2(-0.5, 0.5)
+res://player_sprite_orientation_manager.gd
 ```
 
-เพื่อกลับภาพ source ให้เข้ากับ gameplay direction เดิมโดยยังไม่รื้อ `player.gd`
-
-ข้อควรทำใน Phase ถัดไป:
+และเพิ่ม node ใน scene:
 
 ```text
-เพิ่ม sprite_source_faces_left ใน player.gd
-แก้ set_facing_direction() ให้รองรับ source sprite ที่หันซ้ายโดยตรง
-หลังจากนั้นค่อยเปลี่ยน scale.x กลับเป็นค่าบวกตามปกติ
+Player
+└── PlayerSpriteOrientationManager
+```
+
+ค่าที่ใช้ใน scene:
+
+```text
+sprite_source_faces_left = true
+force_positive_scale_x = true
+```
+
+ดังนั้น `Player/Sprite2D.scale` กลับมาเป็นค่าบวกแล้ว:
+
+```text
+Vector2(0.5, 0.5)
+```
+
+การหันซ้าย/ขวาของภาพจะถูกแก้โดย `PlayerSpriteOrientationManager` ตาม `facing_direction` ของ `player.gd`:
+
+```text
+facing_direction = 1  → source หันซ้ายจึง flip_h = true เพื่อให้ภาพหันขวา
+facing_direction = -1 → source หันซ้ายจึง flip_h = false เพื่อให้ภาพหันซ้าย
+```
+
+## ข้อควรทำใน Phase ถัดไป
+
+Phase ถัดไปคือการเปลี่ยนจาก `Sprite2D` ไปเป็น `AnimatedSprite2D` เพื่อใช้ idle animation จริง 6 frame
+
+ก่อนทำต้องแก้/ออกแบบจุดต่อไปนี้ให้ปลอดภัย:
+
+```text
+player.gd ยังอ้าง @onready var sprite_2d: Sprite2D = $Sprite2D
+dash trail ยังใช้ sprite_2d.texture
+feedback สี เช่น Deflect / Focus / Hurt ยัง modulate ผ่าน Sprite2D
+ต้องมี helper สำหรับดึง current frame texture จาก AnimatedSprite2D
 ```
