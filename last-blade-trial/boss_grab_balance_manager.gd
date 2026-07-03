@@ -308,8 +308,9 @@ func is_player_available_for_grab_check() -> bool:
 	if not is_instance_valid(player):
 		return false
 
-	var is_player_dead = player.get("is_dead")
-	if is_player_dead == true:
+	# ใช้ชื่อ player_dead_value เพื่อไม่ให้ชนกับฟังก์ชัน is_player_dead() ด้านล่าง
+	var player_dead_value = player.get("is_dead")
+	if player_dead_value == true:
 		return false
 
 	var is_player_posture_broken = player.get("is_posture_broken")
@@ -546,7 +547,9 @@ func apply_grab_damage_to_player() -> void:
 
 	var current_hp_value = player.get("current_hp")
 	if current_hp_value != null:
-		var new_hp := max(int(current_hp_value) - grab_damage, 0)
+		# กำหนดชนิดเป็น int ชัดเจน และใช้ maxi() เพื่อไม่ให้ Godot infer จาก Variant
+		var current_hp: int = int(current_hp_value)
+		var new_hp: int = maxi(current_hp - grab_damage, 0)
 		player.set("current_hp", new_hp)
 		if player.has_method("emit_stats"):
 			player.call("emit_stats")
