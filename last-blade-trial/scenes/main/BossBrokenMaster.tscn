@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://rqfjmafhjd2l" path="res://arena_visual_manager.gd" id="18_arena_visual"]
 [ext_resource type="Script" uid="uid://df2gy120xyt2u" path="res://boss_grab_balance_manager.gd" id="19_grab"]
 [ext_resource type="Script" path="res://movement_deflect_balance_manager.gd" id="20_deflect_balance"]
+[ext_resource type="Script" path="res://player_sprite_orientation_manager.gd" id="21_sprite_orientation"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -44,7 +45,7 @@ script = ExtResource("2_mknfb")
 movement_deflect_requires_new_input = true
 
 [node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=1611597603]
-scale = Vector2(-0.5, 0.5)
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("3_5ds0b")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=18594791]
@@ -61,6 +62,15 @@ disabled = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=175929038]
 shape = SubResource("RectangleShape2D_32k8f")
+
+[node name="PlayerSpriteOrientationManager" type="Node" parent="Player"]
+script = ExtResource("21_sprite_orientation")
+orientation_enabled = true
+player_path = NodePath("..")
+sprite_path = NodePath("../Sprite2D")
+sprite_source_faces_left = true
+force_positive_scale_x = true
+debug_print_orientation = true
 
 [node name="MovementDeflectBalanceManager" type="Node" parent="."]
 script = ExtResource("20_deflect_balance")
