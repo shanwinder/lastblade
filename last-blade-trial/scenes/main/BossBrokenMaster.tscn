@@ -65,6 +65,30 @@ position = Vector2(780, 324)
 
 [node name="BossGrabBalanceManager" type="Node" parent="." unique_id=90965853]
 script = ExtResource("19_grab")
+grab_enabled = null
+player_path = null
+boss_path = null
+game_loop_manager_path = null
+grab_close_range = null
+grab_dash_landing_range = null
+grab_chance = null
+grab_dash_landing_bonus_chance = null
+grab_evaluation_interval = null
+grab_windup_time = null
+grab_active_time = null
+grab_cooldown_bonus = null
+grab_damage = null
+grab_posture_damage = null
+grab_hint_text = null
+grabbed_feedback_text = null
+grabbed_feedback_font_size = null
+anti_repetition_memory_enabled = null
+recent_action_memory_window = null
+dash_spam_grab_bonus_per_event = null
+attack_spam_grab_bonus_per_event = null
+deflect_spam_grab_bonus_per_event = null
+anti_repetition_max_bonus = null
+debug_print_grab = null
 
 [node name="CombatDecayManager" type="Node" parent="." unique_id=2045727950]
 script = ExtResource("7_decay")
