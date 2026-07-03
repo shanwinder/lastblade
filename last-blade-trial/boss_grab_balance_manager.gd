@@ -63,7 +63,11 @@ extends Node
 # ระยะเวลาที่ Player ถูกเหวี่ยงกระเด็นหลัง Grab
 @export var grab_throw_time: float = 0.26
 
-# เวลาพักหลัง Grab เพื่อคืนจังหวะให้ Player
+# เวลาฟื้นตัวหลังถูกเหวี่ยง Player จะยังควบคุมไม่ได้ช่วงนี้
+# ใช้เพิ่มความอันตรายให้ Grab และเตรียมรองรับ animation ลุก/มึนหลังถูกเหวี่ยง
+@export var grab_recovery_time: float = 0.65
+
+# เวลาพักหลัง Grab เพื่อคืนจังหวะให้ Boss
 @export var grab_cooldown_bonus: float = 0.35
 
 # ดาเมจ HP จาก Grab ไม่ควรสูงมาก เพราะเป้าหมายคือหยุดสูตร ไม่ใช่ฆ่าทันที
@@ -573,7 +577,7 @@ func throw_player_from_grab() -> void:
 	if not is_instance_valid(player) or is_player_dead():
 		return
 
-	var throw_direction := get_player_side_from_boss()
+	var throw_direction: int = get_player_side_from_boss()
 	player.set_physics_process(player_was_physics_processing_before_grab)
 	player.set("is_knocked_back", true)
 	player.set("knockback_velocity", Vector2(float(throw_direction) * grab_throw_force, 0.0))
@@ -583,15 +587,45 @@ func throw_player_from_grab() -> void:
 	if not is_instance_valid(player):
 		return
 
-	player.set("is_knocked_back", false)
+	# หลังเหวี่ยงสุดแรงแล้ว ให้หยุดตัว Player แต่ยังไม่คืน control ทันที
+	# คง is_knocked_back = true ไว้ เพื่อให้ player.gd ไม่รับ input เดิน/Attack/Dash ระหว่าง recovery
 	player.set("knockback_velocity", Vector2.ZERO)
 	player.set("velocity", Vector2.ZERO)
 	set_player_shape_disabled("Hurtbox/CollisionShape2D", false)
+	start_player_grab_recovery()
 
-	# ถ้า Posture เหลือ 0 จาก Grab ให้ค่อยเข้าสถานะ Posture Broken หลังถูกเหวี่ยงจบ
+
+func start_player_grab_recovery() -> void:
+	# ช่วงฟื้นตัวหลังถูกเหวี่ยง ผู้เล่นยังควบคุมไม่ได้ จึงทำให้ Grab อันตรายขึ้น
+	if not is_instance_valid(player) or is_player_dead():
+		return
+
+	var recovery_duration: float = maxf(grab_recovery_time, 0.0)
+	if debug_print_grab:
+		print("Player grab recovery started:", recovery_duration)
+
+	if recovery_duration > 0.0:
+		await get_tree().create_timer(recovery_duration).timeout
+
+	finish_player_grab_recovery()
+
+
+func finish_player_grab_recovery() -> void:
+	# คืน control ให้ Player หลัง recovery จบ
+	if not is_instance_valid(player) or is_player_dead():
+		return
+
+	player.set("is_knocked_back", false)
+	player.set("knockback_velocity", Vector2.ZERO)
+	player.set("velocity", Vector2.ZERO)
+
+	# ถ้า Posture เหลือ 0 จาก Grab ให้ค่อยเข้าสถานะ Posture Broken หลัง recovery จบ
 	var posture_value = player.get("current_player_posture")
 	if posture_value != null and float(posture_value) <= 0.0 and player.has_method("start_player_posture_break"):
 		player.call("start_player_posture_break")
+
+	if debug_print_grab:
+		print("Player grab recovery finished")
 
 
 func set_player_shape_disabled(shape_path: String, is_disabled: bool) -> void:
