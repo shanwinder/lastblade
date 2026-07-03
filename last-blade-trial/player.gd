@@ -20,13 +20,13 @@ signal player_died
 # =========================
 
 # ความเร็วในการเดินปกติ
-@export var speed: float = 150.0
+@export var speed: float = 200.0
 
 # ความเร็วตอน Dash
 @export var dash_speed: float = 500.0
 
 # ระยะเวลาที่ Dash มีผล
-@export var dash_time: float = 0.18
+@export var dash_time: float = 0.4
 
 # เวลารอหลัง Dash ก่อนจะ Dash ได้อีกครั้ง
 @export var dash_cooldown: float = 0.45
