@@ -84,7 +84,6 @@ grab_hold_time = 0.85
 grab_hold_offset_x = 42.0
 grab_throw_force = 520.0
 grab_throw_time = 0.26
-grab_recovery_time = 0.65
 grab_cooldown_bonus = 0.35
 grab_damage = 12
 grab_posture_damage = 42.0
