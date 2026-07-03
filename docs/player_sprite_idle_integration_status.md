@@ -17,15 +17,16 @@ docs/player_sprite_idle_integration_plan.md
 ```text
 Phase 1: ตรวจ asset และมาตรฐานไฟล์
 Phase 2: เปลี่ยน placeholder แบบเสี่ยงต่ำก่อน
+Phase 3: ทำให้ source sprite หันซ้ายใช้งานกับ gameplay direction ได้โดยไม่พึ่ง negative scale
 ```
 
 หยุดงานไว้ก่อนเข้าสู่:
 
 ```text
-Phase 3: ทำให้โค้ดรองรับ source sprite ที่หันซ้ายโดยตรงใน player.gd
+Phase 4: เปลี่ยนจาก Sprite2D เป็น AnimatedSprite2D
 ```
 
-เหตุผลที่หยุด: Phase 2 สามารถทำแบบปลอดภัยได้โดยยังไม่รื้อ `player.gd` แต่ Phase 3 ต้องแก้ logic หลักของ `set_facing_direction()` และควรทดสอบจริงใน Godot ว่า direction / attack hitbox / dash trail / lock-on / boss grab ไม่เพี้ยนก่อนขยับไป Phase 4
+เหตุผลที่หยุด: Phase 4 ต้องเปลี่ยนระบบ visual node ของ Player จาก `Sprite2D` เป็น `AnimatedSprite2D` ซึ่งจะกระทบ `player.gd` หลายจุด เช่น `@onready var sprite_2d: Sprite2D = $Sprite2D`, dash trail ที่ใช้ `sprite_2d.texture`, และ feedback สีตัวละครที่ใช้ `sprite_2d.modulate` จึงควรทดสอบ Phase 3 ใน Godot ก่อน
 
 ---
 
@@ -101,36 +102,82 @@ AnimatedSprite2D
 
 ---
 
-## Direction workaround ที่ใช้ใน Phase 2
+## Phase 3: สิ่งที่ดำเนินการแล้ว
 
-โค้ด `player.gd` ปัจจุบันยังมี logic:
+เพิ่มไฟล์ใหม่:
+
+```text
+last-blade-trial/player_sprite_orientation_manager.gd
+```
+
+เพิ่ม node ใหม่ใต้ Player ใน scene:
+
+```text
+Player
+├── Sprite2D
+├── CollisionShape2D
+├── AttackHitbox
+├── Hurtbox
+└── PlayerSpriteOrientationManager
+```
+
+ค่าที่ใช้:
+
+```text
+orientation_enabled = true
+sprite_source_faces_left = true
+force_positive_scale_x = true
+```
+
+เปลี่ยน `Player/Sprite2D.scale` จาก workaround เดิม:
+
+```text
+Vector2(-0.5, 0.5)
+```
+
+กลับเป็นค่าปกติ:
+
+```text
+Vector2(0.5, 0.5)
+```
+
+ตอนนี้การกลับซ้าย/ขวาของภาพไม่ได้พึ่ง negative scale แล้ว แต่ใช้ `flip_h` ผ่าน `PlayerSpriteOrientationManager` โดยอ่านค่า `facing_direction` จาก `player.gd`
+
+หลักการ:
+
+```text
+Source sprite หันซ้าย
+facing_direction = 1  → flip_h = true  เพื่อให้ภาพหันขวา
+facing_direction = -1 → flip_h = false เพื่อให้ภาพหันซ้าย
+```
+
+---
+
+## ทำไม Phase 3 ยังไม่แก้ player.gd โดยตรง
+
+แผนเดิมเสนอให้เพิ่ม:
 
 ```gdscript
-sprite_2d.flip_h = facing_direction < 0
+@export var sprite_source_faces_left: bool = true
 ```
 
-logic นี้เหมาะกับ source sprite ที่หันขวา แต่ idle sprite ชุดใหม่หันซ้าย
+ใน `player.gd` และแก้ `set_facing_direction()` โดยตรง
 
-เพื่อหลีกเลี่ยงการรื้อ `player.gd` ทันที จึงใช้วิธีเสี่ยงต่ำใน scene:
+แต่รอบนี้เลือกใช้ manager แยกก่อน เพราะ:
 
 ```text
-Player/Sprite2D.scale = Vector2(-0.5, 0.5)
+1. ลดความเสี่ยงจากการรื้อ player.gd ทั้งไฟล์
+2. ไม่กระทบ combat logic, dash, hitbox, deflect, focus, hurt feedback
+3. rollback ง่าย ถ้ามีปัญหาให้ลบ node PlayerSpriteOrientationManager ออกได้
+4. เป็นสะพานก่อนเข้าสู่ AnimatedSprite2D ใน Phase 4
 ```
-
-ผลที่ต้องการ:
-
-```text
-facing_direction = 1  → ภาพควรแสดงว่าหันขวา
-facing_direction = -1 → ภาพควรแสดงว่าหันซ้าย
-```
-
-วิธีนี้เป็น workaround ชั่วคราวสำหรับ Phase 2 เท่านั้น
 
 ---
 
 ## ไฟล์ที่แก้แล้ว
 
 ```text
+last-blade-trial/player_sprite_orientation_manager.gd
 last-blade-trial/scenes/main/BossBrokenMaster.tscn
 last-blade-trial/assets/sprites/player/nameless_blade/source_notes.md
 docs/player_sprite_idle_integration_status.md
@@ -140,46 +187,36 @@ docs/player_sprite_idle_integration_status.md
 
 ## สิ่งที่ยังไม่ได้ทำ
 
-ยังไม่ได้แก้ไฟล์:
+ยังไม่ได้เปลี่ยน:
 
 ```text
-last-blade-trial/player.gd
+Player/Sprite2D → Player/AnimatedSprite2D
 ```
 
 ยังไม่ได้เพิ่ม:
 
 ```text
-sprite_source_faces_left
-AnimatedSprite2D
 SpriteFrames idle
 animation state machine
 helper สำหรับดึง current frame texture จาก AnimatedSprite2D
 ```
 
+ยังไม่ได้แก้ `player.gd` ให้รองรับ visual node หลายชนิดแบบถาวร
+
 ---
 
-## เหตุผลที่ยังไม่เข้า Phase 3 / Phase 4
+## เหตุผลที่หยุดก่อน Phase 4
 
-Phase 3 ต้องแก้ระบบ direction ใน `player.gd` โดยตรง เช่น:
-
-```gdscript
-@export var sprite_source_faces_left: bool = true
-```
-
-และแก้ `set_facing_direction()` ให้รองรับ source sprite ที่หันซ้ายโดยตรง
-
-แต่ก่อนทำควรทดสอบ Phase 2 ใน Godot จริงก่อนว่า:
+Phase 4 ต้องทำให้ Player ใช้ `AnimatedSprite2D` เพื่อเล่น idle animation 6 frame จริง แต่มีจุดเสี่ยงดังนี้:
 
 ```text
-1. Player แสดงภาพ idle frame ใหม่จริง
-2. ขนาด sprite พอดีกับจอและ gameplay หรือไม่
-3. Negative scale ทำให้ direction ถูกต้องหรือไม่
-4. AttackHitbox ยังอยู่หน้าตัวละครถูกฝั่งหรือไม่
-5. Dash trail ยังไม่ error และหันทิศถูกหรือไม่
-6. Boss Grab ยังจับตำแหน่งไม่เพี้ยนหรือไม่
+player.gd ยังอ้าง @onready var sprite_2d: Sprite2D = $Sprite2D
+dash trail ยังใช้ sprite_2d.texture
+feedback สี เช่น Hurt / Deflect / Focus Ready ใช้ sprite_2d.modulate
+ถ้าเปลี่ยน node ทันที อาจทำให้ dash trail หรือ feedback พัง
 ```
 
-ถ้าผ่านทั้งหมด ค่อยทำ Phase 3 เพื่อแก้ให้เป็นระบบถาวร และเลิกใช้ negative scale workaround
+ดังนั้นควรทดสอบ Phase 3 ก่อนว่า orientation manager ไม่ทำให้ทิศทางเพี้ยน
 
 ---
 
@@ -194,35 +231,32 @@ res://scenes/main/BossBrokenMaster.tscn
 ทดสอบดังนี้:
 
 ```text
-1. ดูว่า Player ไม่ใช่ silhouette แล้ว
+1. ดูว่า Player ยังแสดง idle frame ใหม่เหมือนเดิม
 2. กดเดินซ้าย/ขวา ดูว่าทิศหันถูกไหม
 3. เปิด Lock-on แล้ว Dash ข้าม Boss ดูว่าหันกลับถูกไหม
 4. โจมตีซ้าย/ขวา ดูว่า hitbox ฟันโดนด้านหน้าถูกฝั่งไหม
 5. ให้ Boss Grab ดูว่าตำแหน่งจับยังโอเคไหม
-6. ดูขนาดตัวละครบนจอมือถือว่าใหญ่/เล็กเกินไปไหม
+6. ดู console ว่ามีข้อความ PlayerSpriteOrientationManager ready หรือ error ใด ๆ หรือไม่
 ```
 
 ---
 
-## เกณฑ์ที่จะกลับมาทำ Phase 3
+## เกณฑ์ที่จะกลับมาทำ Phase 4
 
-กลับมาทำ Phase 3 ได้เมื่อผู้ใช้ยืนยันว่า:
+กลับมาทำ Phase 4 ได้เมื่อผู้ใช้ยืนยันว่า:
 
 ```text
-1. ภาพ idle frame ใหม่แสดงในเกมแล้ว
-2. ขนาด visual พอใช้หรือระบุ scale ที่ต้องการแล้ว
-3. ทิศหันซ้าย/ขวาใน Phase 2 ไม่มีปัญหาใหญ่
-4. ไม่มี error ใน console จาก texture / Sprite2D / dash trail
+1. ภาพ idle frame ใหม่ยังแสดงถูก
+2. หันซ้าย/ขวาถูกหลังเลิกใช้ negative scale
+3. AttackHitbox ยังถูกฝั่ง
+4. Dash trail ยังไม่ error
+5. Boss Grab ยังไม่เพี้ยน
 ```
 
 งานถัดไปคือ:
 
 ```text
-Phase 3: เพิ่ม sprite_source_faces_left ใน player.gd
+Phase 4: เปลี่ยนจาก Sprite2D เป็น AnimatedSprite2D
 ```
 
-และหลัง Phase 3 ผ่านจริง ค่อยเข้าสู่:
-
-```text
-Phase 4: AnimatedSprite2D idle animation
-```
+โดยต้องทำพร้อม helper สำหรับ dash trail และ feedback สีของ visual node
