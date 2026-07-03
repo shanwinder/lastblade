@@ -71,6 +71,7 @@ sprite_path = NodePath("../Sprite2D")
 sprite_source_faces_left = true
 force_positive_scale_x = true
 orientation_process_priority = 1000
+use_deferred_orientation_fix = true
 debug_print_orientation = true
 
 [node name="MovementDeflectBalanceManager" type="Node" parent="."]
