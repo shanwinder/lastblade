@@ -87,9 +87,13 @@ debug_print_orientation = true
 [node name="PlayerAnimatedIdleVisualManager" type="Node" parent="Player"]
 script = ExtResource("23_animated_idle")
 animated_idle_enabled = true
+player_path = NodePath("..")
 legacy_sprite_path = NodePath("../Sprite2D")
 animated_sprite_path = NodePath("../AnimatedSprite2D")
 idle_animation_name = &"idle"
+run_animation_name = &"run"
+run_animation_enabled = true
+run_velocity_threshold = 8.0
 hide_legacy_sprite = true
 sync_flip_from_legacy = true
 sync_modulate_from_legacy = true
