@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=10 format=3]
+[gd_resource type="SpriteFrames" load_steps=16 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0001.png" id="1_idle_0001"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0002.png" id="2_idle_0002"]
@@ -9,9 +9,38 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/run/nameless_run_000_0001.png" id="7_run_0001"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/run/nameless_run_000_0002.png" id="8_run_0002"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/run/nameless_run_000_0003.png" id="9_run_0003"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/back/nameless_back_000_0001.png" id="10_back_0001"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/back/nameless_back_000_0002.png" id="11_back_0002"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/back/nameless_back_000_0003.png" id="12_back_0003"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/back/nameless_back_000_0004.png" id="13_back_0004"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/back/nameless_back_000_0005.png" id="14_back_0005"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/back/nameless_back_000_0006.png" id="15_back_0006"]
 
 [resource]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("10_back_0001")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_back_0002")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_back_0003")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_back_0004")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_back_0005")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_back_0006")
+}],
+"loop": true,
+"name": &"back",
+"speed": 8.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": ExtResource("1_idle_0001")
