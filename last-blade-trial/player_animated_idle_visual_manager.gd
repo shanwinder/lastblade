@@ -25,10 +25,16 @@ extends Node
 # ชื่อ animation run ใน SpriteFrames resource
 @export var run_animation_name: StringName = &"run"
 
+# ชื่อ animation เดินถอยหลัง / backpedal ใน SpriteFrames resource
+@export var back_animation_name: StringName = &"back"
+
 # เปิด/ปิดการเลือก run animation จากความเร็วของ Player
 @export var run_animation_enabled: bool = true
 
-# ความเร็วแนวนอนขั้นต่ำที่จะถือว่า Player กำลังวิ่ง
+# เปิด/ปิดการเลือก back animation เมื่อ lock-on แล้วถอยหลัง
+@export var back_animation_enabled: bool = true
+
+# ความเร็วแนวนอนขั้นต่ำที่จะถือว่า Player กำลังวิ่งหรือถอยหลัง
 @export var run_velocity_threshold: float = 8.0
 
 # ถ้า true จะซ่อน Sprite2D เดิม เพื่อไม่ให้ภาพนิ่งซ้อนกับ AnimatedSprite2D
@@ -86,7 +92,7 @@ func setup_references() -> void:
 		legacy_sprite.visible = false
 
 	if debug_print_visual and is_instance_valid(animated_sprite):
-		print("PlayerAnimatedIdleVisualManager ready. Idle =", idle_animation_name, " Run =", run_animation_name)
+		print("PlayerAnimatedIdleVisualManager ready. Idle =", idle_animation_name, " Run =", run_animation_name, " Back =", back_animation_name)
 
 
 func process_visual_sync() -> void:
@@ -105,7 +111,7 @@ func process_visual_sync() -> void:
 	# ให้ AnimatedSprite2D แสดงผลเสมอในช่วงที่ใช้ visual ใหม่
 	animated_sprite.visible = true
 
-	# เลือก idle/run จากสถานะ Player
+	# เลือก idle/run/back จากสถานะ Player
 	var target_animation: StringName = choose_player_animation()
 	play_animation_safely(target_animation)
 
@@ -119,12 +125,9 @@ func process_visual_sync() -> void:
 
 
 func choose_player_animation() -> StringName:
-	# ตอนนี้มีแค่ idle/run เท่านั้น
+	# ตอนนี้รองรับ idle/run/back เท่านั้น
 	# ถ้ากำลังโจมตี dash โดนตี หรือ posture broken ให้ fallback เป็น idle ก่อน
-	# เพื่อไม่ให้ run animation เล่นทับ action ที่ยังไม่มี animation ของตัวเอง
-	if not run_animation_enabled:
-		return idle_animation_name
-
+	# เพื่อไม่ให้ locomotion animation เล่นทับ action ที่ยังไม่มี animation ของตัวเอง
 	if not is_instance_valid(player):
 		return idle_animation_name
 
@@ -143,13 +146,49 @@ func choose_player_animation() -> StringName:
 	if get_bool_value(player, "is_attacking"):
 		return idle_animation_name
 
-	var velocity_value = player.get("velocity")
-	if velocity_value is Vector2:
-		var player_velocity: Vector2 = velocity_value
-		if absf(player_velocity.x) > run_velocity_threshold:
-			return run_animation_name
+	var player_velocity: Vector2 = get_player_velocity()
+	if absf(player_velocity.x) <= run_velocity_threshold:
+		return idle_animation_name
+
+	# ถ้า lock-on อยู่และเคลื่อนที่สวนทางกับทิศที่หันหน้า ให้ใช้ท่าถอยหลัง
+	# ตัวอย่าง: หันขวาเข้าหา Boss แต่ velocity.x < 0 คือถอยหลัง
+	if back_animation_enabled and is_player_backpedaling(player_velocity):
+		return back_animation_name
+
+	if run_animation_enabled:
+		return run_animation_name
 
 	return idle_animation_name
+
+
+func get_player_velocity() -> Vector2:
+	# อ่าน velocity จาก CharacterBody2D แบบปลอดภัย
+	var velocity_value = player.get("velocity")
+	if velocity_value is Vector2:
+		return velocity_value
+
+	return Vector2.ZERO
+
+
+func is_player_backpedaling(player_velocity: Vector2) -> bool:
+	# Backpedal ใช้เฉพาะตอน lock-on เพื่อแยกจากการเดินซ้าย/ขวาปกติ
+	if not get_bool_value(player, "is_target_locked"):
+		return false
+
+	var facing_value = player.get("facing_direction")
+	if facing_value == null:
+		return false
+
+	var facing_direction: int = int(facing_value)
+	if facing_direction == 0:
+		return false
+
+	var movement_direction: int = int(sign(player_velocity.x))
+	if movement_direction == 0:
+		return false
+
+	# ถ้า velocity สวนทางกับทิศที่หันหน้า แปลว่าถอยหลัง
+	return movement_direction != facing_direction
 
 
 func play_animation_safely(animation_name: StringName) -> void:
