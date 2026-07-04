@@ -1,4 +1,4 @@
-[gd_resource type="SpriteFrames" load_steps=7 format=3]
+[gd_resource type="SpriteFrames" load_steps=10 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0001.png" id="1_idle_0001"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0002.png" id="2_idle_0002"]
@@ -6,6 +6,9 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0004.png" id="4_idle_0004"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0005.png" id="5_idle_0005"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0006.png" id="6_idle_0006"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/run/nameless_run_000_0001.png" id="7_run_0001"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/run/nameless_run_000_0002.png" id="8_run_0002"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/run/nameless_run_000_0003.png" id="9_run_0003"]
 
 [resource]
 animations = [{
@@ -31,4 +34,18 @@ animations = [{
 "loop": true,
 "name": &"idle",
 "speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("7_run_0001")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_run_0002")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_run_0003")
+}],
+"loop": true,
+"name": &"run",
+"speed": 9.0
 }]
