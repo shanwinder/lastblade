@@ -34,6 +34,9 @@ extends Node
 # เปิด/ปิดการเลือก back animation เมื่อ lock-on แล้วถอยหลัง
 @export var back_animation_enabled: bool = true
 
+# ถ้า true จะกลับ flip เฉพาะท่า back เพราะ source sprite ของ back ถูกวาดคนละทิศกับ idle/run
+@export var invert_back_animation_flip: bool = true
+
 # ความเร็วแนวนอนขั้นต่ำที่จะถือว่า Player กำลังวิ่งหรือถอยหลัง
 @export var run_velocity_threshold: float = 8.0
 
@@ -117,11 +120,22 @@ func process_visual_sync() -> void:
 
 	# sync การหันซ้าย/ขวาจากระบบเก่า เพื่อให้ไม่แยก logic ซ้ำหลายที่
 	if sync_flip_from_legacy:
-		animated_sprite.flip_h = legacy_sprite.flip_h
+		apply_animation_flip(target_animation)
 
 	# sync สี feedback เช่น hurt, no stamina, focus ready, posture broken
 	if sync_modulate_from_legacy:
 		animated_sprite.modulate = legacy_sprite.modulate
+
+
+func apply_animation_flip(target_animation: StringName) -> void:
+	# ปกติให้ AnimatedSprite2D ใช้ flip เดียวกับ Sprite2D compatibility layer
+	var target_flip_h: bool = legacy_sprite.flip_h
+
+	# เฉพาะท่า back ให้สลับภาพ เพราะชุดภาพ back ถูกวาดกลับฝั่งจาก idle/run
+	if invert_back_animation_flip and target_animation == back_animation_name:
+		target_flip_h = not target_flip_h
+
+	animated_sprite.flip_h = target_flip_h
 
 
 func choose_player_animation() -> StringName:
