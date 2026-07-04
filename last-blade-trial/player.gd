@@ -117,10 +117,10 @@ signal player_died
 @export var movement_deflect_enabled: bool = true
 
 # ช่วงเวลาหลังเริ่มโยกซ้าย/ขวาที่ถือว่ายัง Deflect ได้
-@export var movement_deflect_window: float = 0.28
+@export var movement_deflect_window: float = 0.6
 
 # ช่วงเวลาหลังแตะ joystick ที่ถือว่ายัง Deflect ได้โดยไม่ต้องเดิน
-@export var tap_deflect_window: float = 0.22
+@export var tap_deflect_window: float = 0.4
 
 # ถ้า true จะไม่ให้กด movement ค้างเพื่อ Deflect ฟรี ต้องเป็นจังหวะเริ่มโยกหรือเปลี่ยนทิศเท่านั้น
 @export var movement_deflect_requires_new_input: bool = true
