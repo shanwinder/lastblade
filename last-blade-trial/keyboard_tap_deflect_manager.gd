@@ -3,8 +3,10 @@ extends Node
 # =========================
 # KeyboardTapDeflectManager.gd
 # ตัวเชื่อมปุ่ม Parry บนคีย์บอร์ดให้ทำงานแบบเดียวกับ Tap Deflect บนมือถือ
-# เหตุผล: ระบบมือถือแตะ joystick แล้วเรียก register_tap_deflect_input()
-# แต่คีย์บอร์ดเดิมใช้แค่ซ้าย/ขวาแบบ Movement Deflect ทำให้จังหวะติดยากกว่า
+# แนวทาง mobile-first:
+# - มือถือแตะ joystick เพื่อเปิด Tap Deflect
+# - คีย์บอร์ดใช้ปุ่ม D / action parry เป็น Tap Deflect หลัก
+# - ปุ่มซ้าย/ขวาบนคีย์บอร์ดยังเป็น Movement Deflect เสริม ไม่ใช่ Parry หลัก
 # =========================
 
 # เปิด/ปิดระบบแปลงปุ่มคีย์บอร์ดเป็น Tap Deflect
@@ -18,7 +20,7 @@ extends Node
 @export var player_path: NodePath = NodePath("../Player")
 
 # เปิด debug print เฉพาะตอนต้องการตรวจ input
-@export var debug_print_keyboard_deflect: bool = true
+@export var debug_print_keyboard_deflect: bool = false
 
 # อ้างอิง Player หลัง setup
 var player: Node = null
@@ -52,8 +54,8 @@ func setup_references() -> void:
 
 
 func trigger_keyboard_tap_deflect() -> void:
-	# ถ้า Player อยู่ในสถานะทำ action ที่ไม่ควร Deflect อยู่ ให้ปล่อยให้ Player เป็นคนปฏิเสธผ่าน logic เดิม
-	# จุดนี้ตั้งใจเรียก method เดียวกับ TouchControls เพื่อให้ keyboard/mobile ใช้ระบบเดียวกันมากที่สุด
+	# ตั้งใจเรียก method เดียวกับ TouchControls เพื่อให้ keyboard/mobile ใช้ระบบ Tap Deflect ชุดเดียวกัน
+	# ส่วนซ้าย/ขวาคีย์บอร์ดยังเป็น Movement Deflect แยกต่างหาก เพื่อคงความหมายของปุ่มเดินไว้
 	if not is_instance_valid(player):
 		return
 
