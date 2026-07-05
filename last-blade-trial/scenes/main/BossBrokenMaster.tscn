@@ -108,7 +108,7 @@ script = ExtResource("24_keyboard_deflect")
 keyboard_tap_deflect_enabled = true
 tap_deflect_action_name = &"parry"
 player_path = NodePath("../Player")
-debug_print_keyboard_deflect = true
+debug_print_keyboard_deflect = false
 
 [node name="MovementDeflectBalanceManager" type="Node" parent="."]
 script = ExtResource("20_deflect_balance")
