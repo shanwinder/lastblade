@@ -3,7 +3,8 @@ extends CanvasLayer
 # =========================
 # TrainingCoachManager.gd
 # ระบบสอนผู้เล่นใหม่แบบสั้นสำหรับ Phase 9 Vertical Slice
-# สอนเดิน / Attack / Dash / Parry ก่อนปล่อยให้บอสเริ่มสู้จริง
+# แนวทาง mobile-first: มือถือใช้ joystick สำหรับ Tap/Movement Deflect
+# ส่วนคีย์บอร์ดใช้ D เป็น Tap Deflect หลัก และซ้าย/ขวาเป็น Movement Deflect เสริม
 # เวอร์ชันนี้เพิ่ม progress bar, ข้อความสำเร็จ และปุ่ม Skip
 # =========================
 
@@ -79,7 +80,7 @@ var training_steps: Array[Dictionary] = [
 	{
 		"id": "move",
 		"title": "1/4 เดินซ้าย-ขวา",
-		"body": "กด ◀ / ▶ หรือปุ่มซ้าย-ขวา เพื่อขยับตัว",
+		"body": "มือถือ: โยก joystick ซ้าย-ขวา\nคีย์บอร์ด: กด ◀ / ▶ เพื่อขยับตัว",
 		"success": "ขยับตัวได้แล้ว"
 	},
 	{
@@ -96,9 +97,9 @@ var training_steps: Array[Dictionary] = [
 	},
 	{
 		"id": "parry",
-		"title": "4/4 Parry",
-		"body": "กด PARRY เมื่อเห็น PARRY! เหนือหัวบอส",
-		"success": "พร้อมฝึกจังหวะ Parry/Dash"
+		"title": "4/4 Deflect",
+		"body": "มือถือ: แตะ joystick ตอนเห็น PARRY!\nคีย์บอร์ด: กด D ตอนเห็น PARRY!",
+		"success": "พร้อมฝึกจังหวะ Deflect / Dash"
 	}
 ]
 
@@ -306,6 +307,8 @@ func is_step_completed(step_id: String) -> bool:
 		"dash":
 			return Input.is_action_just_pressed("dash")
 		"parry":
+			# คีย์บอร์ดใช้ปุ่ม D / action parry เป็น Tap Deflect หลัก
+			# มือถือยังผ่าน joystick tap จาก TouchControls เหมือนเดิม
 			return Input.is_action_just_pressed("parry")
 		_:
 			return false
@@ -345,7 +348,7 @@ func complete_training() -> void:
 	set_skip_button_visible(false)
 
 	title_label.text = "พร้อมสู้"
-	body_label.text = "ต่อไปจะฝึกอ่านจังหวะ PARRY! และ DASH!"
+	body_label.text = "ต่อไปจะฝึกอ่านจังหวะ PARRY! และ DASH!\nมือถือแตะ joystick เพื่อ Deflect / คีย์บอร์ดกด D"
 
 	set_boss_training_hold(false)
 
