@@ -23,6 +23,7 @@
 [ext_resource type="Script" path="res://player_sprite_orientation_manager.gd" id="21_sprite_orientation"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/player/nameless_blade/player_idle_sprite_frames.tres" id="22_idle_frames"]
 [ext_resource type="Script" path="res://player_animated_idle_visual_manager.gd" id="23_animated_idle"]
+[ext_resource type="Script" path="res://keyboard_tap_deflect_manager.gd" id="24_keyboard_deflect"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -101,6 +102,13 @@ hide_legacy_sprite = true
 sync_flip_from_legacy = true
 sync_modulate_from_legacy = true
 debug_print_visual = true
+
+[node name="KeyboardTapDeflectManager" type="Node" parent="."]
+script = ExtResource("24_keyboard_deflect")
+keyboard_tap_deflect_enabled = true
+tap_deflect_action_name = &"parry"
+player_path = NodePath("../Player")
+debug_print_keyboard_deflect = true
 
 [node name="MovementDeflectBalanceManager" type="Node" parent="."]
 script = ExtResource("20_deflect_balance")
