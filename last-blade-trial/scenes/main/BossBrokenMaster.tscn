@@ -48,39 +48,41 @@ script = ExtResource("18_arena_visual")
 position = Vector2(576, 324)
 script = ExtResource("6_jpax5")
 
-[node name="Player" type="CharacterBody2D" parent="." unique_id=220317986 groups=["player_actor"]]
+[node name="Actors" type="Node2D" parent="."]
+
+[node name="Player" type="CharacterBody2D" parent="Actors" unique_id=220317986 groups=["player_actor"]]
 position = Vector2(576, 324)
 script = ExtResource("2_mknfb")
 movement_deflect_requires_new_input = true
 sprite_source_faces_left = true
 
-[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=1611597603]
+[node name="Sprite2D" type="Sprite2D" parent="Actors/Player" unique_id=1611597603]
 visible = false
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("3_5ds0b")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Player"]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Actors/Player"]
 scale = Vector2(0.5, 0.5)
 sprite_frames = ExtResource("22_idle_frames")
 animation = &"idle"
 autoplay = "idle"
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=18594791]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Actors/Player" unique_id=18594791]
 shape = SubResource("RectangleShape2D_nha0i")
 
-[node name="AttackHitbox" type="Area2D" parent="Player" unique_id=1787826627]
+[node name="AttackHitbox" type="Area2D" parent="Actors/Player" unique_id=1787826627]
 position = Vector2(55, 0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/AttackHitbox" unique_id=1369754055]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Actors/Player/AttackHitbox" unique_id=1369754055]
 shape = SubResource("RectangleShape2D_u4lie")
 disabled = true
 
-[node name="Hurtbox" type="Area2D" parent="Player" unique_id=270704207]
+[node name="Hurtbox" type="Area2D" parent="Actors/Player" unique_id=270704207]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=175929038]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Actors/Player/Hurtbox" unique_id=175929038]
 shape = SubResource("RectangleShape2D_32k8f")
 
-[node name="PlayerSpriteOrientationManager" type="Node" parent="Player"]
+[node name="PlayerSpriteOrientationManager" type="Node" parent="Actors/Player"]
 script = ExtResource("21_sprite_orientation")
 orientation_enabled = true
 player_path = NodePath("..")
@@ -91,7 +93,7 @@ orientation_process_priority = 1000
 use_deferred_orientation_fix = true
 debug_print_orientation = true
 
-[node name="PlayerAnimatedIdleVisualManager" type="Node" parent="Player"]
+[node name="PlayerAnimatedIdleVisualManager" type="Node" parent="Actors/Player"]
 script = ExtResource("23_animated_idle")
 animated_idle_enabled = true
 player_path = NodePath("..")
@@ -109,17 +111,20 @@ sync_flip_from_legacy = true
 sync_modulate_from_legacy = true
 debug_print_visual = true
 
+[node name="BossBrokenMaster" parent="Actors" unique_id=951068463 instance=ExtResource("4_tedvd")]
+position = Vector2(780, 324)
+
 [node name="KeyboardTapDeflectManager" type="Node" parent="."]
 script = ExtResource("24_keyboard_deflect")
 keyboard_tap_deflect_enabled = true
 tap_deflect_action_name = &"parry"
-player_path = NodePath("../Player")
+player_path = NodePath("../Actors/Player")
 debug_print_keyboard_deflect = false
 
 [node name="MovementDeflectBalanceManager" type="Node" parent="."]
 script = ExtResource("20_deflect_balance")
 balance_enabled = true
-player_path = NodePath("../Player")
+player_path = NodePath("../Actors/Player")
 movement_deflect_stamina_cost = 8.0
 tap_deflect_stamina_cost = 10.0
 movement_deflect_input_cooldown = 0.30
@@ -131,14 +136,11 @@ direction_spam_deflect_lockout = 0.45
 show_no_stamina_feedback = true
 debug_print_balance = true
 
-[node name="BossBrokenMaster" parent="." unique_id=951068463 instance=ExtResource("4_tedvd")]
-position = Vector2(780, 324)
-
 [node name="BossGrabBalanceManager" type="Node" parent="." unique_id=90965853]
 script = ExtResource("19_grab")
 grab_enabled = true
-player_path = NodePath("../Player")
-boss_path = NodePath("../BossBrokenMaster")
+player_path = NodePath("../Actors/Player")
+boss_path = NodePath("../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../GameLoopManager")
 duel_1_manager_path = NodePath("../Duel1DummyManager")
 grab_manager_process_priority = -50
