@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://BossBrokenMaster.gd" id="1_n16ad"]
+[ext_resource type="Script" path="res://boss_broken_master_player_lookup_patch.gd" id="1_n16ad"]
 [ext_resource type="Texture2D" path="res://assets/sprites/boss_broken_master_silhouette.svg" id="2_5ids1"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ifqgg"]
