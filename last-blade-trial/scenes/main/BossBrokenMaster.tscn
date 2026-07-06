@@ -224,17 +224,19 @@ script = ExtResource("17_run_metrics")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../GameLoopManager")
 
-[node name="KeyboardTapDeflectManager" type="Node" parent="."]
+[node name="CombatSystems" type="Node" parent="."]
+
+[node name="KeyboardTapDeflectManager" type="Node" parent="CombatSystems"]
 script = ExtResource("24_keyboard_deflect")
 keyboard_tap_deflect_enabled = true
 tap_deflect_action_name = &"parry"
-player_path = NodePath("../Actors/Player")
+player_path = NodePath("../../Actors/Player")
 debug_print_keyboard_deflect = false
 
-[node name="MovementDeflectBalanceManager" type="Node" parent="."]
+[node name="MovementDeflectBalanceManager" type="Node" parent="CombatSystems"]
 script = ExtResource("20_deflect_balance")
 balance_enabled = true
-player_path = NodePath("../Actors/Player")
+player_path = NodePath("../../Actors/Player")
 movement_deflect_stamina_cost = 8.0
 tap_deflect_stamina_cost = 10.0
 movement_deflect_input_cooldown = 0.30
@@ -246,13 +248,13 @@ direction_spam_deflect_lockout = 0.45
 show_no_stamina_feedback = true
 debug_print_balance = true
 
-[node name="BossGrabBalanceManager" type="Node" parent="." unique_id=90965853]
+[node name="BossGrabBalanceManager" type="Node" parent="CombatSystems" unique_id=90965853]
 script = ExtResource("19_grab")
 grab_enabled = true
-player_path = NodePath("../Actors/Player")
-boss_path = NodePath("../Actors/BossBrokenMaster")
-game_loop_manager_path = NodePath("../GameFlow/GameLoopManager")
-duel_1_manager_path = NodePath("../UI/Duel1DummyManager")
+player_path = NodePath("../../Actors/Player")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
+duel_1_manager_path = NodePath("../../UI/Duel1DummyManager")
 grab_manager_process_priority = -50
 grab_can_interrupt_boss_cooldown = true
 grab_close_range = 72.0
@@ -280,14 +282,20 @@ deflect_spam_grab_bonus_per_event = 0.04
 anti_repetition_max_bonus = 0.30
 debug_print_grab = true
 
-[node name="CombatDecayManager" type="Node" parent="." unique_id=2045727950]
+[node name="CombatDecayManager" type="Node" parent="CombatSystems" unique_id=2045727950]
 script = ExtResource("7_decay")
+player_path = NodePath("../../Actors/Player")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
 
-[node name="PlayerAttackVFXManager" type="Node" parent="." unique_id=1352349014]
+[node name="PlayerAttackVFXManager" type="Node" parent="CombatSystems" unique_id=1352349014]
 script = ExtResource("9_player_vfx")
+player_path = NodePath("../../Actors/Player")
 
-[node name="BossDifficultyCurveManager" type="Node" parent="." unique_id=1714424353]
+[node name="BossDifficultyCurveManager" type="Node" parent="CombatSystems" unique_id=1714424353]
 script = ExtResource("11_curve")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
 
-[node name="BossWeightManager" type="Node" parent="." unique_id=1453202843]
+[node name="BossWeightManager" type="Node" parent="CombatSystems" unique_id=1453202843]
 script = ExtResource("14_boss_weight")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+player_path = NodePath("../../Actors/Player")
