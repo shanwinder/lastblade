@@ -1,29 +1,29 @@
 [gd_scene format=3 uid="uid://7i1h2iabnsg4"]
 
 [ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_tedvd"]
-[ext_resource type="Script" path="res://player_nameless_sprite_patch.gd" id="2_mknfb"]
-[ext_resource type="Texture2D" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0001.png" id="3_5ds0b"]
+[ext_resource type="Script" uid="uid://d18bcfkduq8oo" path="res://player_nameless_sprite_patch.gd" id="2_mknfb"]
+[ext_resource type="Texture2D" uid="uid://bgrqc1yxbhdj1" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0001.png" id="3_5ds0b"]
 [ext_resource type="PackedScene" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
-[ext_resource type="Script" path="res://hud_player_lookup_patch.gd" id="5_7w3th"]
+[ext_resource type="Script" uid="uid://bt2ed6cdpjs5a" path="res://hud_player_lookup_patch.gd" id="5_7w3th"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
-[ext_resource type="Script" path="res://reference_patches/combat_decay_reference_patch.gd" id="7_decay"]
-[ext_resource type="Script" path="res://touch_controls_player_lookup_patch.gd" id="8_touch"]
-[ext_resource type="Script" path="res://reference_patches/player_attack_vfx_reference_patch.gd" id="9_player_vfx"]
-[ext_resource type="Script" path="res://reference_patches/game_loop_reference_patch.gd" id="10_loop"]
-[ext_resource type="Script" path="res://reference_patches/boss_difficulty_curve_reference_patch.gd" id="11_curve"]
-[ext_resource type="Script" path="res://reference_patches/training_coach_reference_patch.gd" id="12_training"]
-[ext_resource type="Script" path="res://reference_patches/duel_1_intro_reference_patch.gd" id="13_duel_intro"]
-[ext_resource type="Script" path="res://reference_patches/boss_weight_reference_patch.gd" id="14_boss_weight"]
-[ext_resource type="Script" path="res://reference_patches/duel_1_dummy_reference_patch.gd" id="15_duel_dummy"]
-[ext_resource type="Script" path="res://reference_patches/boss_fight_hint_cleanup_reference_patch.gd" id="16_hint_cleanup"]
-[ext_resource type="Script" path="res://reference_patches/run_metrics_reference_patch.gd" id="17_run_metrics"]
+[ext_resource type="Script" uid="uid://b7nglal3l1o4a" path="res://reference_patches/combat_decay_reference_patch.gd" id="7_decay"]
+[ext_resource type="Script" uid="uid://dj8j66cbbcbtl" path="res://touch_controls_player_lookup_patch.gd" id="8_touch"]
+[ext_resource type="Script" uid="uid://q5jq2ae32es" path="res://reference_patches/player_attack_vfx_reference_patch.gd" id="9_player_vfx"]
+[ext_resource type="Script" uid="uid://d1e2mfm7jgixf" path="res://reference_patches/game_loop_reference_patch.gd" id="10_loop"]
+[ext_resource type="Script" uid="uid://6m26x8u0tina" path="res://reference_patches/boss_difficulty_curve_reference_patch.gd" id="11_curve"]
+[ext_resource type="Script" uid="uid://bwi022uf62njx" path="res://reference_patches/training_coach_reference_patch.gd" id="12_training"]
+[ext_resource type="Script" uid="uid://brclij6eyb2nm" path="res://reference_patches/duel_1_intro_reference_patch.gd" id="13_duel_intro"]
+[ext_resource type="Script" uid="uid://dlh20ulrdc7aa" path="res://reference_patches/boss_weight_reference_patch.gd" id="14_boss_weight"]
+[ext_resource type="Script" uid="uid://cufg1npmvhnlb" path="res://reference_patches/duel_1_dummy_reference_patch.gd" id="15_duel_dummy"]
+[ext_resource type="Script" uid="uid://dd3f6eb7l28s0" path="res://reference_patches/boss_fight_hint_cleanup_reference_patch.gd" id="16_hint_cleanup"]
+[ext_resource type="Script" uid="uid://dpyq6837hdfjo" path="res://reference_patches/run_metrics_reference_patch.gd" id="17_run_metrics"]
 [ext_resource type="Script" uid="uid://rqfjmafhjd2l" path="res://arena_visual_manager.gd" id="18_arena_visual"]
-[ext_resource type="Script" path="res://reference_patches/boss_grab_balance_reference_patch.gd" id="19_grab"]
-[ext_resource type="Script" path="res://reference_patches/movement_deflect_balance_reference_patch.gd" id="20_deflect_balance"]
-[ext_resource type="Script" path="res://player_sprite_orientation_manager.gd" id="21_sprite_orientation"]
+[ext_resource type="Script" uid="uid://cbvfndlymvea5" path="res://reference_patches/boss_grab_balance_reference_patch.gd" id="19_grab"]
+[ext_resource type="Script" uid="uid://reb8odwlnnn5" path="res://reference_patches/movement_deflect_balance_reference_patch.gd" id="20_deflect_balance"]
+[ext_resource type="Script" uid="uid://bc7051wt7mpaq" path="res://player_sprite_orientation_manager.gd" id="21_sprite_orientation"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/player/nameless_blade/player_idle_sprite_frames.tres" id="22_idle_frames"]
-[ext_resource type="Script" path="res://player_animated_idle_visual_manager.gd" id="23_animated_idle"]
-[ext_resource type="Script" path="res://reference_patches/keyboard_tap_deflect_reference_patch.gd" id="24_keyboard_deflect"]
+[ext_resource type="Script" uid="uid://ch2ypo8umn6gd" path="res://player_animated_idle_visual_manager.gd" id="23_animated_idle"]
+[ext_resource type="Script" uid="uid://damkitdh4pmv8" path="res://reference_patches/keyboard_tap_deflect_reference_patch.gd" id="24_keyboard_deflect"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nha0i"]
 size = Vector2(32, 32)
@@ -36,7 +36,7 @@ size = Vector2(70, 70)
 
 [node name="Main" type="Node2D" unique_id=119178753]
 
-[node name="World" type="Node2D" parent="."]
+[node name="World" type="Node2D" parent="." unique_id=1173481163]
 
 [node name="ArenaManager" type="Node" parent="World" unique_id=1157779080 groups=["arena_manager"]]
 script = ExtResource("1_tedvd")
@@ -44,24 +44,22 @@ script = ExtResource("1_tedvd")
 [node name="ArenaVisualManager" type="Node2D" parent="World" unique_id=462678845]
 script = ExtResource("18_arena_visual")
 
-[node name="GameCamera" type="Camera2D" parent="World" groups=["game_camera"]]
+[node name="GameCamera" type="Camera2D" parent="World" unique_id=1357210702 groups=["game_camera"]]
 position = Vector2(576, 324)
 script = ExtResource("6_jpax5")
 
-[node name="Actors" type="Node2D" parent="."]
+[node name="Actors" type="Node2D" parent="." unique_id=1460167891]
 
 [node name="Player" type="CharacterBody2D" parent="Actors" unique_id=220317986 groups=["player_actor"]]
 position = Vector2(576, 324)
 script = ExtResource("2_mknfb")
-movement_deflect_requires_new_input = true
-sprite_source_faces_left = true
 
 [node name="Sprite2D" type="Sprite2D" parent="Actors/Player" unique_id=1611597603]
 visible = false
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("3_5ds0b")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Actors/Player"]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="Actors/Player" unique_id=1459958227]
 scale = Vector2(0.5, 0.5)
 sprite_frames = ExtResource("22_idle_frames")
 animation = &"idle"
@@ -82,39 +80,16 @@ disabled = true
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Actors/Player/Hurtbox" unique_id=175929038]
 shape = SubResource("RectangleShape2D_32k8f")
 
-[node name="PlayerSpriteOrientationManager" type="Node" parent="Actors/Player"]
+[node name="PlayerSpriteOrientationManager" type="Node" parent="Actors/Player" unique_id=246624397]
 script = ExtResource("21_sprite_orientation")
-orientation_enabled = true
-player_path = NodePath("..")
-sprite_path = NodePath("../Sprite2D")
-sprite_source_faces_left = true
-force_positive_scale_x = true
-orientation_process_priority = 1000
-use_deferred_orientation_fix = true
-debug_print_orientation = true
 
-[node name="PlayerAnimatedIdleVisualManager" type="Node" parent="Actors/Player"]
+[node name="PlayerAnimatedIdleVisualManager" type="Node" parent="Actors/Player" unique_id=463075109]
 script = ExtResource("23_animated_idle")
-animated_idle_enabled = true
-player_path = NodePath("..")
-legacy_sprite_path = NodePath("../Sprite2D")
-animated_sprite_path = NodePath("../AnimatedSprite2D")
-idle_animation_name = &"idle"
-run_animation_name = &"run"
-back_animation_name = &"back"
-run_animation_enabled = true
-back_animation_enabled = true
-invert_back_animation_flip = true
-run_velocity_threshold = 8.0
-hide_legacy_sprite = true
-sync_flip_from_legacy = true
-sync_modulate_from_legacy = true
-debug_print_visual = true
 
 [node name="BossBrokenMaster" parent="Actors" unique_id=951068463 instance=ExtResource("4_tedvd")]
 position = Vector2(780, 324)
 
-[node name="UI" type="Node" parent="."]
+[node name="UI" type="Node" parent="." unique_id=1071301562]
 
 [node name="HUD" type="CanvasLayer" parent="UI" unique_id=613196371]
 script = ExtResource("5_7w3th")
@@ -193,7 +168,6 @@ script = ExtResource("13_duel_intro")
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
-training_coach_manager_path = NodePath("../TrainingCoachManager")
 
 [node name="Duel1DummyManager" type="CanvasLayer" parent="UI" unique_id=859833880 groups=["duel_1_manager"]]
 layer = 34
@@ -201,10 +175,8 @@ script = ExtResource("15_duel_dummy")
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
-training_coach_manager_path = NodePath("../TrainingCoachManager")
-duel_intro_manager_path = NodePath("../Duel1IntroManager")
 
-[node name="GameFlow" type="Node" parent="."]
+[node name="GameFlow" type="Node" parent="." unique_id=67536998]
 
 [node name="GameLoopManager" type="CanvasLayer" parent="GameFlow" unique_id=1497342465 groups=["game_loop_manager"]]
 layer = 40
@@ -217,70 +189,27 @@ touch_controls_path = NodePath("../../UI/TouchControls")
 script = ExtResource("16_hint_cleanup")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
 duel_1_manager_path = NodePath("../../UI/Duel1DummyManager")
-game_loop_manager_path = NodePath("../GameLoopManager")
 
 [node name="RunMetricsManager" type="Node" parent="GameFlow" unique_id=2040110207]
 script = ExtResource("17_run_metrics")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
-game_loop_manager_path = NodePath("../GameLoopManager")
 
-[node name="CombatSystems" type="Node" parent="."]
+[node name="CombatSystems" type="Node" parent="." unique_id=1669051728]
 
-[node name="KeyboardTapDeflectManager" type="Node" parent="CombatSystems"]
+[node name="KeyboardTapDeflectManager" type="Node" parent="CombatSystems" unique_id=1772362478]
 script = ExtResource("24_keyboard_deflect")
-keyboard_tap_deflect_enabled = true
-tap_deflect_action_name = &"parry"
 player_path = NodePath("../../Actors/Player")
-debug_print_keyboard_deflect = false
 
-[node name="MovementDeflectBalanceManager" type="Node" parent="CombatSystems"]
+[node name="MovementDeflectBalanceManager" type="Node" parent="CombatSystems" unique_id=1967961922]
 script = ExtResource("20_deflect_balance")
-balance_enabled = true
 player_path = NodePath("../../Actors/Player")
-movement_deflect_stamina_cost = 8.0
-tap_deflect_stamina_cost = 10.0
-movement_deflect_input_cooldown = 0.30
-tap_deflect_input_cooldown = 0.30
-direction_spam_check_window = 1.0
-direction_spam_limit = 4
-direction_spam_posture_damage = 6.0
-direction_spam_deflect_lockout = 0.45
-show_no_stamina_feedback = true
-debug_print_balance = true
 
 [node name="BossGrabBalanceManager" type="Node" parent="CombatSystems" unique_id=90965853]
 script = ExtResource("19_grab")
-grab_enabled = true
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
 duel_1_manager_path = NodePath("../../UI/Duel1DummyManager")
-grab_manager_process_priority = -50
-grab_can_interrupt_boss_cooldown = true
-grab_close_range = 72.0
-grab_dash_landing_range = 96.0
-grab_chance = 0.18
-grab_dash_landing_bonus_chance = 0.35
-grab_evaluation_interval = 0.25
-grab_windup_time = 0.55
-grab_active_time = 0.18
-grab_hold_time = 0.85
-grab_hold_offset_x = 42.0
-grab_throw_force = 520.0
-grab_throw_time = 0.26
-grab_cooldown_bonus = 0.35
-grab_damage = 12
-grab_posture_damage = 42.0
-grab_hint_text = "BACK!"
-grabbed_feedback_text = "GRABBED!"
-grabbed_feedback_font_size = 26
-anti_repetition_memory_enabled = true
-recent_action_memory_window = 4.0
-dash_spam_grab_bonus_per_event = 0.08
-attack_spam_grab_bonus_per_event = 0.06
-deflect_spam_grab_bonus_per_event = 0.04
-anti_repetition_max_bonus = 0.30
-debug_print_grab = true
 
 [node name="CombatDecayManager" type="Node" parent="CombatSystems" unique_id=2045727950]
 script = ExtResource("7_decay")
