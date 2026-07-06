@@ -42,7 +42,7 @@ script = ExtResource("1_tedvd")
 [node name="ArenaVisualManager" type="Node2D" parent="." unique_id=462678845]
 script = ExtResource("18_arena_visual")
 
-[node name="Player" type="CharacterBody2D" parent="." unique_id=220317986]
+[node name="Player" type="CharacterBody2D" parent="." unique_id=220317986 groups=["player_actor"]]
 position = Vector2(576, 324)
 script = ExtResource("2_mknfb")
 movement_deflect_requires_new_input = true
@@ -174,7 +174,7 @@ script = ExtResource("11_curve")
 [node name="BossWeightManager" type="Node" parent="." unique_id=1453202843]
 script = ExtResource("14_boss_weight")
 
-[node name="Duel1DummyManager" type="CanvasLayer" parent="." unique_id=859833880]
+[node name="Duel1DummyManager" type="CanvasLayer" parent="." unique_id=859833880 groups=["duel_1_manager"]]
 layer = 34
 script = ExtResource("15_duel_dummy")
 
@@ -236,19 +236,19 @@ offset_top = 230.0
 offset_right = 400.0
 offset_bottom = 253.0
 
-[node name="TouchControls" type="CanvasLayer" parent="." unique_id=248781972]
+[node name="TouchControls" type="CanvasLayer" parent="." unique_id=248781972 groups=["touch_controls"]]
 layer = 20
 script = ExtResource("8_touch")
 
-[node name="TrainingCoachManager" type="CanvasLayer" parent="." unique_id=2052263084]
+[node name="TrainingCoachManager" type="CanvasLayer" parent="." unique_id=2052263084 groups=["training_coach_manager"]]
 layer = 35
 script = ExtResource("12_training")
 
-[node name="Duel1IntroManager" type="CanvasLayer" parent="." unique_id=2036130960]
+[node name="Duel1IntroManager" type="CanvasLayer" parent="." unique_id=2036130960 groups=["duel_1_intro_manager"]]
 layer = 36
 script = ExtResource("13_duel_intro")
 
-[node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465]
+[node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465 groups=["game_loop_manager"]]
 layer = 40
 script = ExtResource("10_loop")
 
