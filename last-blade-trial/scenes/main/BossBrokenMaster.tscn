@@ -36,11 +36,17 @@ size = Vector2(70, 70)
 
 [node name="Main" type="Node2D" unique_id=119178753]
 
-[node name="ArenaManager" type="Node" parent="." unique_id=1157779080]
+[node name="World" type="Node2D" parent="."]
+
+[node name="ArenaManager" type="Node" parent="World" unique_id=1157779080 groups=["arena_manager"]]
 script = ExtResource("1_tedvd")
 
-[node name="ArenaVisualManager" type="Node2D" parent="." unique_id=462678845]
+[node name="ArenaVisualManager" type="Node2D" parent="World" unique_id=462678845]
 script = ExtResource("18_arena_visual")
+
+[node name="GameCamera" type="Camera2D" parent="World" groups=["game_camera"]]
+position = Vector2(576, 324)
+script = ExtResource("6_jpax5")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=220317986 groups=["player_actor"]]
 position = Vector2(576, 324)
@@ -257,7 +263,3 @@ script = ExtResource("16_hint_cleanup")
 
 [node name="RunMetricsManager" type="Node" parent="." unique_id=2040110207]
 script = ExtResource("17_run_metrics")
-
-[node name="GameCamera" type="Camera2D" parent="."]
-position = Vector2(576, 324)
-script = ExtResource("6_jpax5")
