@@ -1,6 +1,0 @@
-# Godot 4+ specific ignores
-.godot/
-/android/
-_ai_raw/
-_work_in_progress/
-.DS_Store

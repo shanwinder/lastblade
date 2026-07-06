@@ -1,0 +1,9 @@
+# Godot 4+ specific ignores
+.godot/
+last-blade-trial/android/
+_ai_raw/
+_work_in_progress/
+.DS_Store
+
+# Documentation
+docs/SKILL-TH.md
