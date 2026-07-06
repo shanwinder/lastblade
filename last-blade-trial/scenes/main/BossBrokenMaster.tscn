@@ -114,6 +114,96 @@ debug_print_visual = true
 [node name="BossBrokenMaster" parent="Actors" unique_id=951068463 instance=ExtResource("4_tedvd")]
 position = Vector2(780, 324)
 
+[node name="UI" type="Node" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="UI" unique_id=613196371]
+script = ExtResource("5_7w3th")
+player_path = NodePath("../../Actors/Player")
+
+[node name="Control" type="Control" parent="UI/HUD" unique_id=2041637077]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/Control" unique_id=1811107748]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 240.0
+offset_bottom = 132.0
+
+[node name="HPLabel" type="Label" parent="UI/HUD/Control/VBoxContainer" unique_id=590727661]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="UI/HUD/Control/VBoxContainer" unique_id=850136934]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
+[node name="StaminaLabel" type="Label" parent="UI/HUD/Control/VBoxContainer" unique_id=1026143341]
+layout_mode = 2
+
+[node name="StaminaBar" type="ProgressBar" parent="UI/HUD/Control/VBoxContainer" unique_id=1946605636]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
+[node name="EnemyHPLabel" type="Label" parent="UI/HUD/Control/VBoxContainer" unique_id=112135856]
+layout_mode = 2
+
+[node name="EnemyHPBar" type="ProgressBar" parent="UI/HUD/Control/VBoxContainer" unique_id=1426360025]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
+[node name="EnemyPostureLabel" type="Label" parent="UI/HUD/Control/VBoxContainer" unique_id=1494307600]
+layout_mode = 2
+
+[node name="EnemyPostureBar" type="ProgressBar" parent="UI/HUD/Control/VBoxContainer" unique_id=1953736341]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
+[node name="FocusLabel" type="Label" parent="UI/HUD/Control/VBoxContainer" unique_id=545179671]
+layout_mode = 2
+
+[node name="FocusBar" type="ProgressBar" parent="UI/HUD/Control/VBoxContainer" unique_id=1933001994]
+layout_mode = 2
+
+[node name="GameResultLabel" type="Label" parent="UI/HUD/Control" unique_id=795500477]
+custom_minimum_size = Vector2(450, 120)
+layout_mode = 0
+offset_left = 360.0
+offset_top = 230.0
+offset_right = 400.0
+offset_bottom = 253.0
+
+[node name="TouchControls" type="CanvasLayer" parent="UI" unique_id=248781972 groups=["touch_controls"]]
+layer = 20
+script = ExtResource("8_touch")
+player_path = NodePath("../../Actors/Player")
+
+[node name="TrainingCoachManager" type="CanvasLayer" parent="UI" unique_id=2052263084 groups=["training_coach_manager"]]
+layer = 35
+script = ExtResource("12_training")
+player_path = NodePath("../../Actors/Player")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+game_loop_manager_path = NodePath("../../GameLoopManager")
+
+[node name="Duel1IntroManager" type="CanvasLayer" parent="UI" unique_id=2036130960 groups=["duel_1_intro_manager"]]
+layer = 36
+script = ExtResource("13_duel_intro")
+player_path = NodePath("../../Actors/Player")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+game_loop_manager_path = NodePath("../../GameLoopManager")
+training_coach_manager_path = NodePath("../TrainingCoachManager")
+
+[node name="Duel1DummyManager" type="CanvasLayer" parent="UI" unique_id=859833880 groups=["duel_1_manager"]]
+layer = 34
+script = ExtResource("15_duel_dummy")
+player_path = NodePath("../../Actors/Player")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+game_loop_manager_path = NodePath("../../GameLoopManager")
+training_coach_manager_path = NodePath("../TrainingCoachManager")
+duel_intro_manager_path = NodePath("../Duel1IntroManager")
+
 [node name="KeyboardTapDeflectManager" type="Node" parent="."]
 script = ExtResource("24_keyboard_deflect")
 keyboard_tap_deflect_enabled = true
@@ -142,7 +232,7 @@ grab_enabled = true
 player_path = NodePath("../Actors/Player")
 boss_path = NodePath("../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../GameLoopManager")
-duel_1_manager_path = NodePath("../Duel1DummyManager")
+duel_1_manager_path = NodePath("../UI/Duel1DummyManager")
 grab_manager_process_priority = -50
 grab_can_interrupt_boss_cooldown = true
 grab_close_range = 72.0
@@ -182,83 +272,10 @@ script = ExtResource("11_curve")
 [node name="BossWeightManager" type="Node" parent="." unique_id=1453202843]
 script = ExtResource("14_boss_weight")
 
-[node name="Duel1DummyManager" type="CanvasLayer" parent="." unique_id=859833880 groups=["duel_1_manager"]]
-layer = 34
-script = ExtResource("15_duel_dummy")
-
-[node name="HUD" type="CanvasLayer" parent="." unique_id=613196371]
-script = ExtResource("5_7w3th")
-
-[node name="Control" type="Control" parent="HUD" unique_id=2041637077]
-layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
-
-[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Control" unique_id=1811107748]
-layout_mode = 0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 240.0
-offset_bottom = 132.0
-
-[node name="HPLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=590727661]
-layout_mode = 2
-
-[node name="HPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=850136934]
-custom_minimum_size = Vector2(220, 18)
-layout_mode = 2
-
-[node name="StaminaLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=1026143341]
-layout_mode = 2
-
-[node name="StaminaBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1946605636]
-custom_minimum_size = Vector2(220, 18)
-layout_mode = 2
-
-[node name="EnemyHPLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=112135856]
-layout_mode = 2
-
-[node name="EnemyHPBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1426360025]
-custom_minimum_size = Vector2(220, 18)
-layout_mode = 2
-
-[node name="EnemyPostureLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=1494307600]
-layout_mode = 2
-
-[node name="EnemyPostureBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1953736341]
-custom_minimum_size = Vector2(220, 18)
-layout_mode = 2
-
-[node name="FocusLabel" type="Label" parent="HUD/Control/VBoxContainer" unique_id=545179671]
-layout_mode = 2
-
-[node name="FocusBar" type="ProgressBar" parent="HUD/Control/VBoxContainer" unique_id=1933001994]
-layout_mode = 2
-
-[node name="GameResultLabel" type="Label" parent="HUD/Control" unique_id=795500477]
-custom_minimum_size = Vector2(450, 120)
-layout_mode = 0
-offset_left = 360.0
-offset_top = 230.0
-offset_right = 400.0
-offset_bottom = 253.0
-
-[node name="TouchControls" type="CanvasLayer" parent="." unique_id=248781972 groups=["touch_controls"]]
-layer = 20
-script = ExtResource("8_touch")
-
-[node name="TrainingCoachManager" type="CanvasLayer" parent="." unique_id=2052263084 groups=["training_coach_manager"]]
-layer = 35
-script = ExtResource("12_training")
-
-[node name="Duel1IntroManager" type="CanvasLayer" parent="." unique_id=2036130960 groups=["duel_1_intro_manager"]]
-layer = 36
-script = ExtResource("13_duel_intro")
-
 [node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465 groups=["game_loop_manager"]]
 layer = 40
 script = ExtResource("10_loop")
+touch_controls_path = NodePath("../UI/TouchControls")
 
 [node name="BossFightHintCleanupManager" type="Node" parent="." unique_id=984098703]
 script = ExtResource("16_hint_cleanup")
