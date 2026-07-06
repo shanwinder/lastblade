@@ -90,7 +90,7 @@ func _ready() -> void:
 	update_enemy_stats(enemy.current_hp, enemy.max_hp, enemy.current_posture, enemy.max_posture)
 
 
-func find_player_node_robust() -> Node:
+func find_player_node_robust():
 	# 1) หา Player จาก exported NodePath ก่อน เพื่อให้ Inspector override ได้
 	var found_player = get_node_or_null(player_path)
 	if found_player != null:
