@@ -185,14 +185,14 @@ layer = 35
 script = ExtResource("12_training")
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
-game_loop_manager_path = NodePath("../../GameLoopManager")
+game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
 
 [node name="Duel1IntroManager" type="CanvasLayer" parent="UI" unique_id=2036130960 groups=["duel_1_intro_manager"]]
 layer = 36
 script = ExtResource("13_duel_intro")
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
-game_loop_manager_path = NodePath("../../GameLoopManager")
+game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
 training_coach_manager_path = NodePath("../TrainingCoachManager")
 
 [node name="Duel1DummyManager" type="CanvasLayer" parent="UI" unique_id=859833880 groups=["duel_1_manager"]]
@@ -200,9 +200,29 @@ layer = 34
 script = ExtResource("15_duel_dummy")
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
-game_loop_manager_path = NodePath("../../GameLoopManager")
+game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
 training_coach_manager_path = NodePath("../TrainingCoachManager")
 duel_intro_manager_path = NodePath("../Duel1IntroManager")
+
+[node name="GameFlow" type="Node" parent="."]
+
+[node name="GameLoopManager" type="CanvasLayer" parent="GameFlow" unique_id=1497342465 groups=["game_loop_manager"]]
+layer = 40
+script = ExtResource("10_loop")
+player_path = NodePath("../../Actors/Player")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+touch_controls_path = NodePath("../../UI/TouchControls")
+
+[node name="BossFightHintCleanupManager" type="Node" parent="GameFlow" unique_id=984098703]
+script = ExtResource("16_hint_cleanup")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+duel_1_manager_path = NodePath("../../UI/Duel1DummyManager")
+game_loop_manager_path = NodePath("../GameLoopManager")
+
+[node name="RunMetricsManager" type="Node" parent="GameFlow" unique_id=2040110207]
+script = ExtResource("17_run_metrics")
+boss_path = NodePath("../../Actors/BossBrokenMaster")
+game_loop_manager_path = NodePath("../GameLoopManager")
 
 [node name="KeyboardTapDeflectManager" type="Node" parent="."]
 script = ExtResource("24_keyboard_deflect")
@@ -231,7 +251,7 @@ script = ExtResource("19_grab")
 grab_enabled = true
 player_path = NodePath("../Actors/Player")
 boss_path = NodePath("../Actors/BossBrokenMaster")
-game_loop_manager_path = NodePath("../GameLoopManager")
+game_loop_manager_path = NodePath("../GameFlow/GameLoopManager")
 duel_1_manager_path = NodePath("../UI/Duel1DummyManager")
 grab_manager_process_priority = -50
 grab_can_interrupt_boss_cooldown = true
@@ -271,14 +291,3 @@ script = ExtResource("11_curve")
 
 [node name="BossWeightManager" type="Node" parent="." unique_id=1453202843]
 script = ExtResource("14_boss_weight")
-
-[node name="GameLoopManager" type="CanvasLayer" parent="." unique_id=1497342465 groups=["game_loop_manager"]]
-layer = 40
-script = ExtResource("10_loop")
-touch_controls_path = NodePath("../UI/TouchControls")
-
-[node name="BossFightHintCleanupManager" type="Node" parent="." unique_id=984098703]
-script = ExtResource("16_hint_cleanup")
-
-[node name="RunMetricsManager" type="Node" parent="." unique_id=2040110207]
-script = ExtResource("17_run_metrics")
