@@ -20,7 +20,7 @@ signal player_died
 # =========================
 
 # ความเร็วในการเดินปกติ
-@export var speed: float = 100.0
+@export var speed: float = 150.0
 
 # ความเร็วตอน Dash
 @export var dash_speed: float = 500.0
