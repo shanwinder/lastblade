@@ -43,6 +43,9 @@ script = ExtResource("1_tedvd")
 
 [node name="ArenaVisualManager" type="Node2D" parent="World" unique_id=462678845]
 script = ExtResource("18_arena_visual")
+use_screen_space_background = false
+background_texture_z_index = -390
+use_procedural_background_when_texture_missing = false
 
 [node name="GameCamera" type="Camera2D" parent="World" unique_id=1357210702 groups=["game_camera"]]
 position = Vector2(576, 324)
