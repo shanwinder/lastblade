@@ -28,6 +28,25 @@ extends Node
 # ชื่อ animation เดินถอยหลัง / backpedal ใน SpriteFrames resource
 @export var back_animation_name: StringName = &"back"
 
+# ชื่อ animation โจมตีหลักของ Player
+@export var attack_animation_name: StringName = &"attack_1"
+
+# โฟลเดอร์ที่เก็บ frame โจมตีแบบ .png เรียงตามชื่อไฟล์
+@export var attack_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_1"
+
+# เปิด/ปิดการโหลดและใช้ animation โจมตีจากโฟลเดอร์ attack_1
+@export var attack_animation_enabled: bool = true
+
+# ความเร็ว animation โจมตี หน่วยเป็น frames per second
+@export var attack_animation_speed: float = 12.0
+
+# ปกติท่าโจมตีไม่ควรวน loop เพราะเป็น action สั้น ๆ หนึ่งครั้ง
+@export var attack_animation_loop: bool = false
+
+# ถ้า true จะกลับ flip เฉพาะท่า attack_1
+# ใช้เมื่อ source sprite ของ attack_1 หันคนละทิศกับ idle/run
+@export var invert_attack_animation_flip: bool = true
+
 # เปิด/ปิดการเลือก run animation จากความเร็วของ Player
 @export var run_animation_enabled: bool = true
 
@@ -86,6 +105,9 @@ func setup_references() -> void:
 	animated_sprite = get_node_or_null(animated_sprite_path) as AnimatedSprite2D
 
 	if animated_idle_enabled and is_instance_valid(animated_sprite):
+		# โหลด frame โจมตีจากโฟลเดอร์ attack_1 เข้าสู่ SpriteFrames ตอน runtime
+		load_attack_animation_if_needed()
+
 		# ให้ animation เริ่มจาก idle เมื่อพร้อม
 		play_animation_safely(idle_animation_name)
 
@@ -95,7 +117,62 @@ func setup_references() -> void:
 		legacy_sprite.visible = false
 
 	if debug_print_visual and is_instance_valid(animated_sprite):
-		print("PlayerAnimatedIdleVisualManager ready. Idle =", idle_animation_name, " Run =", run_animation_name, " Back =", back_animation_name)
+		print(
+			"PlayerAnimatedIdleVisualManager ready. Idle =", idle_animation_name,
+			" Run =", run_animation_name,
+			" Back =", back_animation_name,
+			" Attack =", attack_animation_name
+		)
+
+
+func load_attack_animation_if_needed() -> void:
+	# โหลดทุกไฟล์ .png ใน attack_frames_folder และสร้าง animation attack_1 ให้อัตโนมัติ
+	# วิธีนี้ไม่ผูกกับชื่อไฟล์ frame ขอแค่ตั้งชื่อเรียงลำดับ เช่น 0001, 0002, 0003
+	if not attack_animation_enabled:
+		return
+
+	if not is_instance_valid(animated_sprite):
+		return
+
+	if animated_sprite.sprite_frames == null:
+		return
+
+	var directory := DirAccess.open(attack_frames_folder)
+	if directory == null:
+		if debug_print_visual:
+			print("Attack animation folder not found: ", attack_frames_folder)
+		return
+
+	var frame_files: Array[String] = []
+	directory.list_dir_begin()
+	var file_name := directory.get_next()
+	while file_name != "":
+		if not directory.current_is_dir() and file_name.to_lower().ends_with(".png"):
+			frame_files.append(file_name)
+		file_name = directory.get_next()
+	directory.list_dir_end()
+
+	frame_files.sort()
+	if frame_files.is_empty():
+		if debug_print_visual:
+			print("Attack animation folder has no .png frames: ", attack_frames_folder)
+		return
+
+	var sprite_frames := animated_sprite.sprite_frames
+	if sprite_frames.has_animation(attack_animation_name):
+		sprite_frames.remove_animation(attack_animation_name)
+	sprite_frames.add_animation(attack_animation_name)
+	sprite_frames.set_animation_speed(attack_animation_name, attack_animation_speed)
+	sprite_frames.set_animation_loop(attack_animation_name, attack_animation_loop)
+
+	for frame_file in frame_files:
+		var texture_path := attack_frames_folder.path_join(frame_file)
+		var texture := load(texture_path)
+		if texture is Texture2D:
+			sprite_frames.add_frame(attack_animation_name, texture)
+
+	if debug_print_visual:
+		print("Loaded attack animation frames: ", sprite_frames.get_frame_count(attack_animation_name), " from ", attack_frames_folder)
 
 
 func process_visual_sync() -> void:
@@ -114,7 +191,7 @@ func process_visual_sync() -> void:
 	# ให้ AnimatedSprite2D แสดงผลเสมอในช่วงที่ใช้ visual ใหม่
 	animated_sprite.visible = true
 
-	# เลือก idle/run/back จากสถานะ Player
+	# เลือก idle/run/back/attack จากสถานะ Player
 	var target_animation: StringName = choose_player_animation()
 	play_animation_safely(target_animation)
 
@@ -135,13 +212,16 @@ func apply_animation_flip(target_animation: StringName) -> void:
 	if invert_back_animation_flip and target_animation == back_animation_name:
 		target_flip_h = not target_flip_h
 
+	# เฉพาะท่า attack_1 ให้สลับได้ เพราะ asset โจมตีอาจสร้างมาคนละทิศกับ idle
+	if invert_attack_animation_flip and target_animation == attack_animation_name:
+		target_flip_h = not target_flip_h
+
 	animated_sprite.flip_h = target_flip_h
 
 
 func choose_player_animation() -> StringName:
-	# ตอนนี้รองรับ idle/run/back เท่านั้น
-	# ถ้ากำลังโจมตี dash โดนตี หรือ posture broken ให้ fallback เป็น idle ก่อน
-	# เพื่อไม่ให้ locomotion animation เล่นทับ action ที่ยังไม่มี animation ของตัวเอง
+	# ตอนนี้รองรับ idle/run/back/attack_1
+	# ถ้ากำลัง dash โดนตี หรือ posture broken ให้ fallback เป็น idle ก่อน
 	if not is_instance_valid(player):
 		return idle_animation_name
 
@@ -156,6 +236,10 @@ func choose_player_animation() -> StringName:
 
 	if get_bool_value(player, "is_dashing"):
 		return idle_animation_name
+
+	# เมื่อ Player อยู่ในช่วงโจมตี ให้ใช้ animation attack_1 จากโฟลเดอร์ใหม่
+	if attack_animation_enabled and get_bool_value(player, "is_attacking"):
+		return attack_animation_name
 
 	if get_bool_value(player, "is_attacking"):
 		return idle_animation_name
@@ -223,7 +307,10 @@ func play_animation_safely(animation_name: StringName) -> void:
 		return
 
 	if not animated_sprite.is_playing():
-		animated_sprite.play(animation_name)
+		# ท่าโจมตีเป็น non-loop action ถ้าจบแล้วให้ค้างเฟรมท้ายจน player.gd ปิด is_attacking
+		# เพื่อไม่ให้ animation โจมตี replay ซ้ำระหว่าง attack recovery
+		if animation_name != attack_animation_name:
+			animated_sprite.play(animation_name)
 
 
 func get_bool_value(target: Node, property_name: String) -> bool:
