@@ -17,7 +17,7 @@ extends Node2D
 @export_file("*.png") var background_texture_path: String = "res://assets/backgrounds/moonlit_broken_dojo/bg1.png"
 
 # z_index ของภาพ BG ต้องอยู่หลังตัวละคร, VFX, UI และฉาก overlay ทั้งหมด
-@export var background_texture_z_index: int = -520
+@export var background_texture_z_index: int = -500
 
 # สีทับภาพ BG ปกติใช้ขาวล้วน ถ้าต้องการทำ Trial มืดลงในอนาคตค่อยปรับ modulate ตรงนี้
 @export var background_texture_modulate: Color = Color.WHITE
@@ -101,6 +101,9 @@ func create_background_texture_if_enabled() -> bool:
 	background_sprite.centered = true
 	background_sprite.position = arena_center
 	background_sprite.z_index = background_texture_z_index
+	# ใช้ z แบบ absolute เพื่อไม่ให้ลำดับ parent/child ทำให้ภาพ BG ถูกวาดผิดชั้น
+	background_sprite.z_as_relative = false
+	background_sprite.visible = true
 	background_sprite.modulate = background_texture_modulate
 
 	if background_texture_use_nearest_filter:
@@ -111,7 +114,14 @@ func create_background_texture_if_enabled() -> bool:
 	background_sprite.scale = Vector2(cover_scale, cover_scale)
 
 	add_child(background_sprite)
-	print("Arena BG texture loaded: ", background_texture_path, " size = ", texture_size, " scale = ", cover_scale)
+	print(
+		"Arena BG texture loaded: ", background_texture_path,
+		" size = ", texture_size,
+		" scale = ", cover_scale,
+		" position = ", background_sprite.position,
+		" z = ", background_sprite.z_index,
+		" absolute_z = ", not background_sprite.z_as_relative
+	)
 	return true
 
 
