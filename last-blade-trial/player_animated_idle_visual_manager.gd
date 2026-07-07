@@ -126,7 +126,7 @@ func setup_references() -> void:
 
 
 func load_attack_animation_if_needed() -> void:
-	# โหลดทุกไฟล์ .png ใน attack_frames_folder และสร้าง animation attack_1 ให้อัตโนมัติ
+	# โหลดเฉพาะไฟล์ .png ที่เป็น frame จริงใน attack_frames_folder แล้วสร้าง animation attack_1 ให้อัตโนมัติ
 	# วิธีนี้ไม่ผูกกับชื่อไฟล์ frame ขอแค่ตั้งชื่อเรียงลำดับ เช่น 0001, 0002, 0003
 	if not attack_animation_enabled:
 		return
@@ -147,8 +147,10 @@ func load_attack_animation_if_needed() -> void:
 	directory.list_dir_begin()
 	var file_name := directory.get_next()
 	while file_name != "":
-		if not directory.current_is_dir() and file_name.to_lower().ends_with(".png"):
+		if not directory.current_is_dir() and is_valid_attack_frame_file(file_name):
 			frame_files.append(file_name)
+		elif debug_print_visual and not directory.current_is_dir() and file_name.to_lower().ends_with(".png"):
+			print("Skipped non-canonical attack frame: ", file_name)
 		file_name = directory.get_next()
 	directory.list_dir_end()
 
@@ -173,6 +175,19 @@ func load_attack_animation_if_needed() -> void:
 
 	if debug_print_visual:
 		print("Loaded attack animation frames: ", sprite_frames.get_frame_count(attack_animation_name), " from ", attack_frames_folder)
+
+
+func is_valid_attack_frame_file(file_name: String) -> bool:
+	# กันไฟล์สำเนาจากระบบหรือการ export เช่น atk3 (1).png ไม่ให้หลุดเข้า animation
+	var lower_name := file_name.to_lower()
+	if not lower_name.ends_with(".png"):
+		return false
+
+	var base_name := lower_name.get_basename()
+	if lower_name.contains(" (") and base_name.ends_with(")"):
+		return false
+
+	return true
 
 
 func process_visual_sync() -> void:
