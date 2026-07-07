@@ -2,13 +2,34 @@ extends Node2D
 
 # =========================
 # ArenaVisualManager.gd
-# สร้างฉากหลัง / พื้นสนาม / หมอก / เถ้าถ่าน ด้วยโค้ด
-# เป้าหมายคืออัปเกรดภาพให้ดูเป็น arena ดวลดาบ โดยยังไม่ต้องใช้ asset ภายนอก
+# สร้างฉากหลัง / พื้นสนาม / หมอก / เถ้าถ่าน
+# ตอนนี้รองรับภาพ BG จริงจาก asset แล้ว และยังเก็บฉาก procedural เป็น fallback
 # ไฟล์นี้ไม่แตะระบบต่อสู้ จึงปลอดภัยกับ Phase 9 Vertical Slice
 # =========================
 
 # เปิด/ปิดภาพฉากหลังทั้งหมด
 @export var visual_enabled: bool = true
+
+# เปิดใช้ภาพฉากหลังจริงจากไฟล์ asset
+@export var use_background_texture: bool = true
+
+# path ของ BG ธรรมดารอบแรก สำหรับ Moonlit Broken Dojo
+@export_file("*.png") var background_texture_path: String = "res://assets/backgrounds/moonlit_broken_dojo/bg1.png"
+
+# z_index ของภาพ BG ต้องอยู่หลังตัวละคร, VFX, UI และฉาก overlay ทั้งหมด
+@export var background_texture_z_index: int = -520
+
+# สีทับภาพ BG ปกติใช้ขาวล้วน ถ้าต้องการทำ Trial มืดลงในอนาคตค่อยปรับ modulate ตรงนี้
+@export var background_texture_modulate: Color = Color.WHITE
+
+# ใช้ nearest filter เพื่อให้ pixel art ไม่เบลอเมื่อถูก scale
+@export var background_texture_use_nearest_filter: bool = true
+
+# ถ้า BG โหลดไม่ได้ ให้กลับไปสร้างฉาก procedural เดิมแทน เพื่อไม่ให้ฉากว่าง
+@export var use_procedural_background_when_texture_missing: bool = true
+
+# รอบแรกให้ภาพ BG สะอาดก่อน ถ้าอยากซ้อนหมอก/เถ้าถ่านจากโค้ดค่อยเปิดภายหลัง
+@export var add_atmosphere_over_background_texture: bool = false
 
 # ตำแหน่งกึ่งกลางฉากหลักตอนนี้ กล้องหลักอยู่แถว 576,324
 @export var arena_center: Vector2 = Vector2(576.0, 324.0)
@@ -22,7 +43,7 @@ extends Node2D
 # จำนวนเถ้าถ่านลอยในฉาก ใช้ไม่เยอะเพื่อให้มือถือยังเบา
 @export var ember_count: int = 22
 
-# สีบรรยากาศหลักแบบดาร์กแฟนตาซี
+# สีบรรยากาศหลักแบบดาร์กแฟนตาซี ใช้กับฉาก procedural fallback
 @export var sky_top_color: Color = Color(0.035, 0.045, 0.075, 1.0)
 @export var sky_mid_color: Color = Color(0.075, 0.065, 0.105, 1.0)
 @export var sky_bottom_color: Color = Color(0.12, 0.085, 0.075, 1.0)
@@ -47,6 +68,55 @@ func create_arena_visuals() -> void:
 	for child in get_children():
 		child.queue_free()
 
+	var background_texture_created := create_background_texture_if_enabled()
+	if background_texture_created:
+		# ถ้าใช้ภาพ BG จริงแล้ว รอบแรกไม่สร้างฉาก procedural ทับ เพื่อดูภาพ asset ให้ชัด
+		if add_atmosphere_over_background_texture:
+			create_fog_lines()
+			create_embers()
+		return
+
+	if use_procedural_background_when_texture_missing:
+		create_procedural_arena_visuals()
+
+
+func create_background_texture_if_enabled() -> bool:
+	# โหลดภาพ BG จริงจาก asset และ scale ให้ครอบพื้นที่ฉากที่กล้องเห็น
+	if not use_background_texture:
+		return false
+
+	var texture := load(background_texture_path)
+	if not texture is Texture2D:
+		print("Arena BG texture not found or invalid: ", background_texture_path)
+		return false
+
+	var texture_size: Vector2 = texture.get_size()
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		print("Arena BG texture has invalid size: ", background_texture_path)
+		return false
+
+	var background_sprite := Sprite2D.new()
+	background_sprite.name = "BackgroundTexture"
+	background_sprite.texture = texture
+	background_sprite.centered = true
+	background_sprite.position = arena_center
+	background_sprite.z_index = background_texture_z_index
+	background_sprite.modulate = background_texture_modulate
+
+	if background_texture_use_nearest_filter:
+		background_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	# ใช้ cover scale เพื่อไม่ให้เห็นขอบว่างบนมือถือจอกว้างหรือขณะกล้องสั่น
+	var cover_scale: float = max(arena_visual_size.x / texture_size.x, arena_visual_size.y / texture_size.y)
+	background_sprite.scale = Vector2(cover_scale, cover_scale)
+
+	add_child(background_sprite)
+	print("Arena BG texture loaded: ", background_texture_path, " size = ", texture_size, " scale = ", cover_scale)
+	return true
+
+
+func create_procedural_arena_visuals() -> void:
+	# ฉากเดิมที่สร้างด้วยโค้ด เก็บไว้เป็น fallback เมื่อยังไม่มี asset หรือ asset โหลดไม่ได้
 	create_sky_bands()
 	create_moon()
 	create_distant_mountains()
