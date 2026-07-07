@@ -4,10 +4,10 @@
 [ext_resource type="Script" uid="uid://d18bcfkduq8oo" path="res://player_nameless_sprite_patch.gd" id="2_mknfb"]
 [ext_resource type="Texture2D" uid="uid://bgrqc1yxbhdj1" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0001.png" id="3_5ds0b"]
 [ext_resource type="PackedScene" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
-[ext_resource type="Script" path="res://hud_player_lookup_patch.gd" id="5_7w3th"]
+[ext_resource type="Script" uid="uid://bt2ed6cdpjs5a" path="res://hud_player_lookup_patch.gd" id="5_7w3th"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
 [ext_resource type="Script" uid="uid://b7nglal3l1o4a" path="res://reference_patches/combat_decay_reference_patch.gd" id="7_decay"]
-[ext_resource type="Script" path="res://touch_controls_player_lookup_patch.gd" id="8_touch"]
+[ext_resource type="Script" uid="uid://dj8j66cbbcbtl" path="res://touch_controls_player_lookup_patch.gd" id="8_touch"]
 [ext_resource type="Script" uid="uid://q5jq2ae32es" path="res://reference_patches/player_attack_vfx_reference_patch.gd" id="9_player_vfx"]
 [ext_resource type="Script" uid="uid://d1e2mfm7jgixf" path="res://reference_patches/game_loop_reference_patch.gd" id="10_loop"]
 [ext_resource type="Script" uid="uid://6m26x8u0tina" path="res://reference_patches/boss_difficulty_curve_reference_patch.gd" id="11_curve"]
@@ -44,9 +44,12 @@ enable_arena_background = false
 
 [node name="ArenaVisualManager" type="Node2D" parent="World" unique_id=462678845]
 script = ExtResource("18_arena_visual")
+background_texture_path = "uid://ci5tikbsh4ykv"
 use_screen_space_background = false
 background_texture_z_index = -390
+force_background_texture_opaque = false
 use_procedural_background_when_texture_missing = false
+arena_visual_size = Vector2(960, 540)
 
 [node name="GameCamera" type="Camera2D" parent="World" unique_id=1357210702 groups=["game_camera"]]
 position = Vector2(576, 324)
