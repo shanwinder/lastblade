@@ -58,7 +58,7 @@ script = ExtResource("6_jpax5")
 [node name="Actors" type="Node2D" parent="." unique_id=1460167891]
 
 [node name="Player" type="CharacterBody2D" parent="Actors" unique_id=220317986 groups=["player_actor"]]
-position = Vector2(576, 324)
+position = Vector2(576, 420)
 script = ExtResource("2_mknfb")
 
 [node name="Sprite2D" type="Sprite2D" parent="Actors/Player" unique_id=1611597603]
@@ -94,7 +94,7 @@ script = ExtResource("21_sprite_orientation")
 script = ExtResource("23_animated_idle")
 
 [node name="BossBrokenMaster" parent="Actors" unique_id=951068463 instance=ExtResource("4_tedvd")]
-position = Vector2(780, 324)
+position = Vector2(780, 420)
 
 [node name="UI" type="Node" parent="." unique_id=1071301562]
 
