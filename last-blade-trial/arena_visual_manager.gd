@@ -16,7 +16,13 @@ extends Node2D
 # path ของ BG ธรรมดารอบแรก สำหรับ Moonlit Broken Dojo
 @export_file("*.png") var background_texture_path: String = "res://assets/backgrounds/moonlit_broken_dojo/bg1.png"
 
-# z_index ของภาพ BG ต้องอยู่หลังตัวละคร, VFX, UI และฉาก overlay ทั้งหมด
+# วาด BG เป็น screen-space เต็มจอ เพื่อให้เห็นแน่นอนและไม่ติดปัญหา world/camera/z sorting
+@export var use_screen_space_background: bool = true
+
+# layer ติดลบเพื่อให้ BG อยู่หลัง gameplay layer ปกติ
+@export var background_canvas_layer: int = -100
+
+# z_index ใช้เฉพาะกรณีปิด use_screen_space_background แล้ววาดเป็น Sprite2D ใน world space
 @export var background_texture_z_index: int = -500
 
 # สีทับภาพ BG ปกติใช้ขาวล้วน ถ้าต้องการทำ Trial มืดลงในอนาคตค่อยปรับ modulate ตรงนี้
@@ -24,6 +30,9 @@ extends Node2D
 
 # ใช้ nearest filter เพื่อให้ pixel art ไม่เบลอเมื่อถูก scale
 @export var background_texture_use_nearest_filter: bool = true
+
+# บังคับให้ BG ทึบ เผื่อไฟล์ PNG มี alpha โปร่งใสโดยไม่ตั้งใจ
+@export var force_background_texture_opaque: bool = true
 
 # ถ้า BG โหลดไม่ได้ ให้กลับไปสร้างฉาก procedural เดิมแทน เพื่อไม่ให้ฉากว่าง
 @export var use_procedural_background_when_texture_missing: bool = true
@@ -81,7 +90,7 @@ func create_arena_visuals() -> void:
 
 
 func create_background_texture_if_enabled() -> bool:
-	# โหลดภาพ BG จริงจาก asset และ scale ให้ครอบพื้นที่ฉากที่กล้องเห็น
+	# โหลดภาพ BG จริงจาก asset และเลือกวิธีวาดที่เสถียรที่สุดสำหรับฉากปัจจุบัน
 	if not use_background_texture:
 		return false
 
@@ -95,6 +104,51 @@ func create_background_texture_if_enabled() -> bool:
 		print("Arena BG texture has invalid size: ", background_texture_path)
 		return false
 
+	if use_screen_space_background:
+		create_screen_space_background(texture, texture_size)
+	else:
+		create_world_space_background(texture, texture_size)
+
+	return true
+
+
+func create_screen_space_background(texture: Texture2D, texture_size: Vector2) -> void:
+	# ใช้ CanvasLayer ติดลบ + TextureRect เต็มจอ เพื่อให้ BG แสดงหลัง gameplay อย่างแน่นอน
+	var layer := CanvasLayer.new()
+	layer.name = "BackgroundCanvasLayer"
+	layer.layer = background_canvas_layer
+	add_child(layer)
+
+	var texture_rect := TextureRect.new()
+	texture_rect.name = "BackgroundTextureRect"
+	texture_rect.texture = texture
+	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	texture_rect.offset_left = 0.0
+	texture_rect.offset_top = 0.0
+	texture_rect.offset_right = 0.0
+	texture_rect.offset_bottom = 0.0
+	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	texture_rect.modulate = background_texture_modulate
+
+	if background_texture_use_nearest_filter:
+		texture_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	if force_background_texture_opaque:
+		texture_rect.material = create_force_opaque_texture_material()
+
+	layer.add_child(texture_rect)
+	print(
+		"Arena BG screen texture loaded: ", background_texture_path,
+		" size = ", texture_size,
+		" canvas_layer = ", layer.layer,
+		" stretch = keep_aspect_covered",
+		" force_opaque = ", force_background_texture_opaque
+	)
+
+
+func create_world_space_background(texture: Texture2D, texture_size: Vector2) -> void:
+	# โหมดสำรองสำหรับอนาคต หากต้องการให้ BG อยู่ใน world space เพื่อทำ parallax/manual camera work
 	var background_sprite := Sprite2D.new()
 	background_sprite.name = "BackgroundTexture"
 	background_sprite.texture = texture
@@ -109,20 +163,33 @@ func create_background_texture_if_enabled() -> bool:
 	if background_texture_use_nearest_filter:
 		background_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
+	if force_background_texture_opaque:
+		background_sprite.material = create_force_opaque_texture_material()
+
 	# ใช้ cover scale เพื่อไม่ให้เห็นขอบว่างบนมือถือจอกว้างหรือขณะกล้องสั่น
 	var cover_scale: float = max(arena_visual_size.x / texture_size.x, arena_visual_size.y / texture_size.y)
 	background_sprite.scale = Vector2(cover_scale, cover_scale)
 
 	add_child(background_sprite)
 	print(
-		"Arena BG texture loaded: ", background_texture_path,
+		"Arena BG world texture loaded: ", background_texture_path,
 		" size = ", texture_size,
 		" scale = ", cover_scale,
 		" position = ", background_sprite.position,
 		" z = ", background_sprite.z_index,
-		" absolute_z = ", not background_sprite.z_as_relative
+		" absolute_z = ", not background_sprite.z_as_relative,
+		" force_opaque = ", force_background_texture_opaque
 	)
-	return true
+
+
+func create_force_opaque_texture_material() -> ShaderMaterial:
+	# เผื่อ PNG ถูก export มาพร้อม alpha โปร่งใส ให้ใช้สี RGB ของภาพและบังคับ alpha เป็น 1
+	var shader := Shader.new()
+	shader.code = "shader_type canvas_item;\nvoid fragment() {\n\tvec4 tex = texture(TEXTURE, UV);\n\tCOLOR = vec4(tex.rgb, 1.0) * COLOR;\n}\n"
+
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	return material
 
 
 func create_procedural_arena_visuals() -> void:
