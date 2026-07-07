@@ -40,6 +40,7 @@ size = Vector2(70, 70)
 
 [node name="ArenaManager" type="Node" parent="World" unique_id=1157779080 groups=["arena_manager"]]
 script = ExtResource("1_tedvd")
+enable_arena_background = false
 
 [node name="ArenaVisualManager" type="Node2D" parent="World" unique_id=462678845]
 script = ExtResource("18_arena_visual")
