@@ -182,6 +182,9 @@ script = ExtResource("15_duel_dummy")
 player_path = NodePath("../../Actors/Player")
 boss_path = NodePath("../../Actors/BossBrokenMaster")
 game_loop_manager_path = NodePath("../../GameFlow/GameLoopManager")
+player_real_fight_start_position = Vector2(576, 420)
+boss_real_fight_start_position = Vector2(780, 420)
+real_boss_start_signal_time = 3.0
 
 [node name="GameFlow" type="Node" parent="." unique_id=67536998]
 
