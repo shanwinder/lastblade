@@ -1409,7 +1409,9 @@ func die() -> void:
 	# ส่งสัญญาณไปให้ HUD แสดง Game Over
 	player_died.emit()
 
-	# ซ่อนตัวละครไว้ก่อน แทนการ queue_free ทันที
-	# เพื่อหลีกเลี่ยง coroutine เก่าที่ยังทำงานแล้วอ้างอิง node ไม่เจอ
-	visible = false
+	# ยังไม่ซ่อน Player ทันที เพื่อให้มีเวลามองเห็น death animation / death pose
+	# GameLoopManager จะเป็นคนรอก่อนขึ้นหน้า DEFEATED
+	visible = true
+
+	# ปิด physics ของ Player เพื่อไม่ให้รับ input หรือขยับต่อหลังตาย
 	set_physics_process(false)

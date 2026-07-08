@@ -40,8 +40,20 @@ const STATE_GAME_OVER: String = "game_over"
 # จำนวน upgrade ที่ให้เลือกหลังชนะ
 @export var upgrade_choice_count: int = 3
 
+# เวลารอหลัง Player ตาย ก่อนขึ้นหน้า DEFEATED
+# ใช้เพื่อให้ death animation มีเวลาถูกเล่นให้ผู้เล่นเห็นก่อน
+@export var player_death_result_delay: float = 3
+
+# เวลารอหลัง Boss ตาย ก่อนขึ้นหน้า VICTORY / Upgrade
+# ปกติบอสตัวใหญ่ควรรอนานกว่า Player เล็กน้อย
+@export var boss_death_result_delay: float = 4
+
 # สถานะเกมปัจจุบัน
 var game_state: String = STATE_WAITING_START
+
+# กันไม่ให้ signal ตายซ้ำเรียกหน้าผลลัพธ์หลายรอบระหว่างกำลังรออนิเมชั่นตาย
+var is_waiting_for_death_result: bool = false
+
 
 # อ้างอิง node สำคัญ
 var player: Node = null
@@ -399,27 +411,61 @@ func on_upgrade_button_pressed(button_index: int) -> void:
 
 
 func on_player_died() -> void:
-	# เมื่อ Player ตาย ให้เข้าสู่สถานะแพ้
+	# เมื่อ Player ตาย ให้รอ death animation ก่อนค่อยขึ้นหน้าแพ้
 	if game_state == STATE_GAME_OVER or game_state == STATE_VICTORY:
 		return
 
-	set_game_state(STATE_GAME_OVER)
-	show_result_screen("DEFEATED", "อ่านจังหวะบอส แล้วลองอีกครั้ง")
+	if is_waiting_for_death_result:
+		return
 
+	is_waiting_for_death_result = true
+	set_game_state(STATE_GAME_OVER)
+
+	# หยุดการต่อสู้ทันที แต่ยังไม่เปิด overlay เพื่อให้เห็นตัวละครตายก่อน
+	set_combat_enabled(false)
+	set_touch_controls_visible(false)
+	Engine.time_scale = 1.0
+
+	# รอให้ death animation / death pose แสดงผล
+	await get_tree().create_timer(player_death_result_delay).timeout
+
+	# ถ้า scene ถูก reload ไปแล้วระหว่างรอ ให้หยุดเพื่อกัน error
+	if not is_inside_tree():
+		return
+
+	show_result_screen("DEFEATED", "อ่านจังหวะบอส แล้วลองอีกครั้ง")
+	is_waiting_for_death_result = false
 
 func on_boss_died() -> void:
-	# เมื่อ Boss ตาย ให้เข้าสู่สถานะชนะ
+	# เมื่อ Boss ตาย ให้รอ death animation ก่อนค่อยขึ้นหน้า Victory / Upgrade
 	if game_state == STATE_GAME_OVER or game_state == STATE_VICTORY:
 		return
 
+	if is_waiting_for_death_result:
+		return
+
+	is_waiting_for_death_result = true
 	set_game_state(STATE_VICTORY)
 
+	# จับเวลาไว้ก่อนรอ animation เพื่อให้เวลาชนะยังสะท้อนจังหวะฆ่าบอสจริง
 	var elapsed_seconds: float = 0.0
 	if run_start_msec > 0:
 		elapsed_seconds = float(Time.get_ticks_msec() - run_start_msec) / 1000.0
 
-	show_victory_upgrade_screen(elapsed_seconds)
+	# หยุด combat และซ่อนปุ่ม แต่ยังไม่เปิดหน้า Victory ทันที
+	set_combat_enabled(false)
+	set_touch_controls_visible(false)
+	Engine.time_scale = 1.0
 
+	# รอให้ death animation / fatal collapse ของบอสแสดงก่อน
+	await get_tree().create_timer(boss_death_result_delay).timeout
+
+	# ถ้า scene ถูก reload ไปแล้วระหว่างรอ ให้หยุดเพื่อกัน error
+	if not is_inside_tree():
+		return
+
+	show_victory_upgrade_screen(elapsed_seconds)
+	is_waiting_for_death_result = false
 
 func restart_game() -> void:
 	# Restart แบบสะอาดโดย reload scene ทั้งฉาก

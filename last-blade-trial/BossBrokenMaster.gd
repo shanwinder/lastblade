@@ -1424,6 +1424,9 @@ func die() -> void:
 	# แจ้ง HUD / Main ว่าชนะแล้ว
 	enemy_died.emit()
 
-	# ซ่อนบอสแทน queue_free เพื่อกัน coroutine เก่าอ้างอิง node ที่ถูกลบ
-	visible = false
+	# ยังไม่ซ่อนบอสทันที เพื่อให้มีเวลามองเห็น death animation / fatal collapse
+	# GameLoopManager จะรอก่อนขึ้นหน้า VICTORY
+	visible = true
+
+	# ปิด physics ของบอส เพื่อไม่ให้ AI / attack coroutine ขยับต่อหลังตาย
 	set_physics_process(false)
