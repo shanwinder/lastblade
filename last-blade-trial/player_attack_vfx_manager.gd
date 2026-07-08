@@ -52,6 +52,9 @@ var player: Node2D = null
 # จำสถานะโจมตี frame ก่อน เพื่อจับจังหวะเริ่มโจมตีเพียงครั้งเดียว
 var was_attacking: bool = false
 
+# จำ combo step ล่าสุด เพื่อให้ Hit 2/3 มี VFX แม้ is_attacking ยังเป็น true ต่อเนื่อง
+var last_combo_step: int = 0
+
 
 func _ready() -> void:
 	# หา Player หลัง scene setup เสร็จ เพื่อกันกรณี node ยังไม่พร้อม
@@ -70,12 +73,14 @@ func _physics_process(_delta: float) -> void:
 
 	# อ่านสถานะ is_attacking จาก player.gd แบบปลอดภัย
 	var is_attacking_now: bool = get_bool_value(player, "is_attacking")
+	var combo_step: int = get_int_value(player, "combo_step", 0)
 
-	# ถ้าเพิ่งเปลี่ยนจากไม่โจมตี -> โจมตี ให้แสดงเอฟเฟกต์ 1 ครั้ง
-	if is_attacking_now and not was_attacking:
+	# ถ้าเพิ่งเปลี่ยนจากไม่โจมตี -> โจมตี หรือ combo step เปลี่ยน ให้แสดงเอฟเฟกต์ 1 ครั้ง
+	if is_attacking_now and (not was_attacking or (combo_step > 0 and combo_step != last_combo_step)):
 		show_player_attack_vfx()
 
 	was_attacking = is_attacking_now
+	last_combo_step = combo_step
 
 
 func find_player() -> void:
@@ -187,3 +192,12 @@ func get_float_value(target: Node, property_name: String, fallback: float) -> fl
 		return fallback
 
 	return float(value)
+
+
+func get_int_value(target: Node, property_name: String, fallback: int) -> int:
+	# อ่านค่า int จาก node แบบปลอดภัย เผื่อ property ไม่มีในอนาคต
+	var value = target.get(property_name)
+	if value == null:
+		return fallback
+
+	return int(value)

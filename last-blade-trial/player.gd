@@ -50,6 +50,26 @@ signal player_died
 # Stamina ที่ใช้เมื่อโจมตีหนึ่งครั้ง
 @export var attack_stamina_cost: float = 18.0
 
+# เปิด/ปิดระบบ 3-hit combo เพื่อ rollback กลับเป็นโจมตีเดี่ยวเดิมได้ทันที
+@export var combo_enabled: bool = true
+
+# ค่าบาลานซ์ของแต่ละ hit ในคอมโบ
+@export var combo_hit_1_damage: int = 10
+@export var combo_hit_2_damage: int = 12
+@export var combo_hit_3_damage: int = 18
+@export var combo_hit_1_stamina_cost: float = 18.0
+@export var combo_hit_2_stamina_cost: float = 18.0
+@export var combo_hit_3_stamina_cost: float = 26.0
+@export var combo_hit_1_active_time: float = 0.17
+@export var combo_hit_2_active_time: float = 0.18
+@export var combo_hit_3_active_time: float = 0.22
+@export var combo_hit_1_recovery_time: float = 0.22
+@export var combo_hit_2_recovery_time: float = 0.28
+@export var combo_hit_3_recovery_time: float = 0.78
+@export var combo_chain_window: float = 0.35
+@export var combo_early_input_buffer_time: float = 0.12
+@export var combo_debug_print: bool = true
+
 # Stamina ที่ใช้เมื่อ Dash หนึ่งครั้ง
 @export var dash_stamina_cost: float = 30.0
 
@@ -306,6 +326,16 @@ var attack_hitbox_offset_x: float = 55.0
 # ป้องกันไม่ให้เป้าหมายตัวเดิมโดนดาเมจซ้ำจากการโจมตีครั้งเดียว
 var hit_targets: Array = []
 
+# สถานะของระบบ 3-hit combo
+var combo_step: int = 0
+var queued_combo_step: int = 0
+var combo_input_buffered: bool = false
+var combo_input_window_open: bool = false
+var is_combo_recovering: bool = false
+var combo_sequence_id: int = 0
+var current_combo_step_for_damage: int = 0
+var last_combo_input_msec: int = -999999
+
 # ใช้เช็กว่าเคยแจ้งเตือน Focus เต็มแล้วหรือยัง
 # ป้องกันไม่ให้ print ซ้ำทุกครั้งที่ Focus เปลี่ยน
 var has_shown_focus_ready_message: bool = false
@@ -473,8 +503,9 @@ func _physics_process(delta: float) -> void:
 	elif direction != 0.0 and not is_attacking:
 		set_facing_direction(axis_direction)
 
-	# ถ้ากดปุ่ม attack และตอนนี้ไม่ได้ทำ action อื่น ให้โจมตี
-	if Input.is_action_just_pressed("attack") and not is_attacking and not is_dashing and not is_posture_broken:
+	# ถ้ากดปุ่ม attack ให้ส่งเข้า entry point ของระบบโจมตี
+	# ตอนว่างจะเริ่ม Hit 1 ส่วนตอนกำลังโจมตีจะพยายาม queue hit ถัดไปใน combo window
+	if Input.is_action_just_pressed("attack") and not is_dashing and not is_posture_broken:
 		attack()
 
 	# ถ้ากดปุ่ม dash และตอนนี้ไม่ได้ทำ action อื่น ให้ Dash
@@ -829,6 +860,7 @@ func start_player_posture_break() -> void:
 	if is_posture_broken or is_dead:
 		return
 
+	cancel_combo("posture_break")
 	is_posture_broken = true
 	is_attacking = false
 	is_dashing = false
@@ -878,6 +910,15 @@ func show_posture_break_feedback() -> void:
 
 
 func attack() -> void:
+	# entry point เดียวสำหรับระบบโจมตี เพื่อให้ปุ่มเดิมใช้ได้ทั้งโจมตีเดี่ยวและคอมโบ
+	if combo_enabled:
+		try_attack_input()
+		return
+
+	perform_legacy_attack()
+
+
+func perform_legacy_attack() -> void:
 	# ถ้า Stamina ไม่พอ ห้ามโจมตี และแจ้งบนจอทันที
 	if current_stamina < attack_stamina_cost:
 		print("Not enough stamina to attack. Stamina =", int(current_stamina))
@@ -914,6 +955,255 @@ func attack() -> void:
 	is_attacking = false
 	if is_target_locked:
 		update_facing_to_locked_target()
+
+
+func try_attack_input() -> void:
+	# รับ input โจมตีจากทั้ง keyboard และ touch แล้วเลือกว่าจะเริ่มหรือ queue คอมโบ
+	if is_dead or is_dashing or is_posture_broken or is_knocked_back:
+		return
+
+	if is_attacking:
+		queue_next_combo_hit()
+		return
+
+	start_combo()
+
+
+func start_combo() -> void:
+	# เริ่มคอมโบจาก Hit 1 เมื่อ Player ว่างและมี stamina พอ
+	if current_stamina < get_combo_stamina_cost(1):
+		print("Not enough stamina to start combo. Stamina =", int(current_stamina))
+		show_stamina_insufficient_feedback()
+		return
+
+	combo_sequence_id += 1
+	combo_step = 0
+	queued_combo_step = 0
+	combo_input_buffered = false
+	combo_input_window_open = false
+	is_combo_recovering = false
+	current_combo_step_for_damage = 0
+
+	perform_combo_sequence(combo_sequence_id)
+
+
+func queue_next_combo_hit() -> void:
+	# Hit 3 ไม่มีท่าถัดไป และไม่รับ cancel ผ่านปุ่มโจมตี
+	if combo_step >= 3:
+		return
+
+	var next_step := combo_step + 1
+	if next_step < 2 or next_step > 3:
+		return
+
+	last_combo_input_msec = Time.get_ticks_msec()
+
+	if combo_input_window_open:
+		queued_combo_step = next_step
+		combo_input_buffered = false
+		if combo_debug_print:
+			print("Combo queued Hit", next_step)
+		return
+
+	# กดเร็วเกิน window ให้ buffer สั้น ๆ เพื่อให้ touch/mobile ไม่แข็งเกินไป
+	combo_input_buffered = true
+	if combo_debug_print:
+		print("Combo input buffered for Hit", next_step)
+
+
+func perform_combo_sequence(sequence_id: int) -> void:
+	var next_step := 1
+	while next_step >= 1 and next_step <= 3:
+		var performed_step: int = next_step
+		next_step = await perform_combo_hit(performed_step, sequence_id)
+		if not is_combo_sequence_current(sequence_id):
+			return
+
+	finish_combo(sequence_id)
+
+
+func perform_combo_hit(step: int, sequence_id: int) -> int:
+	if not can_continue_combo_sequence(sequence_id):
+		return 0
+
+	var stamina_cost := get_combo_stamina_cost(step)
+	if current_stamina < stamina_cost:
+		print("Not enough stamina for combo Hit", step, ". Stamina =", int(current_stamina))
+		show_stamina_insufficient_feedback()
+		return 0
+
+	current_stamina -= stamina_cost
+	emit_stats()
+
+	is_attacking = true
+	is_combo_recovering = false
+	combo_input_window_open = false
+	combo_input_buffered = false
+	queued_combo_step = 0
+	combo_step = step
+	current_combo_step_for_damage = step
+	hit_targets.clear()
+
+	if combo_debug_print:
+		print("Player Combo Hit", step, "Damage =", get_combo_damage(step), "Stamina left =", int(current_stamina))
+
+	attack_shape.disabled = false
+
+	await get_tree().create_timer(get_combo_active_time(step)).timeout
+	if not is_combo_sequence_current(sequence_id):
+		return 0
+
+	attack_shape.disabled = true
+	is_combo_recovering = true
+
+	var next_step := await wait_for_combo_recovery_or_chain(step, sequence_id)
+	return next_step
+
+
+func wait_for_combo_recovery_or_chain(step: int, sequence_id: int) -> int:
+	if not is_combo_sequence_current(sequence_id):
+		return 0
+
+	var recovery_time := get_combo_recovery_time(step)
+	var chain_time := 0.0
+	if step < 3:
+		chain_time = combo_chain_window
+		combo_input_window_open = true
+		consume_buffered_combo_input_if_valid(step)
+
+	var wait_time: float = maxf(recovery_time, chain_time)
+	if wait_time > 0.0:
+		await get_tree().create_timer(wait_time).timeout
+
+	if not is_combo_sequence_current(sequence_id):
+		return 0
+
+	combo_input_window_open = false
+	is_combo_recovering = false
+
+	if queued_combo_step == step + 1 and queued_combo_step <= 3:
+		return queued_combo_step
+
+	return 0
+
+
+func consume_buffered_combo_input_if_valid(step: int) -> void:
+	if not combo_input_buffered:
+		return
+
+	var elapsed := float(Time.get_ticks_msec() - last_combo_input_msec) / 1000.0
+	if elapsed <= combo_early_input_buffer_time:
+		queued_combo_step = step + 1
+		if combo_debug_print:
+			print("Combo buffered input consumed for Hit", queued_combo_step)
+
+	combo_input_buffered = false
+
+
+func finish_combo(sequence_id: int) -> void:
+	if not is_combo_sequence_current(sequence_id):
+		return
+
+	is_attacking = false
+	is_combo_recovering = false
+	combo_input_window_open = false
+	combo_input_buffered = false
+	queued_combo_step = 0
+	combo_step = 0
+	current_combo_step_for_damage = 0
+	hit_targets.clear()
+	attack_shape.set_deferred("disabled", true)
+
+	if is_target_locked:
+		update_facing_to_locked_target()
+
+
+func cancel_combo(reason: String = "") -> void:
+	# ใช้ตอนตาย โดนตี posture broken หรือถูก grab เพื่อยกเลิก coroutine เดิมไม่ให้ปลุก hitbox กลับมา
+	if combo_step == 0 and not is_attacking and not combo_input_window_open:
+		return
+
+	combo_sequence_id += 1
+	is_attacking = false
+	is_combo_recovering = false
+	combo_input_window_open = false
+	combo_input_buffered = false
+	queued_combo_step = 0
+	combo_step = 0
+	current_combo_step_for_damage = 0
+	hit_targets.clear()
+	attack_shape.set_deferred("disabled", true)
+
+	if combo_debug_print and reason != "":
+		print("Combo cancelled:", reason)
+
+
+func is_combo_sequence_current(sequence_id: int) -> bool:
+	if not can_continue_combo_sequence(sequence_id):
+		return false
+
+	if combo_step <= 0:
+		return false
+
+	return true
+
+
+func can_continue_combo_sequence(sequence_id: int) -> bool:
+	if sequence_id != combo_sequence_id:
+		return false
+
+	if is_dead or is_dashing or is_posture_broken or is_knocked_back:
+		return false
+
+	return true
+
+
+func get_combo_damage(step: int) -> int:
+	match step:
+		1:
+			return combo_hit_1_damage
+		2:
+			return combo_hit_2_damage
+		3:
+			return combo_hit_3_damage
+		_:
+			return attack_damage
+
+
+func get_combo_stamina_cost(step: int) -> float:
+	match step:
+		1:
+			return combo_hit_1_stamina_cost
+		2:
+			return combo_hit_2_stamina_cost
+		3:
+			return combo_hit_3_stamina_cost
+		_:
+			return attack_stamina_cost
+
+
+func get_combo_active_time(step: int) -> float:
+	match step:
+		1:
+			return combo_hit_1_active_time
+		2:
+			return combo_hit_2_active_time
+		3:
+			return combo_hit_3_active_time
+		_:
+			return attack_active_time
+
+
+func get_combo_recovery_time(step: int) -> float:
+	match step:
+		1:
+			return combo_hit_1_recovery_time
+		2:
+			return combo_hit_2_recovery_time
+		3:
+			return combo_hit_3_recovery_time
+		_:
+			return attack_recovery_time
 
 
 func start_dash_collision_mode() -> void:
@@ -1221,8 +1511,12 @@ func _on_attack_hitbox_area_entered(area: Area2D) -> void:
 
 		return
 
-	# ถ้าเงื่อนไขไม่ครบ ให้โจมตีปกติ
-	target.take_damage(attack_damage)
+	# ถ้าเงื่อนไขไม่ครบ ให้โจมตีปกติ โดยเลือก damage ตาม hit ปัจจุบัน
+	var damage_amount := attack_damage
+	if combo_enabled and current_combo_step_for_damage > 0:
+		damage_amount = get_combo_damage(current_combo_step_for_damage)
+
+	target.take_damage(damage_amount)
 
 
 func take_damage(amount: int) -> void:
@@ -1290,6 +1584,8 @@ func apply_knockback() -> void:
 	# ถ้า Player ตายแล้ว ไม่ต้อง Knockback
 	if is_dead:
 		return
+
+	cancel_combo("knockback")
 
 	var source := find_knockback_source()
 
@@ -1388,6 +1684,8 @@ func die() -> void:
 	# ถ้าตายไปแล้ว ไม่ต้องทำซ้ำ
 	if is_dead:
 		return
+
+	cancel_combo("death")
 
 	# ตั้งสถานะว่าตายแล้ว
 	is_dead = true

@@ -34,6 +34,16 @@ extends Node
 # โฟลเดอร์ที่เก็บ frame โจมตีแบบ .png เรียงตามชื่อไฟล์
 @export var attack_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_1"
 
+# ชื่อ animation โจมตีแยกตาม combo hit
+@export var attack_1_animation_name: StringName = &"attack_1"
+@export var attack_2_animation_name: StringName = &"attack_2"
+@export var attack_3_animation_name: StringName = &"attack_3"
+
+# โฟลเดอร์ frame โจมตีแยกตาม combo hit
+@export var attack_1_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_1"
+@export var attack_2_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_2"
+@export var attack_3_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_3"
+
 # เปิด/ปิดการโหลดและใช้ animation โจมตีจากโฟลเดอร์ attack_1
 @export var attack_animation_enabled: bool = true
 
@@ -126,7 +136,7 @@ func setup_references() -> void:
 
 
 func load_attack_animation_if_needed() -> void:
-	# โหลดเฉพาะไฟล์ .png ที่เป็น frame จริงใน attack_frames_folder แล้วสร้าง animation attack_1 ให้อัตโนมัติ
+	# โหลดเฉพาะไฟล์ .png ที่เป็น frame จริง แล้วสร้าง animation attack_1/2/3 ให้อัตโนมัติ
 	# วิธีนี้ไม่ผูกกับชื่อไฟล์ frame ขอแค่ตั้งชื่อเรียงลำดับ เช่น 0001, 0002, 0003
 	if not attack_animation_enabled:
 		return
@@ -137,10 +147,16 @@ func load_attack_animation_if_needed() -> void:
 	if animated_sprite.sprite_frames == null:
 		return
 
-	var directory := DirAccess.open(attack_frames_folder)
+	load_attack_animation_from_folder(attack_1_animation_name, get_attack_frames_folder_for_step(1), true)
+	load_attack_animation_from_folder(attack_2_animation_name, get_attack_frames_folder_for_step(2), false)
+	load_attack_animation_from_folder(attack_3_animation_name, get_attack_frames_folder_for_step(3), false)
+
+
+func load_attack_animation_from_folder(animation_name: StringName, frames_folder: String, is_required: bool) -> void:
+	var directory := DirAccess.open(frames_folder)
 	if directory == null:
-		if debug_print_visual:
-			print("Attack animation folder not found: ", attack_frames_folder)
+		if debug_print_visual and is_required:
+			print("Attack animation folder not found: ", frames_folder)
 		return
 
 	var frame_files: Array[String] = []
@@ -157,24 +173,24 @@ func load_attack_animation_if_needed() -> void:
 	frame_files.sort()
 	if frame_files.is_empty():
 		if debug_print_visual:
-			print("Attack animation folder has no .png frames: ", attack_frames_folder)
+			print("Attack animation folder has no .png frames: ", frames_folder)
 		return
 
 	var sprite_frames := animated_sprite.sprite_frames
-	if sprite_frames.has_animation(attack_animation_name):
-		sprite_frames.remove_animation(attack_animation_name)
-	sprite_frames.add_animation(attack_animation_name)
-	sprite_frames.set_animation_speed(attack_animation_name, attack_animation_speed)
-	sprite_frames.set_animation_loop(attack_animation_name, attack_animation_loop)
+	if sprite_frames.has_animation(animation_name):
+		sprite_frames.remove_animation(animation_name)
+	sprite_frames.add_animation(animation_name)
+	sprite_frames.set_animation_speed(animation_name, attack_animation_speed)
+	sprite_frames.set_animation_loop(animation_name, attack_animation_loop)
 
 	for frame_file in frame_files:
-		var texture_path := attack_frames_folder.path_join(frame_file)
-		var texture := load(texture_path)
-		if texture is Texture2D:
-			sprite_frames.add_frame(attack_animation_name, texture)
+		var texture_path := frames_folder.path_join(frame_file)
+		var texture := load_frame_texture(texture_path)
+		if texture != null:
+			sprite_frames.add_frame(animation_name, texture)
 
 	if debug_print_visual:
-		print("Loaded attack animation frames: ", sprite_frames.get_frame_count(attack_animation_name), " from ", attack_frames_folder)
+		print("Loaded attack animation frames: ", sprite_frames.get_frame_count(animation_name), " from ", frames_folder)
 
 
 func is_valid_attack_frame_file(file_name: String) -> bool:
@@ -188,6 +204,23 @@ func is_valid_attack_frame_file(file_name: String) -> bool:
 		return false
 
 	return true
+
+
+func load_frame_texture(texture_path: String) -> Texture2D:
+	# ใช้ ResourceLoader ก่อนสำหรับ asset ที่ import แล้ว และ fallback เป็น Image.load สำหรับไฟล์ใหม่/placeholder
+	if ResourceLoader.exists(texture_path):
+		var imported_texture := load(texture_path)
+		if imported_texture is Texture2D:
+			return imported_texture
+
+	var image := Image.new()
+	var error := image.load(texture_path)
+	if error != OK:
+		if debug_print_visual:
+			print("Failed to load attack frame texture: ", texture_path)
+		return null
+
+	return ImageTexture.create_from_image(image)
 
 
 func process_visual_sync() -> void:
@@ -227,8 +260,8 @@ func apply_animation_flip(target_animation: StringName) -> void:
 	if invert_back_animation_flip and target_animation == back_animation_name:
 		target_flip_h = not target_flip_h
 
-	# เฉพาะท่า attack_1 ให้สลับได้ เพราะ asset โจมตีอาจสร้างมาคนละทิศกับ idle
-	if invert_attack_animation_flip and target_animation == attack_animation_name:
+	# เฉพาะท่าโจมตีให้สลับได้ เพราะ asset โจมตีอาจสร้างมาคนละทิศกับ idle
+	if invert_attack_animation_flip and is_attack_animation_name(target_animation):
 		target_flip_h = not target_flip_h
 
 	animated_sprite.flip_h = target_flip_h
@@ -252,9 +285,9 @@ func choose_player_animation() -> StringName:
 	if get_bool_value(player, "is_dashing"):
 		return idle_animation_name
 
-	# เมื่อ Player อยู่ในช่วงโจมตี ให้ใช้ animation attack_1 จากโฟลเดอร์ใหม่
+	# เมื่อ Player อยู่ในช่วงโจมตี ให้ใช้ animation ตาม combo_step และ fallback เป็น attack_1 ถ้า asset ยังไม่ครบ
 	if attack_animation_enabled and get_bool_value(player, "is_attacking"):
-		return attack_animation_name
+		return get_attack_animation_for_current_combo_step()
 
 	if get_bool_value(player, "is_attacking"):
 		return idle_animation_name
@@ -324,8 +357,77 @@ func play_animation_safely(animation_name: StringName) -> void:
 	if not animated_sprite.is_playing():
 		# ท่าโจมตีเป็น non-loop action ถ้าจบแล้วให้ค้างเฟรมท้ายจน player.gd ปิด is_attacking
 		# เพื่อไม่ให้ animation โจมตี replay ซ้ำระหว่าง attack recovery
-		if animation_name != attack_animation_name:
+		if not is_attack_animation_name(animation_name):
 			animated_sprite.play(animation_name)
+
+
+func get_attack_frames_folder_for_step(step: int) -> String:
+	match step:
+		1:
+			if attack_1_frames_folder != "":
+				return attack_1_frames_folder
+			return attack_frames_folder
+		2:
+			return attack_2_frames_folder
+		3:
+			return attack_3_frames_folder
+		_:
+			return attack_frames_folder
+
+
+func get_attack_animation_for_current_combo_step() -> StringName:
+	var step := get_int_value(player, "combo_step", 1)
+	var animation_name := get_attack_animation_name_for_step(step)
+
+	if has_animation(animation_name):
+		return animation_name
+
+	if has_animation(attack_1_animation_name):
+		return attack_1_animation_name
+
+	if has_animation(attack_animation_name):
+		return attack_animation_name
+
+	return idle_animation_name
+
+
+func get_attack_animation_name_for_step(step: int) -> StringName:
+	match step:
+		1:
+			return attack_1_animation_name
+		2:
+			return attack_2_animation_name
+		3:
+			return attack_3_animation_name
+		_:
+			return attack_1_animation_name
+
+
+func is_attack_animation_name(animation_name: StringName) -> bool:
+	return (
+		animation_name == attack_animation_name
+		or animation_name == attack_1_animation_name
+		or animation_name == attack_2_animation_name
+		or animation_name == attack_3_animation_name
+	)
+
+
+func has_animation(animation_name: StringName) -> bool:
+	if not is_instance_valid(animated_sprite):
+		return false
+
+	if animated_sprite.sprite_frames == null:
+		return false
+
+	return animated_sprite.sprite_frames.has_animation(animation_name)
+
+
+func get_int_value(target: Node, property_name: String, fallback: int) -> int:
+	var value = target.get(property_name)
+	if value == null:
+		return fallback
+
+	return int(value)
 
 
 func get_bool_value(target: Node, property_name: String) -> bool:

@@ -502,6 +502,8 @@ func enter_player_grab_hold() -> void:
 		return
 
 	player_was_physics_processing_before_grab = player.is_physics_processing()
+	if player.has_method("cancel_combo"):
+		player.call("cancel_combo", "grab")
 	player.set("is_attacking", false)
 	player.set("is_dashing", false)
 	player.set("is_parrying", false)
