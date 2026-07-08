@@ -65,6 +65,9 @@ var is_game_finished: bool = false
 # ค่าเริ่มต้นเป็น Enemy เผื่อในอนาคตมีศัตรูทั่วไป
 var combat_target_display_name: String = "Enemy"
 
+# กล่อง HUD ของบอสด้านขวาบน สร้างด้วยโค้ดเพื่อไม่ต้องลาก node ใน scene
+var enemy_hud_container: VBoxContainer = null
+
 
 func find_combat_target():
 	# หาเป้าหมายต่อสู้หลักจาก group combat_target
@@ -125,6 +128,9 @@ func _ready() -> void:
 
 	# สร้าง Player Posture UI เพิ่มด้วยโค้ด เพื่อลดการแก้ BossBrokenMaster.tscn ใน phase นี้
 	create_player_posture_widgets()
+	
+	# ย้ายหลอด HP/Posture ของบอสไปไว้ด้านขวาบนของจอ
+	create_enemy_hud_top_right()
 
 	# หา node Player จาก Main
 	var player = get_parent().get_node("Player")
@@ -318,3 +324,29 @@ func show_victory() -> void:
 
 	is_game_finished = true
 	game_result_label.text = ""
+
+func create_enemy_hud_top_right() -> void:
+	# สร้างกล่องใหม่สำหรับ Boss HP/Posture ที่มุมขวาบน
+	var control_root := $Control
+
+	enemy_hud_container = VBoxContainer.new()
+	enemy_hud_container.name = "EnemyHUDTopRight"
+	enemy_hud_container.custom_minimum_size = Vector2(280.0, 92.0)
+	enemy_hud_container.position = Vector2(660.0, 20.0)
+	enemy_hud_container.add_theme_constant_override("separation", 4)
+	control_root.add_child(enemy_hud_container)
+
+	# ย้าย node เดิมออกจาก VBoxContainer ซ้าย ไปอยู่กล่องขวาบน
+	# ใช้ node เดิมเพื่อให้ signal/update_enemy_stats() ยังทำงานเหมือนเดิม
+	enemy_hud_container.add_child(enemy_hp_label)
+	enemy_hud_container.add_child(enemy_hp_bar)
+	enemy_hud_container.add_child(enemy_posture_label)
+	enemy_hud_container.add_child(enemy_posture_bar)
+
+	# ปรับขนาดหลอดบอสให้เหมาะกับมุมขวาบน
+	enemy_hp_bar.custom_minimum_size = Vector2(280.0, 18.0)
+	enemy_posture_bar.custom_minimum_size = Vector2(280.0, 18.0)
+
+	# จัดข้อความให้อ่านจากขวาบนได้ชัด
+	enemy_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	enemy_posture_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

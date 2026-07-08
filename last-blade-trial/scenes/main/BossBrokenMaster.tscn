@@ -161,6 +161,15 @@ offset_bottom = 253.0
 layer = 20
 script = ExtResource("8_touch")
 player_path = NodePath("../../Actors/Player")
+button_alpha = 0.32
+pressed_button_alpha = 0.62
+button_fill_color = Color(0.07016479, 0.09320182, 0.11774104, 0.32000002)
+button_pressed_fill_color = Color(0.19966345, 0.4195712, 0.548779, 0.62)
+button_border_color = Color(0.7490225, 0.94905585, 1, 0.55)
+joystick_base_color = Color(0.06100855, 0.07846785, 0.11207495, 0.22000001)
+joystick_knob_color = Color(0.14733289, 0.2400937, 0.30153242, 0.42000002)
+joystick_knob_pressed_color = Color(0.2784093, 0.54102784, 0.67851543, 0.58000004)
+joystick_border_color = Color(0.7490225, 0.94905585, 1, 0.45000002)
 
 [node name="TrainingCoachManager" type="CanvasLayer" parent="UI" unique_id=2052263084 groups=["training_coach_manager"]]
 layer = 35
