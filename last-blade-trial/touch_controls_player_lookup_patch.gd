@@ -3,12 +3,42 @@ extends "res://touch_controls.gd"
 # =========================
 # TouchControlsPlayerLookupPatch.gd
 # Patch สำหรับ Step 3: ทำให้ TouchControls หา Player แบบ robust
-# ลำดับการหา: exported NodePath → group player_actor → parent/name fallback
-# ไม่เปลี่ยน input behavior ของปุ่มมือถือ
+# Patch เพิ่มเติม: ทำให้ปุ่ม Attack รองรับการกดค้างสำหรับ Charged Heavy Attack
 # =========================
 
 # อ้างอิง Player จาก Inspector เป็นทางเลือกแรก
 @export var player_path: NodePath = NodePath("../Player")
+
+
+func connect_tap_button(button: Button, action_name: String) -> void:
+	# Attack ต้องรองรับ hold เพื่อให้ Player แยก Tap Combo กับ Charged Heavy Attack ได้
+	# Dash ยังใช้ tap one-shot เดิม ส่วน Lock ใช้ connect_lock_button() แยกอยู่แล้ว
+	if action_name == "attack":
+		connect_attack_hold_button(button)
+		return
+
+	super.connect_tap_button(button, action_name)
+
+
+func connect_attack_hold_button(button: Button) -> void:
+	# ปุ่ม Attack ต้องส่ง press ตอนแตะลง และ release ตอนปล่อยนิ้วจริง
+	button.button_down.connect(_on_attack_hold_button_down.bind(button))
+	button.button_up.connect(_on_attack_hold_button_up.bind(button))
+
+
+func _on_attack_hold_button_down(button: Button) -> void:
+	# กัน mouse test หากปิดไว้ แต่บนมือถือยังใช้ touch ได้ผ่าน Button ปกติ
+	if not allow_mouse_test and not DisplayServer.is_touchscreen_available():
+		return
+
+	button.modulate.a = pressed_button_alpha
+	press_action("attack")
+
+
+func _on_attack_hold_button_up(button: Button) -> void:
+	# ปล่อย action attack เมื่อปล่อยนิ้ว เพื่อให้ Player ตรวจ Input.is_action_just_released() ได้
+	release_action("attack")
+	button.modulate.a = button_alpha
 
 
 func find_player_node() -> Node:
