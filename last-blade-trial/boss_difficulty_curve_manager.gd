@@ -33,6 +33,9 @@ extends Node
 # ช่วงต้นให้ heavy ออกบ้าง เพื่อสอนว่าท่าบางท่าต้อง Dash ไม่ใช่ Parry
 @export var early_heavy_attack_chance: float = 0.32
 
+# Heavy Dash Slash ออกไม่ถี่ แต่เริ่มสอนการ Dash ออกจากเส้นทางตั้งแต่ช่วงต้นได้
+@export var early_heavy_dash_attack_chance: float = 0.12
+
 # =========================
 # Mid Phase: เริ่มเพิ่ม delayed เพื่อสอนจังหวะรอ
 # =========================
@@ -40,6 +43,7 @@ extends Node
 @export var mid_quick_attack_chance: float = 0.0
 @export var mid_delayed_attack_chance: float = 0.25
 @export var mid_heavy_attack_chance: float = 0.30
+@export var mid_heavy_dash_attack_chance: float = 0.12
 
 # =========================
 # Late Phase: เพิ่ม quick เพื่อกดดันช่วงท้าย
@@ -48,6 +52,7 @@ extends Node
 @export var late_quick_attack_chance: float = 0.18
 @export var late_delayed_attack_chance: float = 0.25
 @export var late_heavy_attack_chance: float = 0.28
+@export var late_heavy_dash_attack_chance: float = 0.12
 
 # ถ้าเปิด จะ print phase ที่เปลี่ยนใน Output เพื่อช่วยจูน
 @export var debug_print_phase_change: bool = true
@@ -122,25 +127,29 @@ func apply_phase_settings(phase_name: String) -> void:
 			apply_attack_chances(
 				early_quick_attack_chance,
 				early_delayed_attack_chance,
-				early_heavy_attack_chance
+				early_heavy_attack_chance,
+				early_heavy_dash_attack_chance
 			)
 		"mid":
 			apply_attack_chances(
 				mid_quick_attack_chance,
 				mid_delayed_attack_chance,
-				mid_heavy_attack_chance
+				mid_heavy_attack_chance,
+				mid_heavy_dash_attack_chance
 			)
 		"late":
 			apply_attack_chances(
 				late_quick_attack_chance,
 				late_delayed_attack_chance,
-				late_heavy_attack_chance
+				late_heavy_attack_chance,
+				late_heavy_dash_attack_chance
 			)
 		_:
 			apply_attack_chances(
 				early_quick_attack_chance,
 				early_delayed_attack_chance,
-				early_heavy_attack_chance
+				early_heavy_attack_chance,
+				early_heavy_dash_attack_chance
 			)
 
 	if debug_print_phase_change:
@@ -148,27 +157,31 @@ func apply_phase_settings(phase_name: String) -> void:
 			"Boss difficulty phase =", phase_name,
 			" quick=", get_float_value(boss, "quick_attack_chance", 0.0),
 			" delayed=", get_float_value(boss, "delayed_attack_chance", 0.0),
-			" heavy=", get_float_value(boss, "heavy_attack_chance", 0.0)
+			" heavy=", get_float_value(boss, "heavy_attack_chance", 0.0),
+			" heavy_dash=", get_float_value(boss, "heavy_dash_attack_chance", 0.0)
 		)
 
 
-func apply_attack_chances(quick_chance: float, delayed_chance: float, heavy_chance: float) -> void:
+func apply_attack_chances(quick_chance: float, delayed_chance: float, heavy_chance: float, heavy_dash_chance: float) -> void:
 	# clamp กันค่ารวมไม่ให้แปลกเกินไป
 	var safe_quick: float = clamp(quick_chance, 0.0, 0.60)
 	var safe_delayed: float = clamp(delayed_chance, 0.0, 0.60)
 	var safe_heavy: float = clamp(heavy_chance, 0.0, 0.60)
+	var safe_heavy_dash: float = clamp(heavy_dash_chance, 0.0, 0.40)
 
 	# ถ้ารวมเกิน 0.90 ให้ normalize ลง เพื่อเหลือโอกาส normal_slash อย่างน้อย 10%
-	var total: float = safe_quick + safe_delayed + safe_heavy
+	var total: float = safe_quick + safe_delayed + safe_heavy + safe_heavy_dash
 	if total > 0.90:
 		var scale: float = 0.90 / total
 		safe_quick *= scale
 		safe_delayed *= scale
 		safe_heavy *= scale
+		safe_heavy_dash *= scale
 
 	boss.set("quick_attack_chance", safe_quick)
 	boss.set("delayed_attack_chance", safe_delayed)
 	boss.set("heavy_attack_chance", safe_heavy)
+	boss.set("heavy_dash_attack_chance", safe_heavy_dash)
 
 
 func get_float_value(target: Node, property_name: String, fallback: float) -> float:

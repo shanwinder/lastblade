@@ -84,6 +84,40 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 @export var heavy_attack_final_frame_hold_time: float = 1
 
 # =========================
+# ค่าของ Heavy Dash Slash
+# =========================
+
+# โอกาสที่บอสจะเลือกใช้ Heavy Dash Slash ตอนสุ่มท่า
+@export var heavy_dash_attack_chance: float = 0.12
+
+# ดาเมจพื้นฐานของ Heavy Dash Slash เมื่อ Player อยู่ในเส้นทางพุ่ง
+@export var heavy_dash_attack_damage: int = 22
+
+# ตัวคูณดาเมจเมื่อ Player อยู่ตรง endpoint zone
+@export var heavy_dash_endpoint_damage_multiplier: float = 1.75
+
+# Wind-up ก่อนบอสพุ่งฟาด ต้องอ่านได้ชัดกว่าท่าปกติ
+@export var heavy_dash_attack_windup_time: float = 1.20
+
+# ระยะเวลาที่บอสใช้พุ่งจากจุดเริ่มไปปลายทาง
+@export var heavy_dash_attack_dash_time: float = 0.22
+
+# ระยะทางพุ่งของบอส หน่วยเป็น pixel
+@export var heavy_dash_attack_distance: float = 210.0
+
+# รัศมีบริเวณปลายทางที่ถือว่าโดนดาเมจทวีคูณ
+@export var heavy_dash_endpoint_radius: float = 60.0
+
+# ความกว้างเสริมของ path zone เพื่อให้ตรวจโดนง่ายและไม่ pixel-perfect
+@export var heavy_dash_path_extra_margin: float = 36.0
+
+# Cooldown เพิ่มหลัง Heavy Dash Slash เพื่อเปิดช่องให้ผู้เล่นสวนกลับ
+@export var heavy_dash_attack_cooldown_bonus: float = 0.70
+
+# เวลาค้างเฟรมท้ายหลังพุ่งฟาดจบ
+@export var heavy_dash_final_frame_hold_time: float = 0.90
+
+# =========================
 # ค่าของ Delayed Slash
 # =========================
 
@@ -217,7 +251,7 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 
 # เลือกท่าที่ต้องการบังคับให้บอสใช้ตอน debug
 # random = กลับไปสุ่มตามโอกาสปกติ
-@export_enum("random", "normal_slash", "heavy_slash", "delayed_slash", "quick_slash") var debug_forced_attack_pattern: String = "random"
+@export_enum("random", "normal_slash", "heavy_slash", "heavy_dash_slash", "delayed_slash", "quick_slash") var debug_forced_attack_pattern: String = "random"
 
 # เปิด/ปิดข้อความ debug ใน Output เพื่อให้จูนบอสง่ายขึ้น
 @export var debug_print_attack_pattern: bool = true
@@ -599,6 +633,16 @@ func apply_attack_pattern(pattern_name: String) -> void:
 			current_attack_hint_text = "DASH!"
 			current_attack_hint_color = Color(1.0, 0.35, 0.0, 1.0)
 
+		"heavy_dash_slash":
+			current_attack_name = "heavy_dash_slash"
+			current_attack_can_be_parried = false
+			current_attack_damage = heavy_dash_attack_damage
+			current_attack_windup_time = heavy_dash_attack_windup_time
+			current_attack_active_time = heavy_dash_attack_dash_time
+			current_attack_cooldown = attack_cooldown + heavy_dash_attack_cooldown_bonus
+			current_attack_hint_text = "DASH OUT!"
+			current_attack_hint_color = Color(1.0, 0.10, 0.25, 1.0)
+
 		"normal_slash":
 			current_attack_name = "normal_slash"
 			current_attack_can_be_parried = true
@@ -657,6 +701,9 @@ func choose_random_attack_pattern() -> String:
 	if roll < quick_attack_chance + delayed_attack_chance + heavy_attack_chance:
 		return "heavy_slash"
 
+	if roll < quick_attack_chance + delayed_attack_chance + heavy_attack_chance + heavy_dash_attack_chance:
+		return "heavy_dash_slash"
+
 	return "normal_slash"
 
 
@@ -668,8 +715,8 @@ func can_use_quick_slash_now() -> bool:
 func choose_non_quick_attack_pattern() -> String:
 	# สุ่มเฉพาะ delayed / heavy / normal เมื่อ Quick Slash ถูกบล็อกเพราะออกถี่เกินไป
 	# ใช้น้ำหนักจากค่า chance เดิม และให้ normal ได้ส่วนที่เหลือ
-	var normal_attack_chance: float = max(0.05, 1.0 - delayed_attack_chance - heavy_attack_chance)
-	var total_weight: float = delayed_attack_chance + heavy_attack_chance + normal_attack_chance
+	var normal_attack_chance: float = max(0.05, 1.0 - delayed_attack_chance - heavy_attack_chance - heavy_dash_attack_chance)
+	var total_weight: float = delayed_attack_chance + heavy_attack_chance + heavy_dash_attack_chance + normal_attack_chance
 
 	if total_weight <= 0.0:
 		return "normal_slash"
@@ -681,6 +728,9 @@ func choose_non_quick_attack_pattern() -> String:
 
 	if roll < delayed_attack_chance + heavy_attack_chance:
 		return "heavy_slash"
+
+	if roll < delayed_attack_chance + heavy_attack_chance + heavy_dash_attack_chance:
+		return "heavy_dash_slash"
 
 	return "normal_slash"
 
@@ -723,7 +773,7 @@ func attack() -> void:
 	elif current_attack_can_be_parried:
 		sprite_2d.modulate = Color.YELLOW
 	else:
-		sprite_2d.modulate = Color(1.0, 0.35, 0.0, 1.0)
+		sprite_2d.modulate = current_attack_hint_color
 
 	# ถ้าเป็น Delayed Slash ต้องมีช่วง WAIT... แล้วค่อย PARRY!
 	if current_attack_is_delayed:
@@ -755,6 +805,10 @@ func attack() -> void:
 	is_attacking = true
 	clear_attack_hint()
 	sprite_2d.modulate = Color.WHITE
+
+	if current_attack_name == "heavy_dash_slash":
+		await perform_heavy_dash_slash(my_attack_id)
+		return
 
 	# แสดงเส้นดาบตอน hitbox เปิด เพื่อให้ผู้เล่นเห็นจังหวะฟันจริง
 	show_boss_slash_effect()
@@ -803,6 +857,169 @@ func attack() -> void:
 		return
 
 	can_attack = true
+
+
+func perform_heavy_dash_slash(my_attack_id: int) -> void:
+	# ท่าพุ่งใช้การคุมตำแหน่งเอง เพื่อให้ path/endpoint zone สม่ำเสมอและไม่ถูก Player ดันหยุดกลางทาง
+	attack_shape.set_deferred("disabled", true)
+
+	var start_x: float = get_heavy_dash_start_x()
+	var end_x: float = get_heavy_dash_end_x(start_x)
+	var elapsed_time: float = 0.0
+	var dash_duration: float = max(heavy_dash_attack_dash_time, get_physics_process_delta_time())
+
+	show_heavy_dash_slash_effect(start_x, end_x)
+	play_placeholder_sfx(180.0, 0.10, 1.2)
+	get_tree().call_group("game_camera", "shake", 5.5, 0.10)
+
+	print("Boss Heavy Dash Slash START:", start_x, "->", end_x)
+
+	while elapsed_time < dash_duration:
+		await get_tree().physics_frame
+
+		if my_attack_id != attack_sequence_id or is_dead or is_posture_broken:
+			return
+
+		elapsed_time += get_physics_process_delta_time()
+		var dash_ratio: float = clampf(elapsed_time / dash_duration, 0.0, 1.0)
+		global_position.x = lerpf(start_x, end_x, dash_ratio)
+		attack_hitbox.position.x = attack_hitbox_offset_x * float(facing_direction)
+		check_heavy_dash_damage_zone(start_x, end_x)
+
+	global_position.x = end_x
+	clamp_to_arena()
+	check_heavy_dash_damage_zone(start_x, end_x)
+
+	get_tree().call_group("game_camera", "shake", 7.0, 0.12)
+	print("Boss Heavy Dash Slash END:", current_attack_name)
+
+	if heavy_dash_final_frame_hold_time > 0.0:
+		await get_tree().create_timer(heavy_dash_final_frame_hold_time).timeout
+
+		if my_attack_id != attack_sequence_id or is_dead or is_posture_broken:
+			return
+
+	is_attacking = false
+
+	await get_tree().create_timer(current_attack_cooldown).timeout
+
+	if my_attack_id != attack_sequence_id or is_dead or is_posture_broken:
+		return
+
+	can_attack = true
+
+
+func get_heavy_dash_start_x() -> float:
+	return global_position.x
+
+
+func get_heavy_dash_end_x(start_x: float) -> float:
+	var raw_end_x: float = start_x + (float(facing_direction) * heavy_dash_attack_distance)
+
+	if is_instance_valid(arena_manager) and arena_manager.has_method("clamp_x"):
+		return arena_manager.clamp_x(raw_end_x)
+
+	return clamp(raw_end_x, arena_min_x, arena_max_x)
+
+
+func check_heavy_dash_damage_zone(start_x: float, end_x: float) -> void:
+	if has_hit_player:
+		return
+
+	if not is_instance_valid(player):
+		return
+
+	if not player.has_method("take_damage"):
+		return
+
+	if is_player_in_heavy_dash_endpoint_zone(end_x):
+		apply_heavy_dash_damage_to_player(true)
+		return
+
+	if is_player_in_heavy_dash_path_zone(start_x, end_x):
+		apply_heavy_dash_damage_to_player(false)
+
+
+func is_player_in_heavy_dash_endpoint_zone(endpoint_x: float) -> bool:
+	if not is_player_close_enough_y_for_heavy_dash():
+		return false
+
+	return abs(player.global_position.x - endpoint_x) <= heavy_dash_endpoint_radius
+
+
+func is_player_in_heavy_dash_path_zone(start_x: float, end_x: float) -> bool:
+	if not is_player_close_enough_y_for_heavy_dash():
+		return false
+
+	var path_min_x: float = min(start_x, end_x) - heavy_dash_path_extra_margin
+	var path_max_x: float = max(start_x, end_x) + heavy_dash_path_extra_margin
+	var player_x: float = player.global_position.x
+
+	return player_x >= path_min_x and player_x <= path_max_x
+
+
+func is_player_close_enough_y_for_heavy_dash() -> bool:
+	return abs(player.global_position.y - global_position.y) <= 90.0
+
+
+func apply_heavy_dash_damage_to_player(is_endpoint_hit: bool) -> void:
+	if has_hit_player:
+		return
+
+	if not is_instance_valid(player):
+		return
+
+	if not player.has_method("take_damage"):
+		return
+
+	if player.has_method("is_parry_active") and player.is_parry_active():
+		show_wrong_parry_feedback_once(player)
+
+	has_hit_player = true
+
+	var damage_amount: int = heavy_dash_attack_damage
+	if is_endpoint_hit:
+		damage_amount = int(round(float(heavy_dash_attack_damage) * heavy_dash_endpoint_damage_multiplier))
+		print("Boss Heavy Dash Slash endpoint hit! Damage =", damage_amount)
+	else:
+		print("Boss Heavy Dash Slash path hit! Damage =", damage_amount)
+
+	player.take_damage(damage_amount)
+
+
+func show_heavy_dash_slash_effect(start_x: float, end_x: float) -> void:
+	# Placeholder VFX: เส้นฟาดยาวกว่าปกติและไหลไปตามทิศพุ่ง เพื่อแยกจาก Heavy Slash เดิม
+	var slash := Label.new()
+	slash.text = boss_slash_effect_text
+	slash.modulate = Color(1.0, 0.18, 0.32, 0.90)
+	slash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	slash.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	slash.z_index = 175
+	slash.scale = Vector2(0.85, 0.85)
+	slash.add_theme_font_size_override("font_size", boss_slash_effect_font_size + 18)
+
+	get_parent().add_child(slash)
+
+	var travel_direction: float = sign(end_x - start_x)
+	if travel_direction == 0.0:
+		travel_direction = float(facing_direction)
+
+	var start_position: Vector2 = global_position + Vector2(travel_direction * 45.0 - 25.0, -70.0)
+	var target_position: Vector2 = Vector2(end_x + travel_direction * 28.0 - 25.0, global_position.y - 70.0)
+	slash.global_position = start_position
+
+	if travel_direction >= 0.0:
+		slash.rotation_degrees = -32.0
+	else:
+		slash.rotation_degrees = 32.0
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(slash, "global_position", target_position, heavy_dash_attack_dash_time)
+	tween.tween_property(slash, "scale", Vector2(1.65, 1.65), heavy_dash_attack_dash_time)
+	tween.tween_property(slash, "modulate:a", 0.0, heavy_dash_attack_dash_time)
+	tween.set_parallel(false)
+	tween.tween_callback(slash.queue_free)
 
 
 func should_watch_wrong_parry_during_windup() -> bool:
