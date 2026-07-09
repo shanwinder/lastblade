@@ -44,7 +44,7 @@ const STATE_GAME_OVER: String = "game_over"
 # ใช้เพื่อให้ death animation มีเวลาถูกเล่นให้ผู้เล่นเห็นก่อน
 @export var player_death_result_delay: float = 3
 
-# เวลารอหลัง Boss ตาย ก่อนขึ้นหน้า VICTORY / Upgrade
+# เวลารอหลัง Boss ตาย ก่อนขึ้นหน้า VICTORY / Upgrade 
 # ปกติบอสตัวใหญ่ควรรอนานกว่า Player เล็กน้อย
 @export var boss_death_result_delay: float = 4
 
