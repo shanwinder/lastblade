@@ -27,6 +27,12 @@ extends "res://player.gd"
 # เวลาชาร์จเต็ม ใช้คำนวณ damage/posture สูงสุด
 @export var heavy_charge_max_time: float = 3.0
 
+# ถ้า true เมื่อชาร์จครบ heavy_charge_max_time จะปล่อย Heavy Attack อัตโนมัติ โดยไม่ต้องรอให้ผู้เล่นปล่อยปุ่มเอง
+@export var heavy_auto_release_on_full_charge: bool = true
+
+# ถ้า true ยังอนุญาตให้ผู้เล่นปล่อยปุ่มเองหลัง HEAVY READY ได้เหมือนเดิม ก่อนจะชาร์จเต็มอัตโนมัติ
+@export var heavy_manual_release_after_ready_enabled: bool = true
+
 # Stamina ที่เสียทันทีตอนเริ่มชาร์จ เพื่อไม่ให้ลองชาร์จฟรี
 @export var heavy_start_stamina_cost: float = 20.0
 
@@ -215,7 +221,7 @@ func update_attack_hold_and_heavy_charge(delta: float) -> void:
 func on_attack_button_released_for_tap_or_hold() -> void:
 	# ถ้ากำลังชาร์จ Heavy อยู่ ให้ปล่อยท่าหรือยกเลิกตามเวลาที่ชาร์จได้
 	if is_charging_heavy_attack:
-		if heavy_charge_elapsed >= heavy_charge_min_time:
+		if heavy_manual_release_after_ready_enabled and heavy_charge_elapsed >= heavy_charge_min_time:
 			release_charged_heavy_attack()
 		else:
 			cancel_heavy_attack("released before heavy ready")
@@ -310,13 +316,20 @@ func update_heavy_charge(delta: float) -> void:
 		if heavy_debug_print:
 			print("Heavy charge ready")
 
-	# แจ้งเมื่อชาร์จเต็ม
+	# แจ้งเมื่อชาร์จเต็ม และปล่อยท่าอัตโนมัติถ้าเปิดระบบไว้
 	if not heavy_charge_full and heavy_charge_elapsed >= heavy_charge_max_time:
 		heavy_charge_full = true
 		show_heavy_status_feedback(heavy_full_feedback_text, Color(1.0, 1.0, 1.0, 1.0))
 		get_tree().call_group("game_camera", "shake", 4.0, 0.10)
 		if heavy_debug_print:
 			print("Heavy full charge")
+
+		# เมื่อผู้เล่นกดค้างจนชาร์จเต็ม ให้ปล่อย Heavy Attack ทันทีโดยไม่ต้องรอปล่อยนิ้ว
+		# reset_attack_hold_tracking() ช่วยกันไม่ให้ตอนผู้เล่นปล่อยนิ้วทีหลัง trigger logic ซ้ำ
+		if heavy_auto_release_on_full_charge and heavy_charge_elapsed >= heavy_charge_min_time:
+			reset_attack_hold_tracking()
+			release_charged_heavy_attack()
+			return
 
 
 func release_charged_heavy_attack() -> void:
