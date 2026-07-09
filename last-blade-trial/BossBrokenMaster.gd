@@ -79,6 +79,10 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 # Cooldown เพิ่มหลัง Heavy Slash เพื่อเปิดช่องให้ผู้เล่นสวนกลับ
 @export var heavy_attack_cooldown_bonus: float = 0.45
 
+# เวลาค้างท่าหลัง Heavy Slash ปิด hitbox แล้ว
+# ใช้เปิดช่องให้ Player มีเวลาสวนด้วย combo 3 hit
+@export var heavy_attack_final_frame_hold_time: float = 1
+
 # =========================
 # ค่าของ Delayed Slash
 # =========================
@@ -779,6 +783,15 @@ func attack() -> void:
 	# ปิด hitbox หลังหมดจังหวะโจมตี
 	attack_shape.set_deferred("disabled", true)
 	print("Boss Hitbox OFF:", current_attack_name)
+
+	# ถ้าเป็น Heavy Slash ให้ค้างท่าจบไว้สั้น ๆ
+	# ช่วงนี้ hitbox ปิดแล้ว ผู้เล่นจึงมีโอกาสเข้าไปสวนด้วย combo 3 hit
+	# แต่บอสยังอยู่ในสถานะ is_attacking เพื่อให้หยุดนิ่งเหมือนค้างเฟรมสุดท้าย
+	if current_attack_name == "heavy_slash" and heavy_attack_final_frame_hold_time > 0.0:
+		await get_tree().create_timer(heavy_attack_final_frame_hold_time).timeout
+
+		if my_attack_id != attack_sequence_id or is_dead:
+			return
 
 	# จบสถานะโจมตี
 	is_attacking = false
