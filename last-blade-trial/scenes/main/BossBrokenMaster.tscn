@@ -64,6 +64,7 @@ combo_hit_1_recovery_time = 0.16
 combo_hit_2_recovery_time = 0.2
 combo_hit_3_recovery_time = 0.58
 combo_chain_window = 0.28
+combo_early_input_buffer_time = 0.14
 
 [node name="Sprite2D" type="Sprite2D" parent="Actors/Player" unique_id=1611597603]
 visible = false
