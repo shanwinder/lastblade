@@ -625,6 +625,13 @@ func finish_player_grab_recovery() -> void:
 	var posture_value = player.get("current_player_posture")
 	if posture_value != null and float(posture_value) <= 0.0 and player.has_method("start_player_posture_break"):
 		player.call("start_player_posture_break")
+	elif player.has_method("enter_combat_stance_for"):
+		# Grab ทำดาเมจจริงโดยไม่ผ่าน take_damage() จึงต้องปลุก combat stance หลังฟื้นตัวเอง
+		var hurt_stance_time := 2.5
+		var hurt_stance_value = player.get("combat_stance_after_hurt_time")
+		if hurt_stance_value != null:
+			hurt_stance_time = float(hurt_stance_value)
+		player.call("enter_combat_stance_for", hurt_stance_time, "grab_recovered")
 
 	if debug_print_grab:
 		print("Player grab recovery finished")

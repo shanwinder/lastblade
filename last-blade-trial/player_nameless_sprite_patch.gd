@@ -407,6 +407,8 @@ func finish_heavy_attack(sequence_id: int) -> void:
 	if is_target_locked:
 		update_facing_to_locked_target()
 
+	enter_combat_stance_for(combat_stance_after_heavy_time, "heavy_finished")
+
 	if heavy_debug_print:
 		print("Heavy attack finished")
 

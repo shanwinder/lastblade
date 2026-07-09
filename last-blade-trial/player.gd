@@ -70,6 +70,26 @@ signal player_died
 @export var combo_early_input_buffer_time: float = 0.12
 @export var combo_debug_print: bool = true
 
+# =========================
+# Player Combat Stance Memory
+# =========================
+
+# เปิด/ปิดระบบจำท่าพร้อมสู้ชั่วคราว เพื่อ rollback ได้ง่าย
+@export var combat_stance_memory_enabled: bool = true
+
+# เวลาค้างท่าพร้อมสู้หลังจบ Hit 1 / Hit 2 / Hit 3 ตามน้ำหนักของคอมโบ
+@export var combat_stance_after_combo_hit_1_time: float = 1.6
+@export var combat_stance_after_attack_time: float = 1.8
+@export var combat_stance_after_combo_finisher_time: float = 2.4
+
+# เวลาค้างท่าพร้อมสู้หลังเหตุการณ์หนักอื่น ๆ
+@export var combat_stance_after_heavy_time: float = 3.0
+@export var combat_stance_after_hurt_time: float = 2.5
+@export var combat_stance_after_posture_recover_time: float = 3.5
+
+# เปิด/ปิดข้อความ debug ของระบบจำท่าพร้อมสู้
+@export var combat_stance_debug_print: bool = false
+
 # Stamina ที่ใช้เมื่อ Dash หนึ่งครั้ง
 @export var dash_stamina_cost: float = 30.0
 
@@ -358,6 +378,9 @@ var last_dash_end_msec: int = -999999
 # เวลาที่ Deflect สำเร็จล่าสุด เผื่อ Boss ใช้ทำ Anti-Repetition Memory ในอนาคต
 var last_successful_deflect_msec: int = -999999
 
+# เวลาสิ้นสุดของท่าพร้อมสู้ชั่วคราว หน่วยเป็น milliseconds
+var combat_stance_until_msec: int = -999999
+
 # ทิศ movement ล่าสุดที่ใช้ trigger Deflect
 var last_movement_deflect_direction: int = 0
 
@@ -425,6 +448,7 @@ func _ready() -> void:
 	current_stamina = max_stamina
 	current_focus = 0.0
 	current_player_posture = max_player_posture
+	clear_combat_stance_memory("ready")
 
 	# ปิด Hitbox ดาบไว้ก่อน เพราะยังไม่ได้โจมตี
 	attack_shape.disabled = true
@@ -442,6 +466,57 @@ func _ready() -> void:
 
 	# ส่งค่าเริ่มต้นไปให้ HUD แสดงผล
 	emit_stats()
+
+
+func enter_combat_stance_for(duration: float, reason: String = "") -> void:
+	# ต่อเวลาท่าพร้อมสู้ไปข้างหน้า โดยไม่ลดเวลาที่เหลืออยู่เดิม
+	if not combat_stance_memory_enabled:
+		return
+
+	if duration <= 0.0:
+		return
+
+	if is_dead:
+		return
+
+	var now_msec := Time.get_ticks_msec()
+	var requested_until_msec := now_msec + int(round(duration * 1000.0))
+	combat_stance_until_msec = maxi(combat_stance_until_msec, requested_until_msec)
+
+	if combat_stance_debug_print:
+		print("Combat stance memory:", reason, "until", combat_stance_until_msec)
+
+
+func is_combat_stance_memory_active() -> bool:
+	# ให้ visual manager ใช้เช็กว่าควรเลือก combat_idle เมื่อ Player หยุดนิ่งหรือไม่
+	if not combat_stance_memory_enabled:
+		return false
+
+	if is_dead:
+		return false
+
+	return Time.get_ticks_msec() <= combat_stance_until_msec
+
+
+func clear_combat_stance_memory(reason: String = "") -> void:
+	# ล้างสถานะเพื่อให้เริ่ม Duel หรือหลังตายกลับไป idle ปกติเสมอ
+	combat_stance_until_msec = -999999
+
+	if combat_stance_debug_print and reason != "":
+		print("Combat stance memory cleared:", reason)
+
+
+func get_combat_stance_duration_for_combo_step(step: int) -> float:
+	# เลือกระยะเวลาตามน้ำหนักของ hit ที่จบล่าสุด
+	match step:
+		1:
+			return combat_stance_after_combo_hit_1_time
+		2:
+			return combat_stance_after_attack_time
+		3:
+			return combat_stance_after_combo_finisher_time
+		_:
+			return combat_stance_after_attack_time
 
 
 func _physics_process(delta: float) -> void:
@@ -887,6 +962,8 @@ func start_player_posture_break() -> void:
 	if is_instance_valid(sprite_2d) and not is_hurt_invincible:
 		sprite_2d.modulate = Color.WHITE
 
+	enter_combat_stance_for(combat_stance_after_posture_recover_time, "posture_recovered")
+
 
 func show_posture_break_feedback() -> void:
 	# สร้างข้อความเมื่อ Posture แตก
@@ -953,6 +1030,7 @@ func perform_legacy_attack() -> void:
 
 	# จบสถานะโจมตี
 	is_attacking = false
+	enter_combat_stance_for(combat_stance_after_attack_time, "legacy_attack_finished")
 	if is_target_locked:
 		update_facing_to_locked_target()
 
@@ -1104,6 +1182,7 @@ func finish_combo(sequence_id: int) -> void:
 	if not is_combo_sequence_current(sequence_id):
 		return
 
+	var finished_combo_step := combo_step
 	is_attacking = false
 	is_combo_recovering = false
 	combo_input_window_open = false
@@ -1113,6 +1192,7 @@ func finish_combo(sequence_id: int) -> void:
 	current_combo_step_for_damage = 0
 	hit_targets.clear()
 	attack_shape.set_deferred("disabled", true)
+	enter_combat_stance_for(get_combat_stance_duration_for_combo_step(finished_combo_step), "combo_finished")
 
 	if is_target_locked:
 		update_facing_to_locked_target()
@@ -1591,6 +1671,7 @@ func apply_knockback() -> void:
 
 	# ถ้าไม่มีแหล่งดาเมจแล้ว ไม่ต้องทำ Knockback
 	if source == null:
+		enter_combat_stance_for(combat_stance_after_hurt_time, "hurt_no_knockback_source")
 		return
 
 	# คำนวณทิศกระเด็น
@@ -1617,6 +1698,8 @@ func apply_knockback() -> void:
 	if is_instance_valid(self):
 		is_knocked_back = false
 		knockback_velocity = Vector2.ZERO
+		if not is_dead and not is_posture_broken:
+			enter_combat_stance_for(combat_stance_after_hurt_time, "hurt_recovered")
 		if is_target_locked:
 			update_facing_to_locked_target()
 
@@ -1686,6 +1769,7 @@ func die() -> void:
 		return
 
 	cancel_combo("death")
+	clear_combat_stance_memory("death")
 
 	# ตั้งสถานะว่าตายแล้ว
 	is_dead = true

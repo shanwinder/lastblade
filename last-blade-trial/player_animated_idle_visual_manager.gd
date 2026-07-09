@@ -23,6 +23,16 @@ extends Node
 # ชื่อ animation idle ใน SpriteFrames resource
 @export var idle_animation_name: StringName = &"idle"
 
+# ชื่อ animation ท่ายืนพร้อมสู้หลังเกิดการปะทะ
+@export var combat_idle_animation_name: StringName = &"combat_idle"
+
+# โฟลเดอร์ frame ของท่ายืนพร้อมสู้ โหลดแบบ optional และ fallback เป็น idle หากยังไม่มี asset
+@export var combat_idle_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/combat_idle"
+
+# ความเร็วและ loop ของท่ายืนพร้อมสู้
+@export var combat_idle_animation_speed: float = 8.0
+@export var combat_idle_animation_loop: bool = true
+
 # ชื่อ animation run ใน SpriteFrames resource
 @export var run_animation_name: StringName = &"run"
 
@@ -173,6 +183,9 @@ func load_attack_animation_if_needed() -> void:
 	load_attack_animation_from_folder(attack_1_animation_name, get_attack_frames_folder_for_step(1), true, attack_animation_speed, attack_animation_loop)
 	load_attack_animation_from_folder(attack_2_animation_name, get_attack_frames_folder_for_step(2), false, attack_animation_speed, attack_animation_loop)
 	load_attack_animation_from_folder(attack_3_animation_name, get_attack_frames_folder_for_step(3), false, attack_animation_speed, attack_animation_loop)
+
+	# combat_idle เป็น optional เพื่อให้เริ่มใช้ระบบ memory ได้ก่อน asset จริงพร้อม
+	load_attack_animation_from_folder(combat_idle_animation_name, combat_idle_frames_folder, false, combat_idle_animation_speed, combat_idle_animation_loop)
 
 	# Heavy folders เป็น optional เพื่อให้ระบบ gameplay ใช้ได้แม้ asset ยังไม่ครบ โดย fallback ไป attack_3/attack_1
 	load_attack_animation_from_folder(heavy_charge_start_animation_name, heavy_charge_start_frames_folder, false, heavy_charge_start_animation_speed, false)
@@ -337,6 +350,8 @@ func choose_player_animation() -> StringName:
 
 	var player_velocity: Vector2 = get_player_velocity()
 	if absf(player_velocity.x) <= run_velocity_threshold:
+		if is_player_combat_stance_memory_active():
+			return get_existing_combat_idle_or_fallback()
 		return idle_animation_name
 
 	# ถ้า lock-on อยู่และเคลื่อนที่สวนทางกับทิศที่หันหน้า ให้ใช้ท่าถอยหลัง
@@ -487,6 +502,25 @@ func get_existing_heavy_or_fallback(animation_name: StringName) -> StringName:
 		return attack_animation_name
 
 	return idle_animation_name
+
+
+func get_existing_combat_idle_or_fallback() -> StringName:
+	# ถ้ามี asset combat_idle ให้ใช้ หากยังไม่มีให้กลับไป idle โดยไม่ทำให้ animation error
+	if has_animation(combat_idle_animation_name):
+		return combat_idle_animation_name
+
+	return idle_animation_name
+
+
+func is_player_combat_stance_memory_active() -> bool:
+	# อ่านสถานะ memory จาก Player แบบปลอดภัย เพื่อให้ visual manager ใช้กับ Player รุ่นเก่าได้
+	if not is_instance_valid(player):
+		return false
+
+	if not player.has_method("is_combat_stance_memory_active"):
+		return false
+
+	return player.call("is_combat_stance_memory_active") == true
 
 
 func is_attack_animation_name(animation_name: StringName) -> bool:
