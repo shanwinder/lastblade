@@ -5,6 +5,7 @@ extends Node
 # ตัวจัดภาพ animation ของ Player ช่วงเปลี่ยนผ่านจาก Sprite2D ไป AnimatedSprite2D
 # ใช้ AnimatedSprite2D เป็นภาพที่ผู้เล่นเห็นจริง แต่ยังเก็บ Sprite2D เดิมไว้เป็น compatibility layer
 # เพื่อไม่ให้ dash trail / feedback สี / player.gd เดิมพังในช่วงเปลี่ยนผ่าน
+# Patch ล่าสุด: รองรับ Charged Heavy Attack animation state
 # =========================
 
 # เปิด/ปิดระบบภาพ AnimatedSprite2D
@@ -44,17 +45,38 @@ extends Node
 @export var attack_2_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_2"
 @export var attack_3_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/attack_3"
 
-# เปิด/ปิดการโหลดและใช้ animation โจมตีจากโฟลเดอร์ attack_1
+# ชื่อ animation ของ Charged Heavy Attack แยกเป็นช่วง เพื่อให้อ่านสถานะได้ชัด
+@export var heavy_charge_start_animation_name: StringName = &"heavy_charge_start"
+@export var heavy_charge_loop_animation_name: StringName = &"heavy_charge_loop"
+@export var heavy_release_animation_name: StringName = &"heavy_release"
+@export var heavy_recovery_hold_animation_name: StringName = &"heavy_recovery_hold"
+
+# โฟลเดอร์ frame ของ Charged Heavy Attack
+@export var heavy_charge_start_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/heavy_charge_start"
+@export var heavy_charge_loop_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/heavy_charge_loop"
+@export var heavy_release_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/heavy_release"
+@export var heavy_recovery_hold_frames_folder: String = "res://assets/sprites/player/nameless_blade/frames/heavy_recovery_hold"
+
+# เปิด/ปิดการโหลดและใช้ animation โจมตีจากโฟลเดอร์ attack/heavy
 @export var attack_animation_enabled: bool = true
 
 # ความเร็ว animation โจมตี หน่วยเป็น frames per second
 @export var attack_animation_speed: float = 24
 
+# ความเร็ว animation ของ Heavy Attack แต่ละช่วง
+@export var heavy_charge_start_animation_speed: float = 10.0
+@export var heavy_charge_loop_animation_speed: float = 8.0
+@export var heavy_release_animation_speed: float = 14.0
+@export var heavy_recovery_hold_animation_speed: float = 8.0
+
 # ปกติท่าโจมตีไม่ควรวน loop เพราะเป็น action สั้น ๆ หนึ่งครั้ง
 @export var attack_animation_loop: bool = false
 
-# ถ้า true จะกลับ flip เฉพาะท่า attack_1
-# ใช้เมื่อ source sprite ของ attack_1 หันคนละทิศกับ idle/run
+# เฉพาะ charge loop ควรวนซ้ำได้ระหว่างกดค้าง
+@export var heavy_charge_loop_animation_loop: bool = true
+
+# ถ้า true จะกลับ flip เฉพาะท่า attack/heavy
+# ใช้เมื่อ source sprite ของ attack/heavy หันคนละทิศกับ idle/run
 @export var invert_attack_animation_flip: bool = true
 
 # เปิด/ปิดการเลือก run animation จากความเร็วของ Player
@@ -115,7 +137,7 @@ func setup_references() -> void:
 	animated_sprite = get_node_or_null(animated_sprite_path) as AnimatedSprite2D
 
 	if animated_idle_enabled and is_instance_valid(animated_sprite):
-		# โหลด frame โจมตีจากโฟลเดอร์ attack_1 เข้าสู่ SpriteFrames ตอน runtime
+		# โหลด frame โจมตีจากโฟลเดอร์ attack/heavy เข้าสู่ SpriteFrames ตอน runtime
 		load_attack_animation_if_needed()
 
 		# ให้ animation เริ่มจาก idle เมื่อพร้อม
@@ -131,12 +153,13 @@ func setup_references() -> void:
 			"PlayerAnimatedIdleVisualManager ready. Idle =", idle_animation_name,
 			" Run =", run_animation_name,
 			" Back =", back_animation_name,
-			" Attack =", attack_animation_name
+			" Attack =", attack_animation_name,
+			" Heavy =", heavy_release_animation_name
 		)
 
 
 func load_attack_animation_if_needed() -> void:
-	# โหลดเฉพาะไฟล์ .png ที่เป็น frame จริง แล้วสร้าง animation attack_1/2/3 ให้อัตโนมัติ
+	# โหลดเฉพาะไฟล์ .png ที่เป็น frame จริง แล้วสร้าง animation attack_1/2/3 และ heavy ให้อัตโนมัติ
 	# วิธีนี้ไม่ผูกกับชื่อไฟล์ frame ขอแค่ตั้งชื่อเรียงลำดับ เช่น 0001, 0002, 0003
 	if not attack_animation_enabled:
 		return
@@ -147,12 +170,24 @@ func load_attack_animation_if_needed() -> void:
 	if animated_sprite.sprite_frames == null:
 		return
 
-	load_attack_animation_from_folder(attack_1_animation_name, get_attack_frames_folder_for_step(1), true)
-	load_attack_animation_from_folder(attack_2_animation_name, get_attack_frames_folder_for_step(2), false)
-	load_attack_animation_from_folder(attack_3_animation_name, get_attack_frames_folder_for_step(3), false)
+	load_attack_animation_from_folder(attack_1_animation_name, get_attack_frames_folder_for_step(1), true, attack_animation_speed, attack_animation_loop)
+	load_attack_animation_from_folder(attack_2_animation_name, get_attack_frames_folder_for_step(2), false, attack_animation_speed, attack_animation_loop)
+	load_attack_animation_from_folder(attack_3_animation_name, get_attack_frames_folder_for_step(3), false, attack_animation_speed, attack_animation_loop)
+
+	# Heavy folders เป็น optional เพื่อให้ระบบ gameplay ใช้ได้แม้ asset ยังไม่ครบ โดย fallback ไป attack_3/attack_1
+	load_attack_animation_from_folder(heavy_charge_start_animation_name, heavy_charge_start_frames_folder, false, heavy_charge_start_animation_speed, false)
+	load_attack_animation_from_folder(heavy_charge_loop_animation_name, heavy_charge_loop_frames_folder, false, heavy_charge_loop_animation_speed, heavy_charge_loop_animation_loop)
+	load_attack_animation_from_folder(heavy_release_animation_name, heavy_release_frames_folder, false, heavy_release_animation_speed, false)
+	load_attack_animation_from_folder(heavy_recovery_hold_animation_name, heavy_recovery_hold_frames_folder, false, heavy_recovery_hold_animation_speed, false)
 
 
-func load_attack_animation_from_folder(animation_name: StringName, frames_folder: String, is_required: bool) -> void:
+func load_attack_animation_from_folder(
+	animation_name: StringName,
+	frames_folder: String,
+	is_required: bool,
+	animation_speed: float = -1.0,
+	animation_loop: bool = false
+) -> void:
 	var directory := DirAccess.open(frames_folder)
 	if directory == null:
 		if debug_print_visual and is_required:
@@ -172,7 +207,7 @@ func load_attack_animation_from_folder(animation_name: StringName, frames_folder
 
 	frame_files.sort()
 	if frame_files.is_empty():
-		if debug_print_visual:
+		if debug_print_visual and is_required:
 			print("Attack animation folder has no .png frames: ", frames_folder)
 		return
 
@@ -180,8 +215,13 @@ func load_attack_animation_from_folder(animation_name: StringName, frames_folder
 	if sprite_frames.has_animation(animation_name):
 		sprite_frames.remove_animation(animation_name)
 	sprite_frames.add_animation(animation_name)
-	sprite_frames.set_animation_speed(animation_name, attack_animation_speed)
-	sprite_frames.set_animation_loop(animation_name, attack_animation_loop)
+
+	var final_speed := attack_animation_speed
+	if animation_speed > 0.0:
+		final_speed = animation_speed
+
+	sprite_frames.set_animation_speed(animation_name, final_speed)
+	sprite_frames.set_animation_loop(animation_name, animation_loop)
 
 	for frame_file in frame_files:
 		var texture_path := frames_folder.path_join(frame_file)
@@ -239,7 +279,7 @@ func process_visual_sync() -> void:
 	# ให้ AnimatedSprite2D แสดงผลเสมอในช่วงที่ใช้ visual ใหม่
 	animated_sprite.visible = true
 
-	# เลือก idle/run/back/attack จากสถานะ Player
+	# เลือก idle/run/back/attack/heavy จากสถานะ Player
 	var target_animation: StringName = choose_player_animation()
 	play_animation_safely(target_animation)
 
@@ -260,7 +300,7 @@ func apply_animation_flip(target_animation: StringName) -> void:
 	if invert_back_animation_flip and target_animation == back_animation_name:
 		target_flip_h = not target_flip_h
 
-	# เฉพาะท่าโจมตีให้สลับได้ เพราะ asset โจมตีอาจสร้างมาคนละทิศกับ idle
+	# เฉพาะท่าโจมตีและ heavy ให้สลับได้ เพราะ asset อาจสร้างมาคนละทิศกับ idle
 	if invert_attack_animation_flip and is_attack_animation_name(target_animation):
 		target_flip_h = not target_flip_h
 
@@ -268,7 +308,6 @@ func apply_animation_flip(target_animation: StringName) -> void:
 
 
 func choose_player_animation() -> StringName:
-	# ตอนนี้รองรับ idle/run/back/attack_1
 	# ถ้ากำลัง dash โดนตี หรือ posture broken ให้ fallback เป็น idle ก่อน
 	if not is_instance_valid(player):
 		return idle_animation_name
@@ -284,6 +323,10 @@ func choose_player_animation() -> StringName:
 
 	if get_bool_value(player, "is_dashing"):
 		return idle_animation_name
+
+	# Heavy Attack ต้องมี priority สูงกว่า combo เพราะทั้งสองระบบใช้ is_attacking เหมือนกัน
+	if attack_animation_enabled and is_player_in_heavy_attack_state():
+		return get_heavy_animation_for_current_state()
 
 	# เมื่อ Player อยู่ในช่วงโจมตี ให้ใช้ animation ตาม combo_step และ fallback เป็น attack_1 ถ้า asset ยังไม่ครบ
 	if attack_animation_enabled and get_bool_value(player, "is_attacking"):
@@ -355,8 +398,8 @@ func play_animation_safely(animation_name: StringName) -> void:
 		return
 
 	if not animated_sprite.is_playing():
-		# ท่าโจมตีเป็น non-loop action ถ้าจบแล้วให้ค้างเฟรมท้ายจน player.gd ปิด is_attacking
-		# เพื่อไม่ให้ animation โจมตี replay ซ้ำระหว่าง attack recovery
+		# ท่าโจมตีเป็น non-loop action ถ้าจบแล้วให้ค้างเฟรมท้ายจน player.gd/patch ปิดสถานะโจมตี
+		# เพื่อไม่ให้ animation โจมตี replay ซ้ำระหว่าง recovery
 		if not is_attack_animation_name(animation_name):
 			animated_sprite.play(animation_name)
 
@@ -403,12 +446,59 @@ func get_attack_animation_name_for_step(step: int) -> StringName:
 			return attack_1_animation_name
 
 
+func is_player_in_heavy_attack_state() -> bool:
+	# อ่านสถานะ heavy จาก Player patch แบบปลอดภัย
+	return (
+		get_bool_value(player, "is_charging_heavy_attack")
+		or get_bool_value(player, "is_releasing_heavy_attack")
+		or get_bool_value(player, "is_heavy_recovering")
+	)
+
+
+func get_heavy_animation_for_current_state() -> StringName:
+	# เลือก animation heavy ตาม phase ที่ Player patch ส่งมา และ fallback เป็น attack_3/attack_1 หาก asset ยังไม่พร้อม
+	if get_bool_value(player, "is_releasing_heavy_attack"):
+		return get_existing_heavy_or_fallback(heavy_release_animation_name)
+
+	if get_bool_value(player, "is_heavy_recovering"):
+		return get_existing_heavy_or_fallback(heavy_recovery_hold_animation_name)
+
+	if get_bool_value(player, "is_charging_heavy_attack"):
+		var phase := get_string_value(player, "heavy_charge_phase", "loop")
+		if phase == "start":
+			return get_existing_heavy_or_fallback(heavy_charge_start_animation_name)
+		return get_existing_heavy_or_fallback(heavy_charge_loop_animation_name)
+
+	return get_attack_animation_for_current_combo_step()
+
+
+func get_existing_heavy_or_fallback(animation_name: StringName) -> StringName:
+	# ถ้า asset heavy ยังไม่มี ให้ fallback เป็น attack_3 เพื่อให้ gameplay ทดสอบได้ทันที
+	if has_animation(animation_name):
+		return animation_name
+
+	if has_animation(attack_3_animation_name):
+		return attack_3_animation_name
+
+	if has_animation(attack_1_animation_name):
+		return attack_1_animation_name
+
+	if has_animation(attack_animation_name):
+		return attack_animation_name
+
+	return idle_animation_name
+
+
 func is_attack_animation_name(animation_name: StringName) -> bool:
 	return (
 		animation_name == attack_animation_name
 		or animation_name == attack_1_animation_name
 		or animation_name == attack_2_animation_name
 		or animation_name == attack_3_animation_name
+		or animation_name == heavy_charge_start_animation_name
+		or animation_name == heavy_charge_loop_animation_name
+		or animation_name == heavy_release_animation_name
+		or animation_name == heavy_recovery_hold_animation_name
 	)
 
 
@@ -428,6 +518,14 @@ func get_int_value(target: Node, property_name: String, fallback: int) -> int:
 		return fallback
 
 	return int(value)
+
+
+func get_string_value(target: Node, property_name: String, fallback: String) -> String:
+	var value = target.get(property_name)
+	if value == null:
+		return fallback
+
+	return str(value)
 
 
 func get_bool_value(target: Node, property_name: String) -> bool:
