@@ -48,7 +48,7 @@ extends Node
 @export var attack_animation_enabled: bool = true
 
 # ความเร็ว animation โจมตี หน่วยเป็น frames per second
-@export var attack_animation_speed: float = 12.0
+@export var attack_animation_speed: float = 24
 
 # ปกติท่าโจมตีไม่ควรวน loop เพราะเป็น action สั้น ๆ หนึ่งครั้ง
 @export var attack_animation_loop: bool = false
