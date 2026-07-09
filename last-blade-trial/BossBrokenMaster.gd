@@ -134,7 +134,7 @@ signal enemy_attack_hint_changed(hint_text: String, hint_color: Color)
 @export var posture_damage_from_parry: float = 35.0
 
 # ระยะเวลาที่บอสเสียสมดุลหนักหลัง Posture หมด
-@export var posture_break_time: float = 1.35
+@export var posture_break_time: float = 3.5
 
 # ตัวคูณดาเมจเมื่อผู้เล่นโจมตีตอนบอส Posture Broken
 @export var critical_damage_multiplier: float = 3.0
