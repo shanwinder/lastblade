@@ -35,9 +35,9 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("7_vqepc")
 }],
-"loop": false,
+"loop": 0,
 "name": &"heavy_slash",
-"speed": 4.5
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -58,7 +58,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("13_y3w3q")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 6.0
 }]
@@ -76,13 +76,12 @@ size = Vector2(75, 50)
 script = ExtResource("1_n16ad")
 
 [node name="Sprite2D" type="AnimatedSprite2D" parent="." unique_id=1438483460]
-visible = true
 z_index = 10
 scale = Vector2(0.55, 0.55)
 sprite_frames = SubResource("SpriteFrames_u4lie")
-animation = &"idle"
+animation = &"heavy_slash"
 autoplay = "idle"
-offset = Vector2(0, -225)
+offset = Vector2(0, -75)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1461511437]
 shape = SubResource("RectangleShape2D_ifqgg")
