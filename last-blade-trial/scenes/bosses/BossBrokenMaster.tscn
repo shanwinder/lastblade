@@ -81,7 +81,7 @@ scale = Vector2(0.55, 0.55)
 sprite_frames = SubResource("SpriteFrames_u4lie")
 animation = &"heavy_slash"
 autoplay = "idle"
-offset = Vector2(0, -75)
+offset = Vector2(0, -125)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1461511437]
 shape = SubResource("RectangleShape2D_ifqgg")
