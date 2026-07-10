@@ -51,6 +51,20 @@ func _ready() -> void:
 	# สร้างข้อความเตือนเหนือหัวบอส
 	create_boss_hint_label()
 
+	# บังคับเปิดภาพบอส เพราะ Scene ก่อนหน้านี้เคยบันทึก visible = false
+	# และ _ready() ของ patch นี้ทำงานแทน _ready() ใน BossBrokenMaster.gd
+	if is_instance_valid(sprite_2d):
+		sprite_2d.visible = true
+		sprite_2d.modulate = Color.WHITE
+		play_boss_animation(&"idle", true)
+		print(
+			"Boss visual ready. Visible =", sprite_2d.visible,
+			" Animation =", sprite_2d.animation,
+			" Frame count =", sprite_2d.sprite_frames.get_frame_count(&"idle") if sprite_2d.sprite_frames != null and sprite_2d.sprite_frames.has_animation(&"idle") else 0
+		)
+	else:
+		print("Boss ERROR: AnimatedSprite2D node Sprite2D not found")
+
 	print("Boss Broken Master ready. HP =", current_hp)
 
 	# แจ้ง HUD ให้แสดงค่าบอสเริ่มต้น
