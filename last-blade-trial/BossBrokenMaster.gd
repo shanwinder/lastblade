@@ -520,7 +520,11 @@ func _physics_process(_delta: float) -> void:
 	# หันหน้าเข้าหา Player
 	if distance_to_player != 0.0:
 		facing_direction = int(sign(distance_to_player))
-		sprite_2d.flip_h = facing_direction < 0
+		
+		# ภาพต้นฉบับของบอสหันซ้ายอยู่แล้ว
+		# จึงกลับภาพเฉพาะตอนที่บอสต้องหันไปทางขวา
+		sprite_2d.flip_h = facing_direction > 0
+		
 		attack_hitbox.position.x = attack_hitbox_offset_x * float(facing_direction)
 
 	# ถ้าอยู่ไกล ให้เดินเข้าหา Player

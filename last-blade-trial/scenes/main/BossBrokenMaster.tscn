@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dtpt6yeinedsj" path="res://arena_manager.gd" id="1_tedvd"]
 [ext_resource type="Script" uid="uid://d18bcfkduq8oo" path="res://player_nameless_sprite_patch.gd" id="2_mknfb"]
 [ext_resource type="Texture2D" uid="uid://bgrqc1yxbhdj1" path="res://assets/sprites/player/nameless_blade/frames/idle/nameless_idle_000_0001.png" id="3_5ds0b"]
-[ext_resource type="PackedScene" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
+[ext_resource type="PackedScene" uid="uid://b5wcq78r58bhr" path="res://scenes/bosses/BossBrokenMaster.tscn" id="4_tedvd"]
 [ext_resource type="Script" uid="uid://bt2ed6cdpjs5a" path="res://hud_player_lookup_patch.gd" id="5_7w3th"]
 [ext_resource type="Script" uid="uid://bfcpuai2nb0xm" path="res://game_camera.gd" id="6_jpax5"]
 [ext_resource type="Script" uid="uid://b7nglal3l1o4a" path="res://reference_patches/combat_decay_reference_patch.gd" id="7_decay"]
