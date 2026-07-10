@@ -35,7 +35,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("7_vqepc")
 }],
-"loop": 0,
+"loop": false,
 "name": &"heavy_slash",
 "speed": 4.5
 }, {
@@ -58,7 +58,7 @@ animations = [{
 "duration": 1.0,
 "texture": ExtResource("13_y3w3q")
 }],
-"loop": 1,
+"loop": true,
 "name": &"idle",
 "speed": 6.0
 }]
@@ -76,10 +76,11 @@ size = Vector2(75, 50)
 script = ExtResource("1_n16ad")
 
 [node name="Sprite2D" type="AnimatedSprite2D" parent="." unique_id=1438483460]
-visible = false
+visible = true
+z_index = 10
 scale = Vector2(0.55, 0.55)
 sprite_frames = SubResource("SpriteFrames_u4lie")
-animation = &"heavy_slash"
+animation = &"idle"
 autoplay = "idle"
 offset = Vector2(0, -225)
 
