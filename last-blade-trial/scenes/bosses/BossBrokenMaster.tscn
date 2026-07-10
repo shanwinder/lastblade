@@ -1,7 +1,67 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b5wcq78r58bhr"]
 
-[ext_resource type="Script" path="res://boss_broken_master_player_lookup_patch.gd" id="1_n16ad"]
-[ext_resource type="Texture2D" path="res://assets/sprites/boss_broken_master_silhouette.svg" id="2_5ids1"]
+[ext_resource type="Script" uid="uid://b44htb8adej26" path="res://boss_broken_master_player_lookup_patch.gd" id="1_n16ad"]
+[ext_resource type="Texture2D" uid="uid://dq7a1humqrec8" path="res://assets/sprites/bosses/broken_master/frames/heavy_slash/heavy1_0001.png" id="2_4jhqb"]
+[ext_resource type="Texture2D" uid="uid://ddw58v7jlew6f" path="res://assets/sprites/bosses/broken_master/frames/idle/idle1_0001.png" id="2_n16ad"]
+[ext_resource type="Texture2D" uid="uid://cgg0l3k3i7ki8" path="res://assets/sprites/bosses/broken_master/frames/heavy_slash/heavy1_0002.png" id="3_a6tdg"]
+[ext_resource type="Texture2D" uid="uid://cqcxbgnwj4wxr" path="res://assets/sprites/bosses/broken_master/frames/heavy_slash/heavy1_0003.png" id="4_4kibd"]
+[ext_resource type="Texture2D" uid="uid://32sjujjndmmf" path="res://assets/sprites/bosses/broken_master/frames/heavy_slash/heavy1_0004.png" id="5_s13k4"]
+[ext_resource type="Texture2D" uid="uid://dgt4pbejw63uu" path="res://assets/sprites/bosses/broken_master/frames/heavy_slash/heavy1_0005.png" id="6_m758l"]
+[ext_resource type="Texture2D" uid="uid://0ou0bf01wxra" path="res://assets/sprites/bosses/broken_master/frames/heavy_slash/heavy1_0006.png" id="7_vqepc"]
+[ext_resource type="Texture2D" uid="uid://blsperefxw52o" path="res://assets/sprites/bosses/broken_master/frames/idle/idle1_0002.png" id="9_quwt8"]
+[ext_resource type="Texture2D" uid="uid://cyd5a0inbwbxx" path="res://assets/sprites/bosses/broken_master/frames/idle/idle1_0003.png" id="10_0md0c"]
+[ext_resource type="Texture2D" uid="uid://dgsaijjfk6ne2" path="res://assets/sprites/bosses/broken_master/frames/idle/idle1_0004.png" id="11_5o3sv"]
+[ext_resource type="Texture2D" uid="uid://dpmjwqlrt1ydd" path="res://assets/sprites/bosses/broken_master/frames/idle/idle1_0005.png" id="12_r4pta"]
+[ext_resource type="Texture2D" uid="uid://65qms8xkpf4p" path="res://assets/sprites/bosses/broken_master/frames/idle/idle1_0006.png" id="13_y3w3q"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_u4lie"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_4jhqb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_a6tdg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_4kibd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_s13k4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_m758l")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_vqepc")
+}],
+"loop": 0,
+"name": &"heavy_slash",
+"speed": 4.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2_n16ad")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_quwt8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_0md0c")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_5o3sv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_r4pta")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_y3w3q")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 6.0
+}]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ifqgg"]
 size = Vector2(64, 64)
@@ -12,24 +72,28 @@ size = Vector2(70, 70)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_5q3e4"]
 size = Vector2(75, 50)
 
-[node name="BossBrokenMaster" type="CharacterBody2D"]
+[node name="BossBrokenMaster" type="CharacterBody2D" unique_id=857012104]
 script = ExtResource("1_n16ad")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="Sprite2D" type="AnimatedSprite2D" parent="." unique_id=1438483460]
+visible = false
 scale = Vector2(0.55, 0.55)
-texture = ExtResource("2_5ids1")
+sprite_frames = SubResource("SpriteFrames_u4lie")
+animation = &"heavy_slash"
+autoplay = "idle"
+offset = Vector2(0, -225)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1461511437]
 shape = SubResource("RectangleShape2D_ifqgg")
 
-[node name="Hurtbox" type="Area2D" parent="."]
+[node name="Hurtbox" type="Area2D" parent="." unique_id=784255797]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1676250454]
 shape = SubResource("RectangleShape2D_g58pq")
 
-[node name="AttackHitbox" type="Area2D" parent="."]
+[node name="AttackHitbox" type="Area2D" parent="." unique_id=1627540822]
 position = Vector2(-55, 0)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox" unique_id=1774289166]
 shape = SubResource("RectangleShape2D_5q3e4")
 disabled = true

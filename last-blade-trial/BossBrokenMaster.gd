@@ -305,8 +305,9 @@ var arena_manager: Node = null
 # อ้างอิง Player ในฉาก
 var player: CharacterBody2D = null
 
-# Sprite2D ใช้แสดงบอสและเปลี่ยนสี feedback
-@onready var sprite_2d: Sprite2D = $Sprite2D
+# AnimatedSprite2D ใช้แสดง animation ของบอส
+# ยังคงชื่อ Node เป็น Sprite2D เพื่อไม่ให้ NodePath เดิมเสีย
+@onready var sprite_2d: AnimatedSprite2D = $Sprite2D
 
 # AttackHitbox ของบอส
 @onready var attack_hitbox: Area2D = $AttackHitbox
@@ -463,7 +464,26 @@ func _ready() -> void:
 
 	# แจ้ง HUD ให้แสดงค่าบอสเริ่มต้น
 	emit_enemy_stats()
+	
+	# เริ่มต้นด้วย animation ยืน idle
+	play_boss_animation(&"idle")
 
+func play_boss_animation(animation_name: StringName, restart: bool = false) -> void:
+	# ป้องกัน error ถ้า Node ภาพยังไม่พร้อม
+	if not is_instance_valid(sprite_2d):
+		return
+
+	# ป้องกัน error ถ้ายังไม่ได้สร้าง SpriteFrames
+	if sprite_2d.sprite_frames == null:
+		return
+
+	# ถ้าไม่มี animation ชื่อนี้ ให้หยุดโดยไม่ทำให้เกมพัง
+	if not sprite_2d.sprite_frames.has_animation(animation_name):
+		return
+
+	# เล่นใหม่เมื่อเปลี่ยนท่า หรือเมื่อสั่ง restart
+	if restart or sprite_2d.animation != animation_name or not sprite_2d.is_playing():
+		sprite_2d.play(animation_name)
 
 func _physics_process(_delta: float) -> void:
 	# ถ้าบอสตายแล้ว ไม่ต้องทำ AI ต่อ
@@ -763,6 +783,13 @@ func attack() -> void:
 	var my_attack_id: int = attack_sequence_id
 
 	print("Boss Wind-up:", current_attack_name)
+	
+	# Heavy Slash และ Heavy Dash Slash ใช้ sprite animation ชุดเดียวกัน
+	if current_attack_name == "heavy_slash" or current_attack_name == "heavy_dash_slash":
+		play_boss_animation(&"heavy_slash", true)
+	else:
+		# ท่าที่ยังไม่มี asset จริงให้ใช้ idle เป็น fallback ไปก่อน
+		play_boss_animation(&"idle")
 
 	# แสดง hint เหนือหัวบอส
 	emit_attack_hint()
@@ -849,6 +876,9 @@ func attack() -> void:
 
 	# จบสถานะโจมตี
 	is_attacking = false
+	
+	# กลับไปยืน idle หลังจบท่า
+	play_boss_animation(&"idle")
 
 	# รอ cooldown ก่อนโจมตีครั้งต่อไป
 	await get_tree().create_timer(current_attack_cooldown).timeout
@@ -900,6 +930,9 @@ func perform_heavy_dash_slash(my_attack_id: int) -> void:
 			return
 
 	is_attacking = false
+	
+	# กลับไปยืน idle หลังพุ่งฟาดเสร็จ
+	play_boss_animation(&"idle")
 
 	await get_tree().create_timer(current_attack_cooldown).timeout
 
